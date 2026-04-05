@@ -20,9 +20,16 @@ describe('formatter registry', () => {
 		'app.bsky.graph.list',
 		'app.bsky.graph.listitem',
 		'app.bsky.labeler.service',
-		'com.whtwnd.blog.entry',
+		'app.offprint.publication',
+		'app.offprint.document.article',
+		'blog.pckt.publication',
 		'blue.linkat.entry',
 		'events.smokesignal.calendar.event',
+		'link.woosh.linkPage',
+		'pub.leaflet.publication',
+		'pub.leaflet.document',
+		'site.standard.publication',
+		'site.standard.document',
 	];
 
 	it.each(expectedCollections)('has a formatter registered for %s', (collection) => {
