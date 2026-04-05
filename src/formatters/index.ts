@@ -7,6 +7,7 @@ import './blog.pckt';
 import './blue.linkat';
 import './events.smokesignal.calendar';
 import './link.woosh';
+import './place.wisp';
 import './pub.leaflet';
 import './site.standard';
 

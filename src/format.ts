@@ -1,29 +1,22 @@
 import { getFormatter } from './formatters';
 import type { AtpRecord, RecordMeta } from './types';
 
-export function genericMd(value: unknown, depth = 0): string {
-	if (value === null || value === undefined) return '*null*';
-	if (typeof value !== 'object') return String(value);
+export function genericMd(value: unknown): string {
+	const cleaned = stripType(value ?? null);
+	return '```json\n' + JSON.stringify(cleaned, null, 2) + '\n```';
+}
 
-	if (Array.isArray(value)) {
-		if (!value.length) return '*empty*';
-		return value.map((v) => `- ${genericMd(v, depth + 1)}`).join('\n');
+function stripType(value: unknown): unknown {
+	if (value === null || value === undefined || typeof value !== 'object') return value;
+	if (Array.isArray(value)) return value.map(stripType);
+
+	const obj = value as Record<string, unknown>;
+	const result: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(obj)) {
+		if (k === '$type') continue;
+		result[k] = stripType(v);
 	}
-
-	return Object.entries(value as Record<string, unknown>)
-		.filter(([k]) => k !== '$type')
-		.map(([k, v]) => {
-			if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-				const inner = genericMd(v, depth + 1)
-					.split('\n')
-					.map((l) => '  ' + l)
-					.join('\n');
-				return depth === 0 ? `**${k}:**\n${inner}` : `*${k}:*\n${inner}`;
-			}
-			const label = depth === 0 ? `**${k}:**` : `*${k}:*`;
-			return `${label} ${genericMd(v, depth + 1)}`;
-		})
-		.join('\n');
+	return result;
 }
 
 export function formatRecord(record: AtpRecord, meta: RecordMeta): string {
