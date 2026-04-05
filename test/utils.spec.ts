@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate } from '../src/utils';
+import { formatDate, extFromMime } from '../src/utils';
 
 describe('formatDate', () => {
 	it('formats a valid ISO date string', () => {
@@ -22,5 +22,26 @@ describe('formatDate', () => {
 
 	it('returns Unknown for empty string', () => {
 		expect(formatDate('')).toBe('Unknown');
+	});
+});
+
+describe('extFromMime', () => {
+	it('returns extension for known mime types', () => {
+		expect(extFromMime('image/png')).toBe('.png');
+		expect(extFromMime('image/jpeg')).toBe('.jpg');
+		expect(extFromMime('text/html')).toBe('.html');
+		expect(extFromMime('application/json')).toBe('.json');
+		expect(extFromMime('application/pdf')).toBe('.pdf');
+		expect(extFromMime('video/mp4')).toBe('.mp4');
+	});
+
+	it('returns empty string for unknown mime types', () => {
+		expect(extFromMime('application/x-custom')).toBe('');
+	});
+
+	it('returns empty string for non-string values', () => {
+		expect(extFromMime(undefined)).toBe('');
+		expect(extFromMime(null)).toBe('');
+		expect(extFromMime(123)).toBe('');
 	});
 });
