@@ -154,6 +154,12 @@ Fetch a single record by rkey.
 
 ---
 
+## Contributing
+
+Missing a collection formatter? [Open an issue](https://tangled.org/socialde.pt/atproto.md/issues) or [contribute a formatter](https://tangled.org/socialde.pt/atproto.md/) — adding one is just a few lines of TypeScript.
+
+---
+
 *Data fetched directly from AT Protocol PDSes via \`com.atproto.repo.*\`*
 *No authentication. Public data only.*
 `;
