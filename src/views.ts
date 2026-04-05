@@ -149,6 +149,7 @@ Fetch a single record by rkey.
 
 ## For LLM agents
 
+- **[\`/skill.md\`](${origin}/skill.md)** — Full agent skill sheet with usage triggers, examples, and endpoint reference
 - **[\`/llms.txt\`](${origin}/llms.txt)** — Structured API summary for LLM discovery
 - **\`/mcp\`** — MCP server endpoint. Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
 

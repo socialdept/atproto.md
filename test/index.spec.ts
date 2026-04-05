@@ -128,15 +128,42 @@ describe('index page content', () => {
 		const body = await (await workerFetch('http://example.com/')).text();
 		expect(body).toContain('app.bsky.feed.post');
 		expect(body).toContain('app.bsky.actor.profile');
-		expect(body).toContain('com.whtwnd.blog.entry');
+		expect(body).toContain('site.standard.publication');
 		expect(body).toContain('blue.linkat.entry');
 		expect(body).toContain('events.smokesignal.calendar.event');
 	});
 
-	it('mentions llms.txt and MCP', async () => {
+	it('mentions skill.md, llms.txt, and MCP', async () => {
 		const body = await (await workerFetch('http://example.com/')).text();
+		expect(body).toContain('/skill.md');
 		expect(body).toContain('/llms.txt');
 		expect(body).toContain('/mcp');
+	});
+});
+
+describe('/skill.md', () => {
+	it('returns the skill instruction sheet', async () => {
+		const res = await workerFetch('http://example.com/skill.md');
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('text/markdown; charset=utf-8');
+
+		const body = await res.text();
+		expect(body).toContain('# atproto-md');
+		expect(body).toContain('## When to use this skill');
+		expect(body).toContain('## Endpoint reference');
+	});
+
+	it('uses the request origin in URLs', async () => {
+		const body = await (await workerFetch('https://atproto.md/skill.md')).text();
+		expect(body).toContain('https://atproto.md/at://');
+		expect(body).toContain('https://atproto.md/resolve/');
+	});
+
+	it('includes curl examples', async () => {
+		const body = await (await workerFetch('http://example.com/skill.md')).text();
+		expect(body).toContain('curl http://example.com/resolve/bsky.app');
+		expect(body).toContain('curl http://example.com/at://bsky.app');
 	});
 });
 
