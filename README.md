@@ -83,7 +83,12 @@ Known collection types get structured rendering. Everything else falls back to a
 | `app.bsky.graph.follow` / `block` / `list` / `listitem`    | Subjects, timestamps               |
 | `app.bsky.feed.like` / `repost` / `generator`              | Subjects, timestamps               |
 | `app.bsky.labeler.service`                                  | Label policies                     |
-| `com.whtwnd.blog.entry`                                     | Title, full markdown content       |
+| `site.standard.publication`                                 | Name, URL, description             |
+| `site.standard.document`                                    | Title, content, published date     |
+| `pub.leaflet.publication` / `document`                      | Name, URL, content from pages      |
+| `app.offprint.publication` / `document.article`             | References to standard records     |
+| `blog.pckt.publication`                                     | Reference to standard record       |
+| `link.woosh.linkPage`                                       | Description, labeled link sections |
 | `blue.linkat.entry`                                         | Title, URL, description            |
 | `events.smokesignal.calendar.event`                         | Name, dates, location              |
 | *Any other collection*                                      | Generic key-value markdown         |
