@@ -1,7 +1,7 @@
 import { createMcpHandler } from 'agents/mcp';
 import { CORS, errMd, mdResponse } from './http';
 import { resolveActor } from './identity';
-import { llmsTxt } from './llms';
+import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
 import { pdsGet } from './pds';
 import type { AtpRecord } from './types';
@@ -31,6 +31,7 @@ export default {
 			if (!segments.length) return mdResponse(indexPage(origin));
 
 			if (segments[0] === 'llms.txt') return mdResponse(llmsTxt(origin));
+			if (segments[0] === 'skill.md') return mdResponse(skillMd(origin));
 
 			if (segments[0] === 'resolve') {
 				const input = segments.slice(1).join('/');

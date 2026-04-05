@@ -22,5 +22,124 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 ## Install as MCP server
 
 - [MCP endpoint](${origin}/mcp): Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
+- [Skill instructions](${origin}/skill.md): Full agent skill sheet with usage triggers, examples, and endpoint reference
+`;
+}
+
+export function skillMd(origin: string): string {
+	return `# atproto-md — AT Protocol Markdown API
+
+Fetch any public AT Protocol data as clean Markdown. No auth, no API key required.
+Works with **any collection on any PDS** — not just Bluesky.
+Base URL: ${origin}
+
+## When to use this skill
+
+Use this API whenever the user asks to:
+- Browse an AT Protocol repo or list someone's collections
+- Read records from any AT Protocol collection (posts, profiles, follows, publications, etc.)
+- Resolve a handle to a DID, or inspect someone's DID document and PDS
+- Explore third-party lexicons (Standard.site, Leaflet, Offprint, Linkat, Woosh, Smoke Signal, etc.)
+- Fetch content from any PDS on the AT Protocol network
+- Dereference an \`at://\` URI
+
+## How to call it
+
+All endpoints return \`Content-Type: text/markdown\`. Just fetch the URL.
+Open CORS — works from browser, server, or CLI.
+
+\`\`\`bash
+# Resolve a handle or DID
+curl ${origin}/resolve/bsky.app
+
+# Browse a repo (list all collections)
+curl ${origin}/at://bsky.app
+
+# List records in a collection
+curl "${origin}/at://bsky.app/app.bsky.feed.post?limit=5"
+
+# Fetch a single record
+curl ${origin}/at://bsky.app/app.bsky.actor.profile/self
+\`\`\`
+
+## Endpoint reference
+
+### Resolve identity
+\`\`\`
+GET ${origin}/resolve/{actor}
+\`\`\`
+Full identity chain: handle → DID → DID document → PDS endpoint.
+Returns the DID, all \`alsoKnownAs\` handles, services, and verification keys.
+
+### Repo overview
+\`\`\`
+GET ${origin}/at://{actor}
+\`\`\`
+Lists all collections present in the actor's repo with links to browse each one.
+
+### List records
+\`\`\`
+GET ${origin}/at://{actor}/{collection}[?limit=&cursor=&reverse=]
+\`\`\`
+Paginated list of records in any collection. Unknown collections are rendered as generic key-value markdown.
+
+### Single record
+\`\`\`
+GET ${origin}/at://{actor}/{collection}/{rkey}
+\`\`\`
+Fetch a single record by its record key.
+
+## AT URI structure
+
+URLs accept \`at://\` URIs directly in the path:
+
+\`\`\`
+${origin}/at://{actor}                          → repo overview
+${origin}/at://{actor}/{collection}              → list records
+${origin}/at://{actor}/{collection}/{rkey}       → single record
+\`\`\`
+
+## Parameter notes
+
+- **{actor}** — a handle (\`alice.bsky.social\`, \`bsky.app\`, \`aka.dad\`) or DID (\`did:plc:...\`, \`did:web:...\`)
+- **{collection}** — any AT Protocol collection NSID (e.g. \`app.bsky.feed.post\`, \`site.standard.document\`, \`link.woosh.linkPage\`)
+- **{rkey}** — the record key (e.g. \`self\`, \`3jui7kd54zh2y\`)
+- **limit** — integer 1–100, default 25
+- **cursor** — opaque pagination token from a previous response
+- **reverse** — \`true\` for oldest-first ordering
+
+## Response format
+
+All responses are plain Markdown text:
+- Records include collection type, AT URI, and formatted content
+- Known collections get rich formatting (posts with embeds, profiles with bios, publications with URLs, etc.)
+- Unknown collections are rendered as generic key-value markdown — nothing is unreadable
+- Paginated responses include a cursor for the next page
+- Errors return markdown with status code and message
+
+## Rich formatting for known collections
+
+| Collection                                      | Notes                              |
+| ----------------------------------------------- | ---------------------------------- |
+| \`app.bsky.feed.post\`                            | Text, embeds, reply context        |
+| \`app.bsky.actor.profile\`                        | Bio, display name                  |
+| \`app.bsky.graph.follow/block/list/listitem\`     | Subjects, timestamps               |
+| \`app.bsky.feed.like/repost/generator\`           | Subjects, timestamps               |
+| \`app.bsky.labeler.service\`                      | Label policies                     |
+| \`site.standard.publication\`                     | Name, URL, description             |
+| \`site.standard.document\`                        | Title, content, published date     |
+| \`pub.leaflet.publication/document\`              | Name, URL, content from pages      |
+| \`app.offprint.publication/document.article\`     | References to standard records     |
+| \`blog.pckt.publication\`                         | Reference to standard record       |
+| \`link.woosh.linkPage\`                           | Description, labeled link sections |
+| \`blue.linkat.entry\`                             | Title, URL, description            |
+| \`events.smokesignal.calendar.event\`             | Name, dates, location              |
+| *Any other collection*                          | Generic key-value markdown         |
+
+## Full reference
+
+${origin}/llms.txt — structured API summary for LLM discovery
+${origin}/mcp — MCP server endpoint (install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`)
+${origin}/ — interactive homepage
 `;
 }
