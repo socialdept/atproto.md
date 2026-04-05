@@ -26,6 +26,7 @@ describe('formatter registry', () => {
 		'blue.linkat.entry',
 		'events.smokesignal.calendar.event',
 		'link.woosh.linkPage',
+		'place.wisp.fs',
 		'pub.leaflet.publication',
 		'pub.leaflet.document',
 		'site.standard.publication',
