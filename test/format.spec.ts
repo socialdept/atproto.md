@@ -5,41 +5,47 @@ import { genericMd, formatRecord } from '../src/format';
 import '../src/formatters';
 
 describe('genericMd', () => {
-	it('renders null and undefined', () => {
-		expect(genericMd(null)).toBe('*null*');
-		expect(genericMd(undefined)).toBe('*null*');
+	it('renders null and undefined as JSON', () => {
+		expect(genericMd(null)).toContain('null');
+		expect(genericMd(undefined)).toContain('null');
 	});
 
-	it('renders primitives as strings', () => {
-		expect(genericMd('hello')).toBe('hello');
-		expect(genericMd(42)).toBe('42');
-		expect(genericMd(true)).toBe('true');
+	it('renders primitives as JSON', () => {
+		expect(genericMd('hello')).toContain('"hello"');
+		expect(genericMd(42)).toContain('42');
+		expect(genericMd(true)).toContain('true');
 	});
 
-	it('renders empty array', () => {
-		expect(genericMd([])).toBe('*empty*');
+	it('renders arrays as JSON code blocks', () => {
+		const result = genericMd(['a', 'b']);
+		expect(result).toContain('```json');
+		expect(result).toContain('"a"');
+		expect(result).toContain('"b"');
 	});
 
-	it('renders flat array as list', () => {
-		expect(genericMd(['a', 'b'])).toBe('- a\n- b');
-	});
-
-	it('renders flat object with bold keys at depth 0', () => {
+	it('renders objects as JSON code blocks', () => {
 		const result = genericMd({ name: 'Alice', age: 30 });
-		expect(result).toContain('**name:** Alice');
-		expect(result).toContain('**age:** 30');
-	});
-
-	it('renders nested object with italic keys at depth > 0', () => {
-		const result = genericMd({ outer: { inner: 'value' } });
-		expect(result).toContain('**outer:**');
-		expect(result).toContain('*inner:* value');
+		expect(result).toContain('```json');
+		expect(result).toContain('"name": "Alice"');
+		expect(result).toContain('"age": 30');
 	});
 
 	it('strips $type keys', () => {
 		const result = genericMd({ $type: 'app.bsky.feed.post', text: 'hello' });
 		expect(result).not.toContain('$type');
-		expect(result).toContain('**text:** hello');
+		expect(result).toContain('"text": "hello"');
+	});
+
+	it('strips nested $type keys', () => {
+		const result = genericMd({ outer: { $type: 'some.type', value: 1 } });
+		expect(result).not.toContain('$type');
+		expect(result).toContain('"value": 1');
+	});
+
+	it('produces valid JSON inside the code block', () => {
+		const result = genericMd({ foo: 'bar', nested: { baz: [1, 2] } });
+		const json = result.replace(/```json\n/, '').replace(/\n```/, '');
+		expect(() => JSON.parse(json)).not.toThrow();
 	});
 });
 
@@ -68,11 +74,12 @@ describe('formatRecord', () => {
 		expect(result).toContain('Hello world');
 	});
 
-	it('falls back to genericMd for unknown collections', () => {
+	it('falls back to JSON code block for unknown collections', () => {
 		const unknownMeta = { ...meta, collection: 'com.example.unknown' };
 		const record = { uri: meta.uri, value: { foo: 'bar' } };
 		const result = formatRecord(record, unknownMeta);
 
-		expect(result).toContain('**foo:** bar');
+		expect(result).toContain('```json');
+		expect(result).toContain('"foo": "bar"');
 	});
 });
