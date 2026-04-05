@@ -142,6 +142,13 @@ Fetch a single record by rkey.
 
 ---
 
+## For LLM agents
+
+- **[\`/llms.txt\`](${origin}/llms.txt)** — Structured API summary for LLM discovery
+- **\`/mcp\`** — MCP server endpoint. Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
+
+---
+
 *Data fetched directly from AT Protocol PDSes via \`com.atproto.repo.*\`*
 *No authentication. Public data only.*
 `;
