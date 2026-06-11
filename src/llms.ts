@@ -11,6 +11,8 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 - [Repo overview](${origin}/at://{actor}): Lists all collections in an actor's repo
 - [List records](${origin}/at://{actor}/{collection}): Paginated records from any collection. Params: limit (default 25, max 100), cursor, reverse
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): Fetch a single record by its rkey
+- [Discover repos by collection](${origin}/discover/{collection}): Every repo on the network with records in a collection NSID. Params: limit (default 100, max 2000), cursor
+- [Backlinks](${origin}/backlinks/{at-uri-or-did-or-url}): Who links to a target (likes, reposts, replies, follows, any lexicon). Summary of sources by default; add source={collection:path} to list linking records
 
 ## Examples
 
@@ -18,11 +20,21 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 - [Browse repo](${origin}/at://bsky.app)
 - [List posts](${origin}/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post?limit=5)
 - [Get profile](${origin}/at://bsky.app/app.bsky.actor.profile/self)
+- [Discover site.standard.document repos](${origin}/discover/site.standard.document)
+- [Backlinks to a post](${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lgwdn7vd722r)
 
 ## Install as MCP server
 
 - [MCP endpoint](${origin}/mcp): Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
 - [Skill instructions](${origin}/skill.md): Full agent skill sheet with usage triggers, examples, and endpoint reference
+
+## Install as a Claude Code command
+
+Save the skill sheet as a slash command (invoke with \`/atproto\`):
+
+\`\`\`bash
+curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
+\`\`\`
 `;
 }
 
@@ -42,6 +54,8 @@ Use this API whenever the user asks to:
 - Explore third-party lexicons (Standard.site, Leaflet, Offprint, Linkat, Woosh, Smoke Signal, etc.)
 - Fetch content from any PDS on the AT Protocol network
 - Dereference an \`at://\` URI
+- Discover every repo on the network using a given collection/lexicon (e.g. all repos with \`site.standard.document\`)
+- Find who liked, reposted, replied to, follows, or otherwise links to a record, account, or URL (backlinks)
 
 ## How to call it
 
@@ -60,6 +74,15 @@ curl "${origin}/at://bsky.app/app.bsky.feed.post?limit=5"
 
 # Fetch a single record
 curl ${origin}/at://bsky.app/app.bsky.actor.profile/self
+
+# Discover every repo on the network with a given collection
+curl ${origin}/discover/site.standard.document
+
+# Find backlinks to a record (summary of all link sources)
+curl ${origin}/backlinks/at://bsky.app/app.bsky.feed.post/3lgwdn7vd722r
+
+# List the actual liking records
+curl "${origin}/backlinks/at://bsky.app/app.bsky.feed.post/3lgwdn7vd722r?source=app.bsky.feed.like:subject.uri"
 \`\`\`
 
 ## Endpoint reference
@@ -89,7 +112,23 @@ GET ${origin}/at://{actor}/{collection}/{rkey}
 \`\`\`
 Fetch a single record by its record key.
 
-## AT URI structure
+### Discover repos by collection
+\`\`\`
+GET ${origin}/discover/{collection}[?limit=&cursor=]
+\`\`\`
+Every repo (DID) on the network with records in the given collection NSID. Network-wide,
+via the relay's \`com.atproto.sync.listReposByCollection\`. Use it to find all users of a
+lexicon — e.g. \`/discover/site.standard.document\`. Cursor-paginated (limit default 100, max 2000).
+Each result links straight into that repo's records for the collection.
+
+### Backlinks
+\`\`\`
+GET ${origin}/backlinks/{at-uri-or-did-or-url}[?source=&limit=&cursor=]
+\`\`\`
+Records across the network that link to a target — likes, reposts, replies, follows, quotes,
+or any custom lexicon. Without \`source\`, returns a summary table of every link source with
+record + distinct-DID counts. With \`source={collection:path}\` (e.g. \`app.bsky.feed.like:subject.uri\`),
+lists the actual linking records, cursor-paginated. Indexed by Constellation (microcosm.blue).
 
 URLs accept \`at://\` URIs directly in the path:
 
@@ -135,6 +174,14 @@ All responses are plain Markdown text:
 | \`blue.linkat.entry\`                             | Title, URL, description            |
 | \`events.smokesignal.calendar.event\`             | Name, dates, location              |
 | *Any other collection*                          | Generic key-value markdown         |
+
+## Install as a Claude Code command
+
+Save this skill sheet as a slash command (then invoke it with \`/atproto\`):
+
+\`\`\`bash
+curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
+\`\`\`
 
 ## Full reference
 

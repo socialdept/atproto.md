@@ -1,9 +1,19 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { getBacklinks, getLinkSources } from './constellation';
 import { resolveActor } from './identity';
 import { pdsGet } from './pds';
+import { listReposByCollection } from './relay';
 import type { AtpRecord } from './types';
-import { formatRecordList, formatRepo, formatResolution, formatSingleRecord } from './views';
+import {
+	formatBacklinkRecords,
+	formatBacklinkSources,
+	formatDiscovery,
+	formatRecordList,
+	formatRepo,
+	formatResolution,
+	formatSingleRecord,
+} from './views';
 
 export function createMcpServer(origin: string): McpServer {
 	const server = new McpServer({
@@ -72,6 +82,42 @@ export function createMcpServer(origin: string): McpServer {
 				rkey,
 			});
 			return { content: [{ type: 'text', text: formatSingleRecord(actor, collection, rkey, data as unknown as AtpRecord) }] };
+		},
+	);
+
+	server.tool(
+		'discover_repos_by_collection',
+		'Discover every repo (DID) on the AT Protocol network that has records in a given collection NSID. Useful for finding all users of a third-party lexicon, e.g. site.standard.document. Network-wide, via the relay.',
+		{
+			collection: z.string().describe('Collection NSID (e.g. site.standard.document, app.bsky.feed.post)'),
+			limit: z.number().min(1).max(2000).default(100).describe('Repos per page'),
+			cursor: z.string().optional().describe('Pagination cursor from a previous response'),
+		},
+		async ({ collection, limit, cursor }) => {
+			const result = await listReposByCollection(collection, limit, cursor ?? undefined);
+			return { content: [{ type: 'text', text: formatDiscovery(origin, collection, result) }] };
+		},
+	);
+
+	server.tool(
+		'get_backlinks',
+		'Find records across the network that link to a target (an at:// URI, DID, or web URL) — likes, reposts, replies, follows, or any lexicon. Omit `source` for a summary of all link sources with counts; provide it to list the actual linking records. Indexed by microcosm Constellation.',
+		{
+			target: z.string().describe('Target to find backlinks to: an at:// URI, DID, or web URL'),
+			source: z
+				.string()
+				.optional()
+				.describe('A "collection:path" selector from the summary (e.g. app.bsky.feed.like:subject.uri). Omit for the summary of all sources.'),
+			limit: z.number().min(1).max(100).default(50).describe('Linking records per page (only used with source)'),
+			cursor: z.string().optional().describe('Pagination cursor from a previous response (only used with source)'),
+		},
+		async ({ target, source, limit, cursor }) => {
+			if (!source) {
+				const sources = await getLinkSources(target);
+				return { content: [{ type: 'text', text: formatBacklinkSources(origin, target, sources) }] };
+			}
+			const data = await getBacklinks(target, source, limit, cursor ?? undefined);
+			return { content: [{ type: 'text', text: formatBacklinkRecords(origin, target, source, data) }] };
 		},
 	);
 

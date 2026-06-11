@@ -1,4 +1,6 @@
+import type { Backlinks, LinkSource } from './constellation';
 import { formatRecord } from './format';
+import type { ReposByCollection } from './relay';
 import type { Actor, AtpRecord } from './types';
 
 export function formatRepo(origin: string, actor: Actor, collections: string[]): string {
@@ -53,6 +55,90 @@ export function formatSingleRecord(actor: Actor, collection: string, rkey: strin
 		'---',
 		`*Fetched from ${actor.pds} via \`com.atproto.repo.getRecord\`*`,
 	].join('\n');
+}
+
+export function formatDiscovery(origin: string, collection: string, result: ReposByCollection): string {
+	const { repos, cursor } = result;
+	const lines = [
+		`# Repos with \`${collection}\``,
+		'',
+		`Every repo on the network with at least one \`${collection}\` record.`,
+		`**Repos (this page):** ${repos.length}`,
+	];
+
+	if (cursor) lines.push(`**Cursor (next page):** \`${cursor}\``);
+	lines.push('');
+
+	if (!repos.length) {
+		lines.push('*No repos found for this collection.*');
+	} else {
+		for (const { did } of repos) {
+			lines.push(`- [\`${did}\`](${origin}/at://${did}/${collection})`);
+		}
+	}
+
+	if (cursor) {
+		lines.push('', `**[Next page →](${origin}/discover/${collection}?cursor=${encodeURIComponent(cursor)})**`);
+	}
+
+	lines.push('', '---', `*Discovered via \`com.atproto.sync.listReposByCollection\` on the relay*`);
+	return lines.join('\n');
+}
+
+export function formatBacklinkSources(origin: string, target: string, sources: LinkSource[]): string {
+	const totalRecords = sources.reduce((n, s) => n + s.records, 0);
+	const lines = [
+		`# Backlinks to \`${target}\``,
+		'',
+		`Records across the network that link to this target.`,
+		`**Total backlinks:** ${totalRecords} from ${sources.length} source${sources.length === 1 ? '' : 's'}`,
+		'',
+	];
+
+	if (!sources.length) {
+		lines.push('*No backlinks indexed for this target.*');
+	} else {
+		lines.push('| Source collection | Path | Records | Distinct DIDs |', '| --- | --- | --- | --- |');
+		for (const s of sources) {
+			const source = `${s.collection}:${s.path.replace(/^\./, '')}`;
+			const link = `${origin}/backlinks/${target}?source=${encodeURIComponent(source)}`;
+			lines.push(`| [\`${s.collection}\`](${link}) | \`${s.path}\` | ${s.records} | ${s.distinctDids} |`);
+		}
+	}
+
+	lines.push('', '---', `*Indexed by [Constellation](https://constellation.microcosm.blue) — microcosm.blue*`);
+	return lines.join('\n');
+}
+
+export function formatBacklinkRecords(origin: string, target: string, source: string, data: Backlinks): string {
+	const { total, records, cursor } = data;
+	const lines = [
+		`# Backlinks: \`${source}\``,
+		'',
+		`Records from \`${source}\` linking to \`${target}\`.`,
+		`**Total:** ${total} | **This page:** ${records.length}`,
+	];
+
+	if (cursor) lines.push(`**Cursor (next page):** \`${cursor}\``);
+	lines.push('');
+
+	if (!records.length) {
+		lines.push('*No linking records found.*');
+	} else {
+		for (const r of records) {
+			const uri = `at://${r.did}/${r.collection}/${r.rkey}`;
+			lines.push(`- [\`${uri}\`](${origin}/at://${r.did}/${r.collection}/${r.rkey})`);
+		}
+	}
+
+	if (cursor) {
+		const next = `${origin}/backlinks/${target}?source=${encodeURIComponent(source)}&cursor=${encodeURIComponent(cursor)}`;
+		lines.push('', `**[Next page →](${next})**`);
+	}
+
+	lines.push('', `**[← All backlink sources](${origin}/backlinks/${target})**`);
+	lines.push('', '---', `*Indexed by [Constellation](https://constellation.microcosm.blue) — microcosm.blue*`);
+	return lines.join('\n');
 }
 
 export function formatResolution(origin: string, actor: Actor): string {
@@ -124,6 +210,24 @@ List records in any collection on any PDS.
 ### \`GET ${origin}/at://{actor}/{collection}/{rkey}\`
 Fetch a single record by rkey.
 
+### \`GET ${origin}/discover/{collection}\`
+Discover every repo on the network with records in a collection — find all users
+of a lexicon, e.g. [\`/discover/site.standard.document\`](${origin}/discover/site.standard.document).
+
+**Query params:**
+- \`limit\` — Repos per page (default: 100, max: 2000)
+- \`cursor\` — Pagination cursor
+
+### \`GET ${origin}/backlinks/{at-uri-or-did-or-url}\`
+Find records across the network that link to a target — likes, reposts, replies,
+follows, quotes, or any custom lexicon. Without \`source\`, returns a summary of every
+link source with counts.
+
+**Query params:**
+- \`source\` — A \`{collection:path}\` selector (e.g. \`app.bsky.feed.like:subject.uri\`) to list the actual linking records
+- \`limit\` — Linking records per page (default: 50, max: 100)
+- \`cursor\` — Pagination cursor
+
 ---
 
 ## Rich formatting for known collections
@@ -153,6 +257,14 @@ Fetch a single record by rkey.
 - **[\`/llms.txt\`](${origin}/llms.txt)** — Structured API summary for LLM discovery
 - **\`/mcp\`** — MCP server endpoint. Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
 
+### Install as a Claude Code command
+
+Drop the skill sheet into your Claude Code commands so you can invoke it with \`/atproto\`:
+
+\`\`\`bash
+curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
+\`\`\`
+
 ---
 
 ## Contributing
@@ -162,6 +274,8 @@ Missing a collection formatter? [Open an issue](https://tangled.org/socialde.pt/
 ---
 
 *Data fetched directly from AT Protocol PDSes via \`com.atproto.repo.*\`*
+*Network discovery via the relay's \`com.atproto.sync.listReposByCollection\`.*
+*Backlinks indexed by [Constellation](https://constellation.microcosm.blue) (microcosm.blue).*
 *No authentication. Public data only.*
 `;
 }
