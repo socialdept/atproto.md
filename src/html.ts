@@ -100,7 +100,9 @@ export function faviconSvg(): string {
 }
 
 export function htmlIndexPage(origin: string): string {
-	const ogImage = `${origin}/og.svg`;
+	// Rasterized PNG (served from public/ via static assets) — SVG og:image is
+	// rejected by several scrapers (X, Facebook, iMessage). Regenerate with `npm run og`.
+	const ogImage = `${origin}/og.png`;
 	return `<!doctype html>
 <html lang="en">
 <head>
@@ -118,7 +120,7 @@ export function htmlIndexPage(origin: string): string {
 <meta property="og:description" content="${DESCRIPTION}">
 <meta property="og:url" content="${origin}/">
 <meta property="og:image" content="${ogImage}">
-<meta property="og:image:type" content="image/svg+xml">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 

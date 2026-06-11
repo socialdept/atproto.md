@@ -76,7 +76,7 @@ describe('content negotiation on /', () => {
 		expect(body).toContain('<title>atproto.md');
 		expect(body).toContain('property="og:title"');
 		expect(body).toContain('name="twitter:card"');
-		expect(body).toContain('http://example.com/og.svg');
+		expect(body).toContain('http://example.com/og.png');
 	});
 
 	it('serves HTML to link-card crawlers by User-Agent', async () => {
@@ -92,7 +92,7 @@ describe('content negotiation on /', () => {
 
 	it('uses the request origin in og:image and canonical URLs', async () => {
 		const body = await (await workerFetch('https://atproto.md/', { headers: { Accept: 'text/html' } })).text();
-		expect(body).toContain('content="https://atproto.md/og.svg"');
+		expect(body).toContain('content="https://atproto.md/og.png"');
 		expect(body).toContain('<link rel="canonical" href="https://atproto.md/">');
 	});
 });
