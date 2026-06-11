@@ -227,12 +227,12 @@ List records in any collection on any PDS.
 ### \`GET ${origin}/at://{actor}/{collection}/{rkey}\`
 Fetch a single record by rkey.
 
-### \`GET ${origin}/lexicon/{nsid}\`
+### \`GET ${origin}/lexicon/{nsid}\` &nbsp;\`NEW\`
 Resolve a Lexicon schema by its NSID via DNS-based lexicon resolution
 (\`_lexicon\` TXT → DID → \`com.atproto.lexicon.schema\` record).
 E.g. [\`/lexicon/app.bsky.feed.post\`](${origin}/lexicon/app.bsky.feed.post).
 
-### \`GET ${origin}/discover/{collection}\`
+### \`GET ${origin}/discover/{collection}\` &nbsp;\`NEW\`
 Discover every repo on the network with records in a collection — find all users
 of a lexicon, e.g. [\`/discover/site.standard.document\`](${origin}/discover/site.standard.document).
 
@@ -240,7 +240,7 @@ of a lexicon, e.g. [\`/discover/site.standard.document\`](${origin}/discover/sit
 - \`limit\` — Repos per page (default: 100, max: 2000)
 - \`cursor\` — Pagination cursor
 
-### \`GET ${origin}/backlinks/{at-uri-or-did-or-url}\`
+### \`GET ${origin}/backlinks/{at-uri-or-did-or-url}\` &nbsp;\`NEW\`
 Find records across the network that link to a target — likes, reposts, replies,
 follows, quotes, or any custom lexicon. Without \`source\`, returns a summary of every
 link source with counts.
