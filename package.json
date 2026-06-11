@@ -7,10 +7,12 @@
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "test": "vitest",
+    "og": "node scripts/gen-og.mjs",
     "cf-typegen": "wrangler types"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^25.5.2",
     "typescript": "^5.5.2",
     "vitest": "~3.2.0",
