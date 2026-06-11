@@ -1,5 +1,15 @@
 import { createMcpHandler } from 'agents/mcp';
 import { getBacklinks, getLinkSources } from './constellation';
+import {
+	faviconSvg,
+	htmlIndexPage,
+	htmlResponse,
+	ogImageSvg,
+	prefersHtml,
+	robotsTxt,
+	sitemapXml,
+	svgResponse,
+} from './html';
 import { CORS, errMd, mdResponse } from './http';
 import { resolveActor } from './identity';
 import { llmsTxt, skillMd } from './llms';
@@ -39,7 +49,20 @@ export default {
 		const segments = url.pathname.replace(/^\//, '').split('/').filter(Boolean);
 
 		try {
-			if (!segments.length) return mdResponse(indexPage(origin));
+			// Root: HTML (with SEO/OG meta) for browsers and link-card crawlers,
+			// markdown for curl and programmatic agents.
+			if (!segments.length) {
+				return prefersHtml(request) ? htmlResponse(htmlIndexPage(origin)) : mdResponse(indexPage(origin));
+			}
+
+			if (segments[0] === 'og.svg') return svgResponse(ogImageSvg());
+			if (segments[0] === 'favicon.svg' || segments[0] === 'favicon.ico') return svgResponse(faviconSvg());
+			if (segments[0] === 'robots.txt') {
+				return new Response(robotsTxt(origin), { headers: { ...CORS, 'Content-Type': 'text/plain; charset=utf-8' } });
+			}
+			if (segments[0] === 'sitemap.xml') {
+				return new Response(sitemapXml(origin), { headers: { ...CORS, 'Content-Type': 'application/xml; charset=utf-8' } });
+			}
 
 			if (segments[0] === 'llms.txt') return mdResponse(llmsTxt(origin));
 			if (segments[0] === 'skill.md') return mdResponse(skillMd(origin));

@@ -2,7 +2,7 @@
 
 A read-only, markdown-first API for the AT Protocol ecosystem, built for LLM agents and tools that consume plain text.
 
-Accepts `at://` URIs directly in the URL path and returns structured markdown — fetched from the user's actual PDS, not a Bluesky-specific AppView. Works with any collection on any PDS.
+Accepts `at://` URIs directly in the URL path and returns structured markdown — fetched from the user's actual PDS, not a Bluesky-specific AppView. Works with any collection on any PDS. Also goes network-wide: discover every repo using a given lexicon, and explore the backlinks pointing at any record, identity, or URL.
 
 ---
 
@@ -93,6 +93,15 @@ handle → DID → DID document → #atproto_pds service endpoint → com.atprot
 Data is fetched directly from the user's PDS via `com.atproto.repo.listRecords` and `com.atproto.repo.getRecord`. This means it works for self-hosters, third-party PDS providers, and any actor on the network — not just `bsky.social` users.
 
 Supports `did:plc` (resolved via [plc.directory](https://plc.directory)) and `did:web`.
+
+### Network-wide routes
+
+`/discover` and `/backlinks` answer questions a single PDS can't, so they reach past the resolution chain to network-wide indexes:
+
+- **`/discover/{collection}`** queries a public relay's `com.atproto.sync.listReposByCollection` to enumerate every DID with records in a collection. Results link back into per-PDS `/at://` views.
+- **`/backlinks/{target}`** queries [Constellation](https://constellation.microcosm.blue) (microcosm.blue), a firehose-wide backlink index, for the records that link to a given at-uri, DID, or URL. Both the summary (`links/all`) and the per-source record list (`blue.microcosm.links.getBacklinks`) are exposed.
+
+No authentication is used for either — both indexes serve public data.
 
 ---
 

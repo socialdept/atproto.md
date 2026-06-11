@@ -65,6 +65,64 @@ describe('routing', () => {
 	});
 });
 
+describe('content negotiation on /', () => {
+	it('serves HTML to browsers (Accept: text/html)', async () => {
+		const res = await workerFetch('http://example.com/', { headers: { Accept: 'text/html' } });
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
+
+		const body = await res.text();
+		expect(body).toContain('<!doctype html>');
+		expect(body).toContain('<title>atproto.md');
+		expect(body).toContain('property="og:title"');
+		expect(body).toContain('name="twitter:card"');
+		expect(body).toContain('http://example.com/og.svg');
+	});
+
+	it('serves HTML to link-card crawlers by User-Agent', async () => {
+		const res = await workerFetch('http://example.com/', { headers: { 'User-Agent': 'Slackbot-LinkExpanding 1.0' } });
+		expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
+	});
+
+	it('serves markdown to curl / agents (Accept: */*, non-browser UA)', async () => {
+		const res = await workerFetch('http://example.com/', { headers: { Accept: '*/*', 'User-Agent': 'curl/8.4.0' } });
+		expect(res.headers.get('Content-Type')).toBe('text/markdown; charset=utf-8');
+		expect(await res.text()).toContain('# atproto.md');
+	});
+
+	it('uses the request origin in og:image and canonical URLs', async () => {
+		const body = await (await workerFetch('https://atproto.md/', { headers: { Accept: 'text/html' } })).text();
+		expect(body).toContain('content="https://atproto.md/og.svg"');
+		expect(body).toContain('<link rel="canonical" href="https://atproto.md/">');
+	});
+});
+
+describe('SEO assets', () => {
+	it('serves the OG image as SVG', async () => {
+		const res = await workerFetch('http://example.com/og.svg');
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('image/svg+xml; charset=utf-8');
+		expect(await res.text()).toContain('atproto.md');
+	});
+
+	it('serves a favicon', async () => {
+		const res = await workerFetch('http://example.com/favicon.svg');
+		expect(res.headers.get('Content-Type')).toBe('image/svg+xml; charset=utf-8');
+	});
+
+	it('serves robots.txt pointing at the sitemap', async () => {
+		const res = await workerFetch('http://example.com/robots.txt');
+		expect(res.headers.get('Content-Type')).toBe('text/plain; charset=utf-8');
+		expect(await res.text()).toContain('Sitemap: http://example.com/sitemap.xml');
+	});
+
+	it('serves an XML sitemap', async () => {
+		const res = await workerFetch('http://example.com/sitemap.xml');
+		expect(res.headers.get('Content-Type')).toBe('application/xml; charset=utf-8');
+		expect(await res.text()).toContain('<loc>http://example.com/skill.md</loc>');
+	});
+});
+
 describe('CORS', () => {
 	it('responds to OPTIONS preflight with CORS headers', async () => {
 		const res = await workerFetch('http://example.com/', { method: 'OPTIONS' });
