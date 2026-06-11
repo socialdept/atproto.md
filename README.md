@@ -36,7 +36,14 @@ Model Context Protocol server endpoint. Install in Claude Code:
 claude mcp add --transport http atproto-md https://atproto.md/mcp
 ```
 
-Exposes four tools: `resolve_identity`, `get_repo`, `list_records`, `get_record`.
+Exposes six tools: `resolve_identity`, `get_repo`, `list_records`, `get_record`, `discover_repos_by_collection`, `get_backlinks`.
+
+### `GET /skill.md`
+Full agent skill sheet with usage triggers, examples, and endpoint reference. Save it as a Claude Code slash command (invoke with `/atproto`):
+
+```bash
+curl -s https://atproto.md/skill.md > ~/.claude/commands/atproto.md
+```
 
 ### `GET /resolve/{handle-or-did}`
 Resolves the full identity chain for an actor: handle → DID → DID document → PDS endpoint. Useful for debugging identity issues or understanding where a user's data lives.
@@ -55,6 +62,23 @@ Lists records in any collection. No prior knowledge of the lexicon required — 
 
 ### `GET /at://{actor}/{collection}/{rkey}`
 Fetches a single record by its rkey.
+
+### `GET /discover/{collection}`
+Discovers every repo on the network with records in a collection — find all users of a lexicon, e.g. `/discover/site.standard.document`. Network-wide, via the relay's `com.atproto.sync.listReposByCollection`. Each result links straight into that repo's records for the collection.
+
+| Param    | Default | Max  | Notes                                    |
+| -------- | ------- | ---- | ---------------------------------------- |
+| `limit`  | 100     | 2000 | Repos per page                           |
+| `cursor` | —       | —    | Pagination cursor from previous response |
+
+### `GET /backlinks/{at-uri-or-did-or-url}`
+Finds records across the network that link to a target — likes, reposts, replies, follows, quotes, or any custom lexicon. Without `source`, returns a summary table of every link source with record and distinct-DID counts. Indexed by [Constellation](https://constellation.microcosm.blue) (microcosm.blue).
+
+| Param    | Default | Max | Notes                                                                                         |
+| -------- | ------- | --- | --------------------------------------------------------------------------------------------- |
+| `source` | —       | —   | A `{collection:path}` selector (e.g. `app.bsky.feed.like:subject.uri`) to list linking records |
+| `limit`  | 50      | 100 | Linking records per page                                                                      |
+| `cursor` | —       | —   | Pagination cursor from previous response                                                      |
 
 ---
 

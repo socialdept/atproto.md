@@ -1,11 +1,22 @@
 import { createMcpHandler } from 'agents/mcp';
+import { getBacklinks, getLinkSources } from './constellation';
 import { CORS, errMd, mdResponse } from './http';
 import { resolveActor } from './identity';
 import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
 import { pdsGet } from './pds';
+import { listReposByCollection } from './relay';
 import type { AtpRecord } from './types';
-import { formatRecordList, formatRepo, formatResolution, formatSingleRecord, indexPage } from './views';
+import {
+	formatBacklinkRecords,
+	formatBacklinkSources,
+	formatDiscovery,
+	formatRecordList,
+	formatRepo,
+	formatResolution,
+	formatSingleRecord,
+	indexPage,
+} from './views';
 
 // Populates the formatter registry via side-effect imports
 import './formatters';
@@ -38,6 +49,31 @@ export default {
 				if (!input) return errMd('Usage: `/resolve/{handle-or-did}`');
 				const actor = await resolveActor(input);
 				return mdResponse(formatResolution(origin, actor));
+			}
+
+			// Network-wide discovery: every repo with records in a collection
+			if (segments[0] === 'discover') {
+				const collection = segments.slice(1).join('/');
+				if (!collection) return errMd('Usage: `/discover/{collection}` — e.g. `/discover/app.bsky.feed.post`');
+				const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '100', 10), 2000);
+				const result = await listReposByCollection(collection, limit, url.searchParams.get('cursor') ?? undefined);
+				return mdResponse(formatDiscovery(origin, collection, result));
+			}
+
+			// Backlinks: who links to a given at-uri, DID, or web URL (via Constellation)
+			if (segments[0] === 'backlinks') {
+				const target = url.pathname.slice('/backlinks/'.length);
+				if (!target) return errMd('Usage: `/backlinks/{at-uri-or-did-or-url}`');
+
+				const source = url.searchParams.get('source');
+				if (source) {
+					const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 100);
+					const data = await getBacklinks(target, source, limit, url.searchParams.get('cursor') ?? undefined);
+					return mdResponse(formatBacklinkRecords(origin, target, source, data));
+				}
+
+				const sources = await getLinkSources(target);
+				return mdResponse(formatBacklinkSources(origin, target, sources));
 			}
 
 			// All remaining routes are AT URIs: /at://{actor}[/{collection}[/{rkey}]]

@@ -51,6 +51,18 @@ describe('routing', () => {
 		expect(res.status).toBe(400);
 		expect(await res.text()).toContain('/resolve/{handle-or-did}');
 	});
+
+	it('returns usage hint for /discover without a collection', async () => {
+		const res = await workerFetch('http://example.com/discover');
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain('/discover/{collection}');
+	});
+
+	it('returns usage hint for /backlinks without a target', async () => {
+		const res = await workerFetch('http://example.com/backlinks');
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain('/backlinks/{at-uri-or-did-or-url}');
+	});
 });
 
 describe('CORS', () => {
@@ -101,6 +113,8 @@ describe('/llms.txt', () => {
 		expect(body).toContain('/resolve/');
 		expect(body).toContain('/at://');
 		expect(body).toContain('/mcp');
+		expect(body).toContain('/discover/');
+		expect(body).toContain('/backlinks/');
 	});
 
 	it('uses the request origin in URLs', async () => {
@@ -122,6 +136,8 @@ describe('index page content', () => {
 		expect(body).toContain('/at://{actor}');
 		expect(body).toContain('/at://{actor}/{collection}');
 		expect(body).toContain('/at://{actor}/{collection}/{rkey}');
+		expect(body).toContain('/discover/{collection}');
+		expect(body).toContain('/backlinks/{at-uri-or-did-or-url}');
 	});
 
 	it('lists known collection formatters', async () => {
@@ -138,6 +154,11 @@ describe('index page content', () => {
 		expect(body).toContain('/skill.md');
 		expect(body).toContain('/llms.txt');
 		expect(body).toContain('/mcp');
+	});
+
+	it('includes the Claude Code command install snippet', async () => {
+		const body = await (await workerFetch('http://example.com/')).text();
+		expect(body).toContain('curl -s http://example.com/skill.md > ~/.claude/commands/atproto.md');
 	});
 });
 
@@ -164,6 +185,11 @@ describe('/skill.md', () => {
 		const body = await (await workerFetch('http://example.com/skill.md')).text();
 		expect(body).toContain('curl http://example.com/resolve/bsky.app');
 		expect(body).toContain('curl http://example.com/at://bsky.app');
+	});
+
+	it('includes the Claude Code command install snippet', async () => {
+		const body = await (await workerFetch('http://example.com/skill.md')).text();
+		expect(body).toContain('curl -s http://example.com/skill.md > ~/.claude/commands/atproto.md');
 	});
 });
 
