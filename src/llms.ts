@@ -11,6 +11,7 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 - [Repo overview](${origin}/at://{actor}): Lists all collections in an actor's repo
 - [List records](${origin}/at://{actor}/{collection}): Paginated records from any collection. Params: limit (default 25, max 100), cursor, reverse
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): Fetch a single record by its rkey
+- [Get lexicon](${origin}/lexicon/{nsid}): Resolve a Lexicon schema by NSID via DNS-based lexicon resolution (_lexicon TXT → DID → com.atproto.lexicon.schema record)
 - [Discover repos by collection](${origin}/discover/{collection}): Every repo on the network with records in a collection NSID. Params: limit (default 100, max 2000), cursor
 - [Backlinks](${origin}/backlinks/{at-uri-or-did-or-url}): Who links to a target (likes, reposts, replies, follows, any lexicon). Summary of sources by default; add source={collection:path} to list linking records
 
@@ -20,6 +21,7 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 - [Browse repo](${origin}/at://bsky.app)
 - [List posts](${origin}/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post?limit=5)
 - [Get profile](${origin}/at://bsky.app/app.bsky.actor.profile/self)
+- [Get the app.bsky.feed.post lexicon](${origin}/lexicon/app.bsky.feed.post)
 - [Discover site.standard.document repos](${origin}/discover/site.standard.document)
 - [Backlinks to a post](${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lgwdn7vd722r)
 
@@ -54,6 +56,7 @@ Use this API whenever the user asks to:
 - Explore third-party lexicons (Standard.site, Leaflet, Offprint, Linkat, Woosh, Smoke Signal, etc.)
 - Fetch content from any PDS on the AT Protocol network
 - Dereference an \`at://\` URI
+- Resolve a Lexicon schema definition by its NSID (e.g. inspect the \`app.bsky.feed.post\` schema)
 - Discover every repo on the network using a given collection/lexicon (e.g. all repos with \`site.standard.document\`)
 - Find who liked, reposted, replied to, follows, or otherwise links to a record, account, or URL (backlinks)
 
@@ -74,6 +77,9 @@ curl "${origin}/at://bsky.app/app.bsky.feed.post?limit=5"
 
 # Fetch a single record
 curl ${origin}/at://bsky.app/app.bsky.actor.profile/self
+
+# Resolve a Lexicon schema by NSID
+curl ${origin}/lexicon/app.bsky.feed.post
 
 # Discover every repo on the network with a given collection
 curl ${origin}/discover/site.standard.document
@@ -111,6 +117,15 @@ Paginated list of records in any collection. Unknown collections are rendered as
 GET ${origin}/at://{actor}/{collection}/{rkey}
 \`\`\`
 Fetch a single record by its record key.
+
+### Get lexicon
+\`\`\`
+GET ${origin}/lexicon/{nsid}
+\`\`\`
+Resolve a Lexicon schema by its NSID using AT Protocol DNS-based lexicon resolution: the
+\`_lexicon.{authority}\` TXT record points at a DID, whose repo holds the schema at
+\`com.atproto.lexicon.schema/{nsid}\`. Returns the schema's definitions and full JSON.
+Works for any published lexicon — e.g. \`/lexicon/app.bsky.feed.post\`.
 
 ### Discover repos by collection
 \`\`\`

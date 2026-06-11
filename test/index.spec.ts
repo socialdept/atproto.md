@@ -52,6 +52,12 @@ describe('routing', () => {
 		expect(await res.text()).toContain('/resolve/{handle-or-did}');
 	});
 
+	it('returns usage hint for /lexicon without an nsid', async () => {
+		const res = await workerFetch('http://example.com/lexicon');
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain('/lexicon/{nsid}');
+	});
+
 	it('returns usage hint for /discover without a collection', async () => {
 		const res = await workerFetch('http://example.com/discover');
 		expect(res.status).toBe(400);
@@ -171,6 +177,7 @@ describe('/llms.txt', () => {
 		expect(body).toContain('/resolve/');
 		expect(body).toContain('/at://');
 		expect(body).toContain('/mcp');
+		expect(body).toContain('/lexicon/');
 		expect(body).toContain('/discover/');
 		expect(body).toContain('/backlinks/');
 	});
@@ -194,6 +201,7 @@ describe('index page content', () => {
 		expect(body).toContain('/at://{actor}');
 		expect(body).toContain('/at://{actor}/{collection}');
 		expect(body).toContain('/at://{actor}/{collection}/{rkey}');
+		expect(body).toContain('/lexicon/{nsid}');
 		expect(body).toContain('/discover/{collection}');
 		expect(body).toContain('/backlinks/{at-uri-or-did-or-url}');
 	});

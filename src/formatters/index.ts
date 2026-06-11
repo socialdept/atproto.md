@@ -5,6 +5,7 @@ import './app.bsky.labeler';
 import './app.offprint';
 import './blog.pckt';
 import './blue.linkat';
+import './com.atproto.lexicon';
 import './events.smokesignal.calendar';
 import './link.woosh';
 import './place.wisp';

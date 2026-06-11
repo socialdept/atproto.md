@@ -250,6 +250,7 @@ export function htmlIndexPage(origin: string): string {
   .route__sig a { color: var(--text); }
   .route__sig a:hover { color: var(--lime); }
   .route__desc { color: var(--dim); font-size: 0.92rem; }
+  .route__desc code { font-family: var(--mono); font-size: 0.85em; color: var(--text); }
   .route__eg {
     margin-top: 0.3rem; width: fit-content; max-width: 100%;
     font-family: var(--mono); font-size: 0.8rem; color: var(--lime);
@@ -345,6 +346,11 @@ export function htmlIndexPage(origin: string): string {
       <div class="route__sig"><span class="m">GET</span>/at://{actor}/{collection}/{rkey}</div>
       <div class="route__desc">Fetch a single record by rkey.</div>
       <a class="route__eg" href="${origin}/at://bsky.app/app.bsky.actor.profile/self">/at://bsky.app/app.bsky.actor.profile/self</a>
+    </div>
+    <div class="route">
+      <div class="route__sig"><span class="m">GET</span>/lexicon/{nsid}</div>
+      <div class="route__desc">Resolve a Lexicon schema by NSID — DNS <code>_lexicon</code> TXT → DID → schema record.</div>
+      <a class="route__eg" href="${origin}/lexicon/app.bsky.feed.post">/lexicon/app.bsky.feed.post</a>
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/discover/{collection}</div>
