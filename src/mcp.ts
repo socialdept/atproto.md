@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getBacklinks, getLinkSources } from './constellation';
 import { resolveActor } from './identity';
+import { resolveLexiconDid } from './lexicon';
 import { pdsGet } from './pds';
 import { listReposByCollection } from './relay';
 import type { AtpRecord } from './types';
@@ -9,6 +10,7 @@ import {
 	formatBacklinkRecords,
 	formatBacklinkSources,
 	formatDiscovery,
+	formatLexicon,
 	formatRecordList,
 	formatRepo,
 	formatResolution,
@@ -96,6 +98,22 @@ export function createMcpServer(origin: string): McpServer {
 		async ({ collection, limit, cursor }) => {
 			const result = await listReposByCollection(collection, limit, cursor ?? undefined);
 			return { content: [{ type: 'text', text: formatDiscovery(origin, collection, result) }] };
+		},
+	);
+
+	server.tool(
+		'get_lexicon',
+		'Resolve an AT Protocol Lexicon schema by its NSID. Uses DNS-based lexicon resolution (_lexicon TXT record → DID → com.atproto.lexicon.schema record) to fetch the canonical schema definition for any lexicon, e.g. app.bsky.feed.post.',
+		{ nsid: z.string().describe('Lexicon NSID (e.g. app.bsky.feed.post, community.lexicon.calendar.event)') },
+		async ({ nsid }) => {
+			const { did, authority } = await resolveLexiconDid(nsid);
+			const actor = await resolveActor(did);
+			const data = await pdsGet(actor.pds, 'com.atproto.repo.getRecord', {
+				repo: actor.did,
+				collection: 'com.atproto.lexicon.schema',
+				rkey: nsid,
+			});
+			return { content: [{ type: 'text', text: formatLexicon(origin, nsid, authority, actor, data as unknown as AtpRecord) }] };
 		},
 	);
 

@@ -1,5 +1,6 @@
 import { createMcpHandler } from 'agents/mcp';
 import { getBacklinks, getLinkSources } from './constellation';
+import { resolveLexiconDid } from './lexicon';
 import {
 	faviconSvg,
 	htmlIndexPage,
@@ -21,6 +22,7 @@ import {
 	formatBacklinkRecords,
 	formatBacklinkSources,
 	formatDiscovery,
+	formatLexicon,
 	formatRecordList,
 	formatRepo,
 	formatResolution,
@@ -81,6 +83,20 @@ export default {
 				const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '100', 10), 2000);
 				const result = await listReposByCollection(collection, limit, url.searchParams.get('cursor') ?? undefined);
 				return mdResponse(formatDiscovery(origin, collection, result));
+			}
+
+			// Lexicon: resolve an NSID to its published com.atproto.lexicon.schema record
+			if (segments[0] === 'lexicon') {
+				const nsid = segments.slice(1).join('/');
+				if (!nsid) return errMd('Usage: `/lexicon/{nsid}` — e.g. `/lexicon/app.bsky.feed.post`');
+				const { did, authority } = await resolveLexiconDid(nsid);
+				const actor = await resolveActor(did);
+				const data = await pdsGet(actor.pds, 'com.atproto.repo.getRecord', {
+					repo: actor.did,
+					collection: 'com.atproto.lexicon.schema',
+					rkey: nsid,
+				});
+				return mdResponse(formatLexicon(origin, nsid, authority, actor, data as unknown as AtpRecord));
 			}
 
 			// Backlinks: who links to a given at-uri, DID, or web URL (via Constellation)

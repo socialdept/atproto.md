@@ -36,7 +36,7 @@ Model Context Protocol server endpoint. Install in Claude Code:
 claude mcp add --transport http atproto-md https://atproto.md/mcp
 ```
 
-Exposes six tools: `resolve_identity`, `get_repo`, `list_records`, `get_record`, `discover_repos_by_collection`, `get_backlinks`.
+Exposes seven tools: `resolve_identity`, `get_repo`, `list_records`, `get_record`, `get_lexicon`, `discover_repos_by_collection`, `get_backlinks`.
 
 ### `GET /skill.md`
 Full agent skill sheet with usage triggers, examples, and endpoint reference. Save it as a Claude Code slash command (invoke with `/atproto`):
@@ -62,6 +62,9 @@ Lists records in any collection. No prior knowledge of the lexicon required — 
 
 ### `GET /at://{actor}/{collection}/{rkey}`
 Fetches a single record by its rkey.
+
+### `GET /lexicon/{nsid}`
+Resolves a Lexicon schema by its NSID using AT Protocol [DNS-based lexicon resolution](https://atproto.com/specs/lexicon): the `_lexicon.{authority}` TXT record points at a DID, whose repo holds the schema at `com.atproto.lexicon.schema/{nsid}`. Returns the schema's definitions and full JSON — e.g. `/lexicon/app.bsky.feed.post`.
 
 ### `GET /discover/{collection}`
 Discovers every repo on the network with records in a collection — find all users of a lexicon, e.g. `/discover/site.standard.document`. Network-wide, via the relay's `com.atproto.sync.listReposByCollection`. Each result links straight into that repo's records for the collection.
@@ -100,6 +103,7 @@ Supports `did:plc` (resolved via [plc.directory](https://plc.directory)) and `di
 
 - **`/discover/{collection}`** queries a public relay's `com.atproto.sync.listReposByCollection` to enumerate every DID with records in a collection. Results link back into per-PDS `/at://` views.
 - **`/backlinks/{target}`** queries [Constellation](https://constellation.microcosm.blue) (microcosm.blue), a firehose-wide backlink index, for the records that link to a given at-uri, DID, or URL. Both the summary (`links/all`) and the per-source record list (`blue.microcosm.links.getBacklinks`) are exposed.
+- **`/lexicon/{nsid}`** does a DNS-over-HTTPS TXT lookup on `_lexicon.{authority}` to find the lexicon's publishing DID, then fetches the schema from that repo. No central registry — resolution is fully decentralized via DNS.
 
 No authentication is used for either — both indexes serve public data.
 

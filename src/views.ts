@@ -1,5 +1,6 @@
 import type { Backlinks, LinkSource } from './constellation';
 import { formatRecord } from './format';
+import { renderLexiconBody } from './lexicon';
 import type { ReposByCollection } from './relay';
 import type { Actor, AtpRecord } from './types';
 
@@ -141,6 +142,22 @@ export function formatBacklinkRecords(origin: string, target: string, source: st
 	return lines.join('\n');
 }
 
+export function formatLexicon(origin: string, nsid: string, authority: string, actor: Actor, record: AtpRecord): string {
+	const path = `at://${actor.did}/com.atproto.lexicon.schema/${nsid}`;
+	return [
+		`# Lexicon: \`${nsid}\``,
+		'',
+		`**Authority:** \`${authority}\` (via \`_lexicon.${authority}\` TXT)`,
+		`**Published by:** \`${actor.did}\` ([@${actor.handle}](${origin}/at://${actor.did}))`,
+		`**Schema record:** [\`${path}\`](${origin}/at://${actor.did}/com.atproto.lexicon.schema/${nsid})`,
+		'',
+		renderLexiconBody((record.value ?? {}) as Record<string, unknown>),
+		'',
+		'---',
+		`*Resolved via \`_lexicon\` DNS TXT → \`com.atproto.lexicon.schema\` record*`,
+	].join('\n');
+}
+
 export function formatResolution(origin: string, actor: Actor): string {
 	const { doc } = actor;
 	const aka = doc.alsoKnownAs ?? [];
@@ -210,7 +227,12 @@ List records in any collection on any PDS.
 ### \`GET ${origin}/at://{actor}/{collection}/{rkey}\`
 Fetch a single record by rkey.
 
-### \`GET ${origin}/discover/{collection}\`
+### \`GET ${origin}/lexicon/{nsid}\` &nbsp;\`NEW\`
+Resolve a Lexicon schema by its NSID via DNS-based lexicon resolution
+(\`_lexicon\` TXT → DID → \`com.atproto.lexicon.schema\` record).
+E.g. [\`/lexicon/app.bsky.feed.post\`](${origin}/lexicon/app.bsky.feed.post).
+
+### \`GET ${origin}/discover/{collection}\` &nbsp;\`NEW\`
 Discover every repo on the network with records in a collection — find all users
 of a lexicon, e.g. [\`/discover/site.standard.document\`](${origin}/discover/site.standard.document).
 
@@ -218,7 +240,7 @@ of a lexicon, e.g. [\`/discover/site.standard.document\`](${origin}/discover/sit
 - \`limit\` — Repos per page (default: 100, max: 2000)
 - \`cursor\` — Pagination cursor
 
-### \`GET ${origin}/backlinks/{at-uri-or-did-or-url}\`
+### \`GET ${origin}/backlinks/{at-uri-or-did-or-url}\` &nbsp;\`NEW\`
 Find records across the network that link to a target — likes, reposts, replies,
 follows, quotes, or any custom lexicon. Without \`source\`, returns a summary of every
 link source with counts.

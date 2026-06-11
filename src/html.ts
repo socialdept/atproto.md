@@ -247,9 +247,15 @@ export function htmlIndexPage(origin: string): string {
   .route:hover, .route:focus-within { background: var(--panel); }
   .route__sig { font-family: var(--mono); font-size: 0.9rem; color: var(--text); overflow-x: auto; white-space: nowrap; }
   .route__sig .m { color: var(--lime-bright); font-weight: 600; margin-right: 0.6rem; }
+  .badge {
+    margin-left: 0.6rem; padding: 0.08rem 0.4rem;
+    font-size: 0.6rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--bg); background: var(--lime); border-radius: 4px; vertical-align: 0.12em;
+  }
   .route__sig a { color: var(--text); }
   .route__sig a:hover { color: var(--lime); }
   .route__desc { color: var(--dim); font-size: 0.92rem; }
+  .route__desc code { font-family: var(--mono); font-size: 0.85em; color: var(--text); }
   .route__eg {
     margin-top: 0.3rem; width: fit-content; max-width: 100%;
     font-family: var(--mono); font-size: 0.8rem; color: var(--lime);
@@ -347,12 +353,17 @@ export function htmlIndexPage(origin: string): string {
       <a class="route__eg" href="${origin}/at://bsky.app/app.bsky.actor.profile/self">/at://bsky.app/app.bsky.actor.profile/self</a>
     </div>
     <div class="route">
-      <div class="route__sig"><span class="m">GET</span>/discover/{collection}</div>
+      <div class="route__sig"><span class="m">GET</span>/lexicon/{nsid}<span class="badge">new</span></div>
+      <div class="route__desc">Resolve a Lexicon schema by NSID — DNS <code>_lexicon</code> TXT → DID → schema record.</div>
+      <a class="route__eg" href="${origin}/lexicon/app.bsky.feed.post">/lexicon/app.bsky.feed.post</a>
+    </div>
+    <div class="route">
+      <div class="route__sig"><span class="m">GET</span>/discover/{collection}<span class="badge">new</span></div>
       <div class="route__desc">Every repo on the network using a lexicon.</div>
       <a class="route__eg" href="${origin}/discover/site.standard.document">/discover/site.standard.document</a>
     </div>
     <div class="route">
-      <div class="route__sig"><span class="m">GET</span>/backlinks/{at-uri-or-did-or-url}</div>
+      <div class="route__sig"><span class="m">GET</span>/backlinks/{at-uri-or-did-or-url}<span class="badge">new</span></div>
       <div class="route__desc">Who links to a target — likes, reposts, replies, follows, or any lexicon.</div>
       <a class="route__eg" href="${origin}/backlinks/at://did:plc:btxrwcaeyodrap5mnjw2fvmz/site.standard.document/3md4qsktbms24">/backlinks/at://…/site.standard.document/3md4qsktbms24</a>
     </div>
