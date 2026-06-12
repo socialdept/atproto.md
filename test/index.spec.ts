@@ -241,6 +241,12 @@ describe('/skill.md', () => {
 		expect(body).toContain('## Endpoint reference');
 	});
 
+	it('starts with YAML frontmatter (name + description) for Claude Code command discovery', async () => {
+		const body = await (await workerFetch('http://example.com/skill.md')).text();
+		expect(body.startsWith('---\n')).toBe(true);
+		expect(body).toMatch(/^---\nname: atproto-md\ndescription: .+\n---\n/);
+	});
+
 	it('uses the request origin in URLs', async () => {
 		const body = await (await workerFetch('https://atproto.md/skill.md')).text();
 		expect(body).toContain('https://atproto.md/at://');

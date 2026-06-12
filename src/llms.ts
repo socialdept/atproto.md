@@ -41,7 +41,12 @@ curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
 }
 
 export function skillMd(origin: string): string {
-	return `# atproto-md — AT Protocol Markdown API
+	return `---
+name: atproto-md
+description: Fetch any public AT Protocol data as clean Markdown — resolve handles/DIDs, browse repos, read records from any collection on any PDS (Bluesky or third-party lexicons), resolve lexicon schemas by NSID, discover every repo using a lexicon, and explore backlinks. Use whenever the user shares an at:// URI, a handle/DID, or a lexicon NSID (e.g. app.bsky.feed.post, site.standard.document), or asks to inspect AT Protocol / atproto / Bluesky / Standard.site data.
+---
+
+# atproto-md — AT Protocol Markdown API
 
 Fetch any public AT Protocol data as clean Markdown. No auth, no API key required.
 Works with **any collection on any PDS** — not just Bluesky.
@@ -53,7 +58,7 @@ Use this API whenever the user asks to:
 - Browse an AT Protocol repo or list someone's collections
 - Read records from any AT Protocol collection (posts, profiles, follows, publications, etc.)
 - Resolve a handle to a DID, or inspect someone's DID document and PDS
-- Explore third-party lexicons (Standard.site, Leaflet, Offprint, Linkat, Woosh, Smoke Signal, etc.)
+- Explore third-party lexicons that get rich Markdown formatting: Standard (\`site.standard\`), Leaflet (\`pub.leaflet\`), Offprint (\`app.offprint\`), Pocket (\`blog.pckt\`), Linkat (\`blue.linkat\`), Woosh (\`link.woosh\`), Smoke Signal (\`events.smokesignal.calendar\`), Wisp (\`place.wisp\`), Lexicon schemas (\`com.atproto.lexicon.schema\`), and Bluesky (\`app.bsky.*\`) — any other collection still renders as generic markdown
 - Fetch content from any PDS on the AT Protocol network
 - Dereference an \`at://\` URI
 - Resolve a Lexicon schema definition by its NSID (e.g. inspect the \`app.bsky.feed.post\` schema)
