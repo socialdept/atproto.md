@@ -20,7 +20,27 @@
 	 */
 	"assets": {
 		"directory": "./public"
-	}
+	},
+	/**
+	 * Durable Objects — a single global StatsDO aggregates anonymous usage counters
+	 * (route + MCP tool visits, top collections). SQLite-backed for atomic increments.
+	 */
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "STATS",
+				"class_name": "StatsDO"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"StatsDO"
+			]
+		}
+	],
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

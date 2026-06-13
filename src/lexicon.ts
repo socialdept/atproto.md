@@ -23,7 +23,7 @@ export async function resolveLexiconDid(nsid: string): Promise<{ did: string; au
 	const res = await fetch(`${DOH}?name=${encodeURIComponent(name)}&type=TXT`, {
 		headers: { accept: 'application/dns-json' },
 	});
-	if (!res.ok) throw { status: 502, message: `DNS lookup failed for \`${name}\`.` };
+	if (!res.ok) throw { status: 502, message: `DNS lookup failed for \`${name}\`.`, upstream: 'lexicon' };
 
 	const data = (await res.json()) as { Answer?: { data?: string }[] };
 	for (const answer of data.Answer ?? []) {
@@ -35,6 +35,7 @@ export async function resolveLexiconDid(nsid: string): Promise<{ did: string; au
 	throw {
 		status: 404,
 		message: `No lexicon found for \`${nsid}\` — no \`did=\` TXT record at \`${name}\`.`,
+		upstream: 'lexicon',
 	};
 }
 

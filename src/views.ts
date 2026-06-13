@@ -2,6 +2,7 @@ import type { Backlinks, LinkSource } from './constellation';
 import { formatRecord } from './format';
 import { renderLexiconBody } from './lexicon';
 import type { ReposByCollection } from './relay';
+import type { StatsSnapshot } from './stats';
 import type { Actor, AtpRecord, PlcData, PlcLogEntry, PlcOperation } from './types';
 
 export function formatRepo(origin: string, actor: Actor, collections: string[]): string {
@@ -364,6 +365,160 @@ export function formatPlcLastOp(origin: string, did: string, handle: string, op:
 	return lines.join('\n');
 }
 
+// --- Usage stats -----------------------------------------------------------
+
+export const fmtNum = (n: number): string => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+// Compact number: full digits (with thousands separators) up to 10K, then an abbreviated
+// unit with up to 3 decimals and no trailing zeros — 10.192K, 1.45M, 15K, 12.912B. Used for
+// large derived counts like est. tokens.
+export function abbrevNum(n: number): string {
+	if (n < 10_000) return fmtNum(n);
+	const units: [number, string][] = [
+		[1e12, 'T'],
+		[1e9, 'B'],
+		[1e6, 'M'],
+		[1e3, 'K'],
+	];
+	for (const [div, unit] of units) {
+		if (n >= div) return `${(n / div).toFixed(3).replace(/\.?0+$/, '')}${unit}`;
+	}
+	return fmtNum(n);
+}
+
+const ROUTE_LABELS: Record<string, string> = {
+	home: '/',
+	resolve: '/resolve/{actor}',
+	repo: '/at://{actor}',
+	records: '/at://{actor}/{collection}',
+	record: '/at://{actor}/{collection}/{rkey}',
+	discover: '/discover/{collection}',
+	lexicon: '/lexicon/{nsid}',
+	backlinks: '/backlinks/{target}',
+	'plc/audit': '/plc/audit/{actor}',
+	'plc/data': '/plc/data/{actor}',
+	'plc/last': '/plc/last/{actor}',
+	'llms.txt': '/llms.txt',
+	'skill.md': '/skill.md',
+	stats: '/stats',
+	other: '(other)',
+};
+
+export const routeLabel = (key: string): string => ROUTE_LABELS[key] ?? `/${key}`;
+
+export const CHANNEL_LABELS: Record<string, string> = { http: 'HTTP (markdown)', mcp: 'MCP (tools)' };
+
+const ID_LABELS: Record<string, string> = { handle: 'handle', plc: 'did:plc', web: 'did:web' };
+const STATS_THRESHOLD = 5; // hide country/client buckets below this so a rare one can't deanonymize
+
+function bytesHuman(n: number): string {
+	if (n < 1024) return `${n} B`;
+	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+	if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+	return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function sparkline(counts: number[]): string {
+	if (!counts.length) return '';
+	const blocks = '▁▂▃▄▅▆▇█';
+	const max = Math.max(...counts, 1);
+	return counts.map((c) => blocks[Math.min(7, Math.round((c / max) * 7))]).join('');
+}
+
+// A markdown table for a `[{key,count}]` list, with optional label + link transforms. Empty → ''.
+function countTable(
+	title: string,
+	col: string,
+	items: { key: string; count: number }[],
+	label: (k: string) => string = (k) => k,
+	link?: (k: string) => string,
+): string[] {
+	if (!items.length) return [];
+	const lines = [`## ${title}`, '', `| ${col} | Count |`, '| --- | --- |'];
+	for (const i of items) {
+		const name = link ? `[\`${label(i.key)}\`](${link(i.key)})` : `\`${label(i.key)}\``;
+		lines.push(`| ${name} | ${fmtNum(i.count)} |`);
+	}
+	lines.push('');
+	return lines;
+}
+
+export function formatStats(origin: string, stats: StatsSnapshot | null): string {
+	const footer =
+		'*Only anonymous route names, MCP tool names, lexicon NSIDs, status codes, coarse country, and aggregate timing are counted — never IPs, handles, DIDs, or record keys. Country & client rows below a small threshold are hidden.*';
+
+	if (!stats || stats.total === 0) {
+		return ['# atproto.md — usage stats', '', '*No requests recorded yet.*', '', '---', footer].join('\n');
+	}
+
+	const pct = (n: number): string => `${((n / stats.total) * 100).toFixed(1)}%`;
+	const lines = ['# atproto.md — usage stats', '', `**Total requests:** ${fmtNum(stats.total)}`];
+	if (stats.since) lines.push(`**Counting since:** ${stats.since.slice(0, 10)}`);
+	lines.push(`**Errors:** ${fmtNum(stats.errors)} (${pct(stats.errors)})`);
+	lines.push(`**MCP sessions:** ${fmtNum(stats.sessions)}`);
+	lines.push(`**MD bytes served:** ${bytesHuman(stats.bytes)} (~${abbrevNum(stats.estTokens)} est. MD tokens)`);
+	lines.push('');
+
+	// Requests over time (sparkline).
+	if (stats.daily.length) {
+		const peak = Math.max(...stats.daily.map((d) => d.count));
+		lines.push('## Requests over time', '');
+		lines.push(`\`${sparkline(stats.daily.map((d) => d.count))}\``);
+		lines.push('', `*${stats.daily[0].day} → ${stats.daily[stats.daily.length - 1].day} · peak ${fmtNum(peak)}/day*`, '');
+	}
+
+	// Latency.
+	if (stats.latency.count) {
+		const l = stats.latency;
+		lines.push('## Latency', '', `**Average:** ${fmtNum(l.avgMs)}ms · **p50:** ${l.p50} · **p95:** ${l.p95} · ${fmtNum(l.count)} samples`);
+		lines.push('*Approximate — the Workers clock advances only across I/O.*', '');
+	}
+
+	lines.push('## By channel', '', '| Channel | Requests | Share |', '| --- | --- | --- |');
+	for (const c of stats.channels) lines.push(`| ${CHANNEL_LABELS[c.key] ?? c.key} | ${fmtNum(c.count)} | ${pct(c.count)} |`);
+	lines.push('');
+
+	lines.push(...countTable('HTTP routes', 'Route', stats.routes, routeLabel));
+	lines.push(...countTable('MCP tools', 'Tool', stats.tools));
+	lines.push(...countTable('Identifier type', 'Type', stats.idTypes, (k) => ID_LABELS[k] ?? k));
+	lines.push(...countTable('Pagination & params', 'Param', stats.params));
+	lines.push(...countTable('Backlink selectors', 'Selector', stats.selectors));
+	lines.push(...countTable('Status codes', 'Status', stats.statuses));
+	lines.push(...countTable('Errors by route', 'Route', stats.errorRoutes));
+	lines.push(...countTable('Upstream failures', 'Upstream', stats.upstreams));
+	lines.push(...countTable('Top authorities', 'Authority', stats.authorities));
+
+	// Collections with rich/generic annotation.
+	if (stats.collections.length) {
+		lines.push('## Most queried collections', '');
+		lines.push(
+			`*${fmtNum(stats.distinctCollections)} distinct · ${fmtNum(stats.richTotal)} queries to richly-formatted, ${fmtNum(stats.genericTotal)} to generic.*`,
+			'',
+		);
+		lines.push('| Collection | Formatter | Queries |', '| --- | --- | --- |');
+		for (const c of stats.collections) {
+			lines.push(`| [\`${c.nsid}\`](${origin}/discover/${c.nsid}) | ${c.rich ? 'rich' : 'generic'} | ${fmtNum(c.count)} |`);
+		}
+		lines.push('');
+	}
+
+	lines.push(
+		...countTable(
+			'Collections needing a formatter',
+			'Collection',
+			stats.needsFormatter.map((c) => ({ key: c.nsid, count: c.count })),
+			(k) => k,
+			(k) => `${origin}/discover/${k}`,
+		),
+	);
+	lines.push(...countTable('MCP clients', 'Client', stats.clients.filter((c) => c.count >= STATS_THRESHOLD)));
+	lines.push(...countTable('Countries', 'Country', stats.countries.filter((c) => c.count >= STATS_THRESHOLD)));
+	lines.push(...countTable('Latency distribution', 'Bucket', stats.latency.buckets));
+
+	lines.push('---', footer);
+	return lines.join('\n');
+}
+
 export function indexPage(origin: string): string {
 	return `# atproto.md
 
@@ -469,6 +624,7 @@ link source with counts.
 
 - **[\`/skill.md\`](${origin}/skill.md)** — Full agent skill sheet with usage triggers, examples, and endpoint reference
 - **[\`/llms.txt\`](${origin}/llms.txt)** — Structured API summary for LLM discovery
+- **[\`/stats\`](${origin}/stats)** — Anonymous usage stats: route + MCP-tool hits and most-queried collections (no user data)
 - **\`/mcp\`** — MCP server endpoint. Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
 
 ### Install as a Claude Code command

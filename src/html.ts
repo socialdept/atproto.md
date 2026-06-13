@@ -3,6 +3,9 @@
 // and humans hitting the root in a browser get a real <head> with SEO/OG meta —
 // and, since they came for a console, an interface that behaves like one.
 
+import type { StatsSnapshot } from './stats';
+import { abbrevNum, fmtNum, routeLabel } from './views';
+
 const TITLE = 'atproto.md — AT Protocol data as Markdown';
 const DESCRIPTION =
 	'A read-only, markdown-first API for the AT Protocol. Fetch any repo, collection, or record from any PDS as clean Markdown, discover every repo using a lexicon, and explore backlinks. No auth, no API key.';
@@ -24,6 +27,7 @@ export function htmlResponse(body: string, status = 200): Response {
 		status,
 		headers: {
 			'Content-Type': 'text/html; charset=utf-8',
+			'Content-Length': String(new TextEncoder().encode(body).length),
 			'Cache-Control': 'public, max-age=300',
 		},
 	});
@@ -43,7 +47,7 @@ export function robotsTxt(origin: string): string {
 }
 
 export function sitemapXml(origin: string): string {
-	const urls = ['/', '/llms.txt', '/skill.md'];
+	const urls = ['/', '/llms.txt', '/skill.md', '/stats'];
 	const entries = urls.map((u) => `  <url><loc>${origin}${u === '/' ? '/' : u}</loc></url>`).join('\n');
 	return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemap.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
 }
@@ -236,7 +240,7 @@ export function htmlIndexPage(origin: string): string {
   h2::before { content: '// '; color: var(--lime); }
 
   /* ── routes table ── */
-  .routes { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .routes { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
   .route {
     display: grid; grid-template-columns: 1fr; gap: 0.1rem;
     padding: var(--s-4) clamp(0.85rem, 0.5rem + 1.5vw, 1.25rem);
@@ -244,7 +248,7 @@ export function htmlIndexPage(origin: string): string {
     transition: background 0.18s ease;
   }
   .route:first-child { border-top: none; }
-  .route:hover, .route:focus-within { background: var(--panel); }
+  .route:hover, .route:focus-within { background: var(--panel-2); }
   .route__sig { font-family: var(--mono); font-size: 0.9rem; color: var(--text); overflow-x: auto; white-space: nowrap; }
   .route__sig .m { color: var(--lime-bright); font-weight: 600; margin-right: 0.6rem; }
   .badge {
@@ -401,10 +405,293 @@ export function htmlIndexPage(origin: string): string {
     Data fetched directly from AT Protocol PDSes via <span class="k">com.atproto.repo.*</span>.<br>
     Network discovery via the relay's <span class="k">com.atproto.sync.listReposByCollection</span>.<br>
     Backlinks indexed by <a href="https://constellation.microcosm.blue">Constellation</a> <span class="k">microcosm.blue</span>.<br>
-    No authentication · public data only · <a href="https://tangled.org/socialde.pt/atproto.md/">source</a>
+    No authentication · public data only · <a href="${origin}/stats">stats</a> · <a href="https://tangled.org/socialde.pt/atproto.md/">source</a>
   </footer>
 
 </main>
+</body>
+</html>
+`;
+}
+
+const esc = (s: string): string =>
+	s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+// Fill width for a bar inset 4px on every side: a fraction of the row minus the left+right gaps.
+function barWidth(count: number, max: number): string {
+	const frac = max > 0 ? count / max : 0;
+	return `max(3px, calc((100% - 8px) * ${frac.toFixed(4)}))`;
+}
+
+// One horizontal bar row: a label, a count, and a track filled proportional to the section max.
+function statRow(label: string, count: number, max: number, href?: string): string {
+	const key = href ? `<a href="${esc(href)}">${esc(label)}</a>` : esc(label);
+	return `    <div class="srow"><span class="srow__bar" style="width:${barWidth(count, max)}"></span><span class="srow__k mono">${key}</span><span class="srow__v mono">${esc(fmtNum(count))}</span></div>`;
+}
+
+function statSection(title: string, rows: string[]): string {
+	if (!rows.length) return '';
+	return `  <h2 class="reveal">${title}</h2>\n  <div class="stable reveal">\n${rows.join('\n')}\n  </div>\n`;
+}
+
+const THRESHOLD = 5; // hide country/client buckets below this so a rare bucket can't deanonymize
+
+const ID_LABELS: Record<string, string> = { handle: 'handle', plc: 'did:plc', web: 'did:web' };
+
+function bytesHuman(n: number): string {
+	if (n < 1024) return `${n} B`;
+	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+	if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+	return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+// Rows helper for a [{key,count}] list, with optional label + href transforms.
+function countRows(items: { key: string; count: number }[], label: (k: string) => string = (k) => k, href?: (k: string) => string): string[] {
+	const max = Math.max(0, ...items.map((i) => i.count));
+	return items.map((i) => statRow(label(i.key), i.count, max, href?.(i.key)));
+}
+
+// One cell of the top readout strip (hairline-divided, not a free-floating card). When `full`
+// is given (an abbreviated value), the number gets a hover tooltip with the exact figure.
+function roCell(value: string, label: string, full?: string): string {
+	const more = full ? ` data-full="${esc(full)}" data-label="${esc(label)}" aria-label="${esc(full)} ${esc(label)}"` : '';
+	return `    <div class="ro"><span class="ro__n mono${full ? ' ro__n--more' : ''}"${more}>${esc(value)}</span><span class="ro__l mono">${esc(label)}</span></div>`;
+}
+
+// A section sized for the two-column grid (compact heading; the grid provides separation).
+function gridCell(title: string, rows: string[]): string {
+	if (!rows.length) return '';
+	return `    <section class="cell">\n      <h3>${title}</h3>\n      <div class="stable">\n${rows.join('\n')}\n      </div>\n    </section>`;
+}
+
+// Crisp CSS bar series for requests-over-time — clearer than unicode blocks on screen.
+// Each bar carries data-* for the cursor-following tooltip and an aria-label for no-JS / AT.
+function seriesBars(daily: { day: string; count: number }[]): string {
+	const max = Math.max(1, ...daily.map((d) => d.count));
+	return daily
+		.map((d) => {
+			const pct = Math.round((d.count / max) * 100);
+			const count = esc(fmtNum(d.count));
+			return `<span class="series__bar" style="height:max(2px,${pct}%)" data-day="${esc(d.day)}" data-count="${count}" aria-label="${esc(d.day)}: ${count} requests"></span>`;
+		})
+		.join('');
+}
+
+export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): string {
+	const total = stats?.total ?? 0;
+	const since = stats?.since ? stats.since.slice(0, 10) : '—';
+	const errors = stats?.errors ?? 0;
+	const errPct = total > 0 ? `${((errors / total) * 100).toFixed(1)}%` : '0%';
+	const channelCount = (k: string): number => stats?.channels.find((c) => c.key === k)?.count ?? 0;
+	const empty = total === 0;
+
+	const http = channelCount('http');
+	const mcp = channelCount('mcp');
+	const sessions = stats?.sessions ?? 0;
+	const estTokens = stats?.estTokens ?? 0;
+	const full = (n: number): string | undefined => (n >= 10_000 ? fmtNum(n) : undefined); // only when abbreviated
+
+	const readout = [
+		roCell(abbrevNum(total), 'total requests', full(total)),
+		roCell(abbrevNum(http), 'http requests', full(http)),
+		roCell(abbrevNum(mcp), 'mcp tool calls', full(mcp)),
+		roCell(abbrevNum(sessions), 'mcp sessions', full(sessions)),
+		roCell(errPct, 'error rate'),
+		roCell(stats?.latency.count ? `${fmtNum(stats.latency.avgMs)}ms` : '—', 'avg latency'),
+		roCell(bytesHuman(stats?.bytes ?? 0), 'md bytes served'),
+		roCell(`~${abbrevNum(estTokens)}`, 'est. md tokens', estTokens >= 10_000 ? `~${fmtNum(estTokens)}` : undefined),
+	].join('\n');
+
+	// Collections carry a rich/generic badge; the generic ones are formatter candidates.
+	const collMax = Math.max(0, ...(stats?.collections.map((c) => c.count) ?? []));
+	const collRows = (stats?.collections ?? []).map((c) => {
+		const tag = c.rich ? '<span class="tag tag--rich">rich</span>' : '<span class="tag tag--gen">generic</span>';
+		return `    <div class="srow"><span class="srow__bar" style="width:${barWidth(c.count, collMax)}"></span><span class="srow__k mono"><a href="${esc(origin)}/discover/${esc(c.nsid)}">${esc(c.nsid)}</a> ${tag}</span><span class="srow__v mono">${esc(fmtNum(c.count))}</span></div>`;
+	});
+
+	const lat = stats?.latency;
+	const latLine = lat && lat.count
+		? `  <p class="note reveal">avg ${fmtNum(lat.avgMs)}ms · p50 ${esc(lat.p50)} · p95 ${esc(lat.p95)} · ${fmtNum(lat.count)} samples<br><span class="approx">approximate, the Workers clock advances only across I/O</span></p>\n`
+		: '';
+
+	const daily = stats?.daily ?? [];
+	const series = daily.length
+		? `  <h2 class="reveal">requests over time</h2>\n  <div class="serieswrap reveal"><div class="series">${seriesBars(daily)}</div><p class="note">${esc(daily[0].day)} → ${esc(daily[daily.length - 1].day)} · peak ${fmtNum(Math.max(...daily.map((d) => d.count)))}/day</p></div>\n`
+		: '';
+
+	const countries = (stats?.countries ?? []).filter((c) => c.count >= THRESHOLD);
+	const clients = (stats?.clients ?? []).filter((c) => c.count >= THRESHOLD);
+
+	// Wide, attention-worthy breakdowns run full width; the many small dimensions sit in a
+	// responsive grid so the page reads as a composed dashboard, not an endless ledger.
+	const wide =
+		statSection('http routes', countRows(stats?.routes ?? [], routeLabel)) +
+		statSection('most queried collections', collRows) +
+		statSection(
+			'collections needing a formatter',
+			countRows((stats?.needsFormatter ?? []).map((c) => ({ key: c.nsid, count: c.count })), (k) => k, (k) => `${origin}/discover/${k}`),
+		);
+
+	const cells = [
+		gridCell('mcp tools', countRows(stats?.tools ?? [])),
+		gridCell('identifier type', countRows(stats?.idTypes ?? [], (k) => ID_LABELS[k] ?? k)),
+		gridCell('status codes', countRows(stats?.statuses ?? [])),
+		gridCell('errors by route', countRows(stats?.errorRoutes ?? [])),
+		gridCell('upstream failures', countRows(stats?.upstreams ?? [])),
+		gridCell('top authorities', countRows(stats?.authorities ?? [])),
+		gridCell('pagination &amp; params', countRows(stats?.params ?? [])),
+		gridCell('backlink selectors', countRows(stats?.selectors ?? [])),
+		gridCell('latency distribution', countRows(lat?.buckets ?? [])),
+		gridCell('mcp clients', countRows(clients)),
+		gridCell('countries', countRows(countries)),
+	].filter(Boolean);
+	const grid = cells.length ? `  <div class="grid2 reveal">\n${cells.join('\n')}\n  </div>\n` : '';
+
+	return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>usage stats — atproto.md</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="${origin}/stats">
+<link rel="icon" href="${origin}/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0a0d0a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Martian+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: oklch(0.16 0.01 140); --panel: oklch(0.195 0.012 140);
+    --line: oklch(0.31 0.012 140); --text: oklch(0.94 0.008 140);
+    --dim: oklch(0.70 0.014 140); --faint: oklch(0.56 0.014 140);
+    --lime: oklch(0.88 0.20 128); --lime-bright: oklch(0.83 0.21 130);
+    --mono: 'Martian Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
+    font-size: clamp(0.95rem, 0.9rem + 0.3vw, 1.05rem); line-height: 1.65;
+    background-image: linear-gradient(90deg, color-mix(in oklch, var(--line) 35%, transparent) 1px, transparent 1px);
+    background-size: 64px 100%; -webkit-font-smoothing: antialiased;
+  }
+  .console { max-width: 880px; margin: 0 auto; padding: clamp(1rem, 0.5rem + 2vw, 2.5rem) clamp(1rem, 0.5rem + 2vw, 2rem) 6rem; }
+  .mono { font-family: var(--mono); }
+  a { color: var(--lime); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .bar { display: flex; align-items: center; gap: 1rem; font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.02em; color: var(--faint); padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 10px 10px 0 0; border-bottom: none; background: var(--panel); }
+  .bar__id { color: var(--dim); }
+  .bar__meta { color: var(--faint); }
+  .bar__status { margin-left: auto; display: inline-flex; align-items: center; gap: 0.45rem; color: var(--text); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lime-bright); box-shadow: 0 0 0 0 color-mix(in oklch, var(--lime-bright) 70%, transparent); }
+  .hero { border: 1px solid var(--line); border-radius: 0 0 10px 10px; background: var(--panel); padding: 2rem clamp(1rem, 0.5rem + 2.5vw, 2.25rem) 2.5rem; }
+  .prompt { font-family: var(--mono); font-size: clamp(0.72rem, 0.66rem + 0.4vw, 0.86rem); color: var(--faint); margin-bottom: 1.5rem; }
+  .prompt .cue { color: var(--lime); }
+  .prompt .cmd { color: var(--text); }
+  h1 { font-family: var(--mono); font-weight: 700; font-size: clamp(2.4rem, 1.4rem + 6vw, 4.6rem); letter-spacing: -0.05em; line-height: 0.95; margin: 0; }
+  .cursor { display: inline-block; width: 0.6em; height: 0.92em; margin-left: 0.06em; background: var(--lime); vertical-align: baseline; transform: translateY(0.12em); }
+  .lede { max-width: 60ch; margin: 1.5rem 0 0; color: var(--dim); }
+  h2 { font-family: var(--mono); font-weight: 500; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin: 3.5rem 0 1rem; }
+  h2::before { content: '// '; color: var(--lime); }
+  .readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 1.75rem; border: 1px solid var(--line); border-radius: 10px; background: var(--line); overflow: hidden; }
+  @media (max-width: 640px) { .readout { grid-template-columns: repeat(2, 1fr); } }
+  .ro { background: var(--panel); padding: 1rem 1.15rem; display: flex; flex-direction: column; gap: 0.35rem; }
+  .ro__n { font-size: 1.5rem; font-weight: 600; color: var(--text); line-height: 1; }
+  .ro__n--more { cursor: help; text-decoration: underline dotted; text-decoration-color: var(--faint); text-underline-offset: 4px; }
+  .ro__l { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--faint); }
+  .stable { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+  .srow { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; padding: 0.5rem clamp(0.85rem, 0.5rem + 1.5vw, 1.15rem); border-top: 1px solid var(--line); }
+  .srow:first-child { border-top: none; }
+  .srow__bar { position: absolute; left: 4px; top: 4px; bottom: 4px; background: color-mix(in oklch, var(--lime) 15%, transparent); border-radius: 4px; }
+  .srow__k { position: relative; font-size: 0.82rem; color: var(--text); overflow-x: auto; white-space: nowrap; }
+  .srow__k a { color: var(--text); }
+  .srow__k a:hover { color: var(--lime); }
+  .srow__v { position: relative; font-size: 0.82rem; color: var(--lime); text-align: right; font-variant-numeric: tabular-nums; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; align-items: start; margin-top: 1rem; }
+  .cell h3 { font-family: var(--mono); font-weight: 500; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin: 0 0 0.7rem; }
+  .cell h3::before { content: '// '; color: var(--lime); }
+  .tag { font-family: var(--mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.05rem 0.35rem; border-radius: 4px; vertical-align: 0.12em; }
+  .tag--rich { color: var(--bg); background: var(--lime); }
+  .tag--gen { color: var(--faint); border: 1px solid var(--line); }
+  .serieswrap { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 1.25rem; }
+  .series { display: flex; align-items: flex-end; justify-content: flex-start; gap: 3px; height: 56px; overflow-x: auto; }
+  .series__bar { flex: 1 1 0; min-width: 3px; max-width: 26px; background: color-mix(in oklch, var(--lime) 45%, transparent); border-radius: 2px 2px 0 0; transition: background 0.12s ease; }
+  .series__bar:hover { background: var(--lime); }
+  .tip { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; display: flex; flex-direction: column; gap: 0.15rem; padding: 0.45rem 0.65rem; font-family: var(--mono); font-size: 0.7rem; color: var(--dim); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 26px rgba(0,0,0,0.45); white-space: nowrap; }
+  .tip[hidden] { display: none; }
+  .tip__n { color: var(--lime); font-weight: 600; }
+  .tip__d { color: var(--faint); }
+  .note { color: var(--faint); font-family: var(--mono); font-size: 0.72rem; margin: 0.7rem 0 0; }
+  .approx { color: var(--faint); }
+  footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 0.74rem; line-height: 2; color: var(--faint); }
+  footer a { color: var(--dim); }
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { opacity: 0; transform: translateY(14px); animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .reveal:nth-child(1){animation-delay:.04s}.reveal:nth-child(2){animation-delay:.12s}.reveal:nth-child(3){animation-delay:.2s}.reveal:nth-child(4){animation-delay:.28s}.reveal:nth-child(5){animation-delay:.36s}.reveal:nth-child(6){animation-delay:.44s}.reveal:nth-child(7){animation-delay:.52s}.reveal:nth-child(8){animation-delay:.6s}
+    .cursor { animation: blink 1.15s steps(1, end) infinite; }
+    .dot { animation: pulse 2.4s ease-out infinite; }
+  }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--lime-bright) 60%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+  @media (max-width: 560px) { body { background-image: none; } .bar__meta { display: none; } }
+</style>
+</head>
+<body>
+<main class="console">
+
+  <div class="bar reveal">
+    <span class="bar__id mono">atproto.md</span>
+    <span class="bar__meta">usage · anonymous · no PII</span>
+    <span class="bar__status"><i class="dot"></i> live</span>
+  </div>
+
+  <section class="hero reveal">
+    <div class="prompt"><span class="cue">~ ▸</span> <span class="cmd">curl</span> atproto.md/stats</div>
+    <h1>usage stats<span class="cursor" aria-hidden="true"></span></h1>
+    <p class="lede">Anonymous traffic for atproto.md — route &amp; MCP-tool hits and the most-queried collections. No IPs, handles, DIDs, or record keys are ever stored.${empty ? ' <strong>No requests recorded yet.</strong>' : ` Counting since ${esc(since)}.`}</p>
+  </section>
+
+  <div class="readout reveal">
+${readout}
+  </div>
+
+${series}${latLine}
+  <p class="note reveal">${esc(fmtNum(stats?.distinctCollections ?? 0))} distinct collections · ${esc(fmtNum(stats?.richTotal ?? 0))} queries to richly-formatted, ${esc(fmtNum(stats?.genericTotal ?? 0))} to generic.</p>
+
+${wide}${grid}
+  <footer class="reveal">
+    Only anonymous route names, MCP tool names, lexicon NSIDs, status codes, coarse country, and aggregate timing are counted. Country &amp; client rows below a small threshold are hidden.<br>
+    No IPs · no handles · no DIDs · no record keys.<br>
+    <a href="${origin}/">home</a> · <a href="${origin}/stats">refresh</a> · <a href="https://tangled.org/socialde.pt/atproto.md/">source</a>
+  </footer>
+
+  <div id="tip" class="tip" role="status" hidden></div>
+
+</main>
+<script>
+(function(){
+  var root = document.querySelector('.console');
+  var tip = document.getElementById('tip');
+  if (!root || !tip) return;
+  root.addEventListener('mousemove', function(e){
+    var t = e.target.closest ? e.target.closest('.series__bar,[data-full]') : null;
+    if (!t){ tip.hidden = true; return; }
+    if (t.classList.contains('series__bar')) {
+      tip.innerHTML = '<span><span class="tip__n">' + t.dataset.count + '</span> requests</span><span class="tip__d">' + t.dataset.day + '</span>';
+    } else {
+      tip.innerHTML = '<span class="tip__n">' + t.dataset.full + '</span><span class="tip__d">' + t.dataset.label + '</span>';
+    }
+    tip.hidden = false;
+    var r = tip.getBoundingClientRect();
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - r.width - 8) + 'px';
+    tip.style.top = Math.max(8, e.clientY - r.height - 12) + 'px';
+  });
+  root.addEventListener('mouseleave', function(){ tip.hidden = true; });
+})();
+</script>
 </body>
 </html>
 `;
