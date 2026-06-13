@@ -12,16 +12,19 @@ import {
 	svgResponse,
 } from './html';
 import { CORS, errMd, mdResponse } from './http';
-import { resolveActor } from './identity';
+import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid } from './identity';
 import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
 import { pdsGet } from './pds';
 import { listReposByCollection } from './relay';
 import type { AtpRecord } from './types';
 import {
+	formatAuditLog,
 	formatBacklinkRecords,
 	formatBacklinkSources,
 	formatDiscovery,
+	formatPlcData,
+	formatPlcLastOp,
 	formatLexicon,
 	formatRecordList,
 	formatRepo,
@@ -74,6 +77,38 @@ export default {
 				if (!input) return errMd('Usage: `/resolve/{handle-or-did}`');
 				const actor = await resolveActor(input);
 				return mdResponse(formatResolution(origin, actor));
+			}
+
+			// PLC operations: identity history and current state via plc.directory
+			if (segments[0] === 'plc') {
+				const sub = segments[1];
+				const input = segments.slice(2).join('/');
+
+				if (sub === 'audit') {
+					if (!input) return errMd('Usage: `/plc/audit/{handle-or-did}` — e.g. `/plc/audit/bsky.app`');
+					const did = await resolveToDid(input);
+					const log = await resolvePlcAuditLog(did);
+					const handle = log[log.length - 1]?.operation?.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
+					return mdResponse(formatAuditLog(origin, did, handle, log));
+				}
+
+				if (sub === 'data') {
+					if (!input) return errMd('Usage: `/plc/data/{handle-or-did}` — e.g. `/plc/data/bsky.app`');
+					const did = await resolveToDid(input);
+					const data = await resolvePlcData(did);
+					const handle = data.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
+					return mdResponse(formatPlcData(origin, did, handle, data));
+				}
+
+				if (sub === 'last') {
+					if (!input) return errMd('Usage: `/plc/last/{handle-or-did}` — e.g. `/plc/last/bsky.app`');
+					const did = await resolveToDid(input);
+					const op = await resolvePlcLastOp(did);
+					const handle = op.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
+					return mdResponse(formatPlcLastOp(origin, did, handle, op));
+				}
+
+				return errMd('Usage: `/plc/{audit|data|last}/{handle-or-did}`', 400);
 			}
 
 			// Network-wide discovery: every repo with records in a collection

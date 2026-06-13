@@ -333,11 +333,6 @@ export function htmlIndexPage(origin: string): string {
   <h2 class="reveal">routes</h2>
   <div class="routes reveal">
     <div class="route">
-      <div class="route__sig"><span class="m">GET</span>/resolve/{actor}</div>
-      <div class="route__desc">Full identity chain — handle → DID → DID document → PDS endpoint.</div>
-      <a class="route__eg" href="${origin}/resolve/bsky.app">/resolve/bsky.app</a>
-    </div>
-    <div class="route">
       <div class="route__sig"><span class="m">GET</span>/at://{actor}</div>
       <div class="route__desc">Repo overview — every collection in the repo.</div>
       <a class="route__eg" href="${origin}/at://bsky.app">/at://bsky.app</a>
@@ -353,9 +348,9 @@ export function htmlIndexPage(origin: string): string {
       <a class="route__eg" href="${origin}/at://bsky.app/app.bsky.actor.profile/self">/at://bsky.app/app.bsky.actor.profile/self</a>
     </div>
     <div class="route">
-      <div class="route__sig"><span class="m">GET</span>/lexicon/{nsid}<span class="badge">new</span></div>
-      <div class="route__desc">Resolve a Lexicon schema by NSID — DNS <code>_lexicon</code> TXT → DID → schema record.</div>
-      <a class="route__eg" href="${origin}/lexicon/app.bsky.feed.post">/lexicon/app.bsky.feed.post</a>
+      <div class="route__sig"><span class="m">GET</span>/backlinks/{at-uri-or-did-or-url}<span class="badge">new</span></div>
+      <div class="route__desc">Who links to a target — likes, reposts, replies, follows, or any lexicon.</div>
+      <a class="route__eg" href="${origin}/backlinks/at://did:plc:btxrwcaeyodrap5mnjw2fvmz/site.standard.document/3md4qsktbms24">/backlinks/at://…/site.standard.document/3md4qsktbms24</a>
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/discover/{collection}<span class="badge">new</span></div>
@@ -363,9 +358,29 @@ export function htmlIndexPage(origin: string): string {
       <a class="route__eg" href="${origin}/discover/site.standard.document">/discover/site.standard.document</a>
     </div>
     <div class="route">
-      <div class="route__sig"><span class="m">GET</span>/backlinks/{at-uri-or-did-or-url}<span class="badge">new</span></div>
-      <div class="route__desc">Who links to a target — likes, reposts, replies, follows, or any lexicon.</div>
-      <a class="route__eg" href="${origin}/backlinks/at://did:plc:btxrwcaeyodrap5mnjw2fvmz/site.standard.document/3md4qsktbms24">/backlinks/at://…/site.standard.document/3md4qsktbms24</a>
+      <div class="route__sig"><span class="m">GET</span>/lexicon/{nsid}<span class="badge">new</span></div>
+      <div class="route__desc">Resolve a Lexicon schema by NSID — DNS <code>_lexicon</code> TXT → DID → schema record.</div>
+      <a class="route__eg" href="${origin}/lexicon/app.bsky.feed.post">/lexicon/app.bsky.feed.post</a>
+    </div>
+    <div class="route">
+      <div class="route__sig"><span class="m">GET</span>/plc/audit/{actor}<span class="badge">new</span></div>
+      <div class="route__desc">PLC audit log — PDS migrations, handle changes, and key rotations over time.</div>
+      <a class="route__eg" href="${origin}/plc/audit/bsky.app">/plc/audit/bsky.app</a>
+    </div>
+    <div class="route">
+      <div class="route__sig"><span class="m">GET</span>/plc/data/{actor}<span class="badge">new</span></div>
+      <div class="route__desc">Current PLC state — active PDS, handles, signing key, and rotation keys.</div>
+      <a class="route__eg" href="${origin}/plc/data/bsky.app">/plc/data/bsky.app</a>
+    </div>
+    <div class="route">
+      <div class="route__sig"><span class="m">GET</span>/plc/last/{actor}<span class="badge">new</span></div>
+      <div class="route__desc">The most recent PLC operation and the state it established.</div>
+      <a class="route__eg" href="${origin}/plc/last/bsky.app">/plc/last/bsky.app</a>
+    </div>
+    <div class="route">
+      <div class="route__sig"><span class="m">GET</span>/resolve/{actor}</div>
+      <div class="route__desc">Full identity chain — handle → DID → DID document → PDS endpoint.</div>
+      <a class="route__eg" href="${origin}/resolve/bsky.app">/resolve/bsky.app</a>
     </div>
   </div>
 

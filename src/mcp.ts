@@ -1,15 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getBacklinks, getLinkSources } from './constellation';
-import { resolveActor } from './identity';
+import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid } from './identity';
 import { resolveLexiconDid } from './lexicon';
 import { pdsGet } from './pds';
 import { listReposByCollection } from './relay';
 import type { AtpRecord } from './types';
 import {
+	formatAuditLog,
 	formatBacklinkRecords,
 	formatBacklinkSources,
 	formatDiscovery,
+	formatPlcData,
+	formatPlcLastOp,
 	formatLexicon,
 	formatRecordList,
 	formatRepo,
@@ -114,6 +117,42 @@ export function createMcpServer(origin: string): McpServer {
 				rkey: nsid,
 			});
 			return { content: [{ type: 'text', text: formatLexicon(origin, nsid, authority, actor, data as unknown as AtpRecord) }] };
+		},
+	);
+
+	server.tool(
+		'plc_audit',
+		'Fetch the PLC audit log for a did:plc identity — the full, chronological history of identity operations from plc.directory. Surfaces PDS migrations (when and from/to which host), handle changes, and signing/rotation key rotations. Use to date a migration, debug a moved repo, or verify an identity\'s provenance.',
+		{ actor: z.string().describe('A handle (e.g. bsky.app) or did:plc DID') },
+		async ({ actor: input }) => {
+			const did = await resolveToDid(input);
+			const log = await resolvePlcAuditLog(did);
+			const handle = log[log.length - 1]?.operation?.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
+			return { content: [{ type: 'text', text: formatAuditLog(origin, did, handle, log) }] };
+		},
+	);
+
+	server.tool(
+		'plc_data',
+		'Fetch the current canonical PLC state for a did:plc identity from plc.directory — its active PDS, all handles (alsoKnownAs), atproto signing key, and rotation keys in priority order. Unlike resolve_identity (DID document), this surfaces the rotation keys that actually control the identity.',
+		{ actor: z.string().describe('A handle (e.g. bsky.app) or did:plc DID') },
+		async ({ actor: input }) => {
+			const did = await resolveToDid(input);
+			const data = await resolvePlcData(did);
+			const handle = data.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
+			return { content: [{ type: 'text', text: formatPlcData(origin, did, handle, data) }] };
+		},
+	);
+
+	server.tool(
+		'plc_last',
+		'Fetch the most recent PLC operation for a did:plc identity and the state it established (PDS, handles, keys, operation type). Lightweight "what changed last" check; use plc_audit for the full dated history.',
+		{ actor: z.string().describe('A handle (e.g. bsky.app) or did:plc DID') },
+		async ({ actor: input }) => {
+			const did = await resolveToDid(input);
+			const op = await resolvePlcLastOp(did);
+			const handle = op.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
+			return { content: [{ type: 'text', text: formatPlcLastOp(origin, did, handle, op) }] };
 		},
 	);
 

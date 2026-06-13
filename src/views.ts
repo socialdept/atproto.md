@@ -2,7 +2,7 @@ import type { Backlinks, LinkSource } from './constellation';
 import { formatRecord } from './format';
 import { renderLexiconBody } from './lexicon';
 import type { ReposByCollection } from './relay';
-import type { Actor, AtpRecord } from './types';
+import type { Actor, AtpRecord, PlcData, PlcLogEntry, PlcOperation } from './types';
 
 export function formatRepo(origin: string, actor: Actor, collections: string[]): string {
 	return [
@@ -185,6 +185,185 @@ export function formatResolution(origin: string, actor: Actor): string {
 	].join('\n');
 }
 
+// --- PLC audit log ---------------------------------------------------------
+
+function opPds(op: PlcOperation): string | undefined {
+	return op.services?.atproto_pds?.endpoint ?? op.service;
+}
+
+function opHandles(op: PlcOperation): string[] {
+	if (op.alsoKnownAs?.length) return op.alsoKnownAs.map((a) => a.replace(/^at:\/\//, ''));
+	if (op.handle) return [op.handle];
+	return [];
+}
+
+function opSigningKey(op: PlcOperation): string | undefined {
+	return op.verificationMethods?.atproto ?? op.signingKey;
+}
+
+interface PlcSnapshot {
+	pds?: string;
+	handles: string[];
+	signingKey?: string;
+	rotationKeys: string[];
+}
+
+function snapshotOf(op: PlcOperation): PlcSnapshot {
+	return {
+		pds: opPds(op),
+		handles: opHandles(op),
+		signingKey: opSigningKey(op),
+		rotationKeys: op.rotationKeys ?? [],
+	};
+}
+
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+
+export function formatAuditLog(origin: string, did: string, handle: string, log: PlcLogEntry[]): string {
+	const active = log.filter((e) => !e.nullified);
+	const nullifiedCount = log.length - active.length;
+
+	const first = log[0]?.createdAt?.slice(0, 10);
+	const last = active[active.length - 1]?.createdAt?.slice(0, 10) ?? log[log.length - 1]?.createdAt?.slice(0, 10);
+
+	const lines = [
+		`# PLC Audit Log: @${handle}`,
+		'',
+		`**DID:** \`${did}\``,
+		`**Operations:** ${log.length}${nullifiedCount ? ` (${active.length} active, ${nullifiedCount} nullified)` : ''}`,
+	];
+	if (first) lines.push(`**Created:** ${first}`);
+	if (last && last !== first) lines.push(`**Last updated:** ${last}`);
+	lines.push('', '## Timeline', '');
+
+	if (!log.length) {
+		lines.push('*No operations found in the PLC audit log.*');
+		return lines.join('\n');
+	}
+
+	let prev: PlcSnapshot | null = null;
+	log.forEach((entry, i) => {
+		const op = entry.operation;
+		const snap = snapshotOf(op);
+		const changes: string[] = [];
+		const labels: string[] = [];
+
+		if (op.type === 'plc_tombstone') {
+			labels.push('Tombstone 🪦');
+			changes.push('Identity deactivated (tombstoned).');
+		} else if (!prev) {
+			labels.push('Genesis');
+			if (snap.pds) changes.push(`**PDS:** ${snap.pds}`);
+			if (snap.handles.length) changes.push(`**Handle:** ${snap.handles.map((h) => `\`${h}\``).join(', ')}`);
+			if (snap.signingKey) changes.push(`**Signing key:** \`${snap.signingKey}\``);
+		} else {
+			if (snap.pds !== prev.pds) {
+				labels.push('PDS migration 🔀');
+				changes.push(`**PDS:** ${snap.pds ?? '—'} *(was ${prev.pds ?? '—'})*`);
+			}
+			if (!sameSet(snap.handles, prev.handles)) {
+				labels.push('Handle change');
+				changes.push(`**Handle:** ${snap.handles.map((h) => `\`${h}\``).join(', ') || '—'} *(was ${prev.handles.map((h) => `\`${h}\``).join(', ') || '—'})*`);
+			}
+			if (snap.signingKey !== prev.signingKey) {
+				labels.push('Key rotation 🔑');
+				changes.push(`**Signing key:** \`${snap.signingKey ?? '—'}\` *(rotated)*`);
+			}
+			if (!sameSet(snap.rotationKeys, prev.rotationKeys)) {
+				if (!labels.includes('Key rotation 🔑')) labels.push('Key rotation 🔑');
+				changes.push(`**Rotation keys updated** (${snap.rotationKeys.length} key${snap.rotationKeys.length === 1 ? '' : 's'})`);
+			}
+		}
+
+		if (!labels.length) labels.push('No-op');
+		if (!changes.length) changes.push('*No effective change (re-signed / no-op).*');
+
+		const ts = entry.createdAt.replace(/\.\d+Z$/, 'Z');
+		const heading = `### ${i + 1}. ${ts} — ${labels.join(' + ')}`;
+		lines.push(entry.nullified ? `${heading} ⚠️ *nullified*` : heading);
+		lines.push(...changes.map((c) => `- ${c}`));
+		lines.push(`- \`${op.type}\` · CID \`${entry.cid}\``);
+		lines.push('');
+
+		if (op.type !== 'plc_tombstone') prev = snap;
+	});
+
+	lines.push('---', `*Audit log from [plc.directory](https://plc.directory/${did}/log/audit)*`, `*[View identity →](${origin}/resolve/${did})*`);
+	return lines.join('\n');
+}
+
+export function formatPlcData(origin: string, did: string, handle: string, data: PlcData): string {
+	const pds = data.services?.atproto_pds?.endpoint;
+	const handles = (data.alsoKnownAs ?? []).map((a) => a.replace(/^at:\/\//, ''));
+	const methods = Object.entries(data.verificationMethods ?? {});
+	const rotationKeys = data.rotationKeys ?? [];
+	const otherServices = Object.entries(data.services ?? {}).filter(([id]) => id !== 'atproto_pds');
+
+	const lines = [
+		`# PLC Data: @${handle}`,
+		'',
+		`**DID:** \`${did}\``,
+		'',
+		'The current canonical identity state held by plc.directory — the materialized result of all operations.',
+		'',
+		'## PDS',
+		pds ? pds : '*No PDS service registered.*',
+		'',
+		'## Handles',
+		...(handles.length ? handles.map((h) => `- \`${h}\``) : ['*None.*']),
+		'',
+		'## Verification methods',
+		...(methods.length ? methods.map(([id, key]) => `- **${id}:** \`${key}\``) : ['*None.*']),
+		'',
+		'## Rotation keys',
+		'*In priority order — earlier keys can override operations signed by later ones.*',
+		...(rotationKeys.length ? rotationKeys.map((k, i) => `${i + 1}. \`${k}\``) : ['*None.*']),
+	];
+
+	if (otherServices.length) {
+		lines.push('', '## Other services', ...otherServices.map(([id, s]) => `- **${id}** (\`${s.type}\`): ${s.endpoint}`));
+	}
+
+	lines.push(
+		'',
+		'---',
+		`*Current state from [plc.directory](https://plc.directory/${did}/data)*`,
+		`*[Full history →](${origin}/plc/audit/${did})* · *[Identity →](${origin}/resolve/${did})*`,
+	);
+	return lines.join('\n');
+}
+
+export function formatPlcLastOp(origin: string, did: string, handle: string, op: PlcOperation): string {
+	const snap = snapshotOf(op);
+	const lines = [
+		`# PLC Last Operation: @${handle}`,
+		'',
+		`**DID:** \`${did}\``,
+		`**Type:** \`${op.type}\``,
+		`**Previous op:** ${op.prev ? `\`${op.prev}\`` : '*genesis (none)*'}`,
+		'',
+		'The most recent operation in this identity\'s PLC log, and the state it established.',
+		'',
+		'## Resulting state',
+	];
+
+	if (op.type === 'plc_tombstone') {
+		lines.push('- *Identity deactivated (tombstoned).*');
+	} else {
+		lines.push(`- **PDS:** ${snap.pds ?? '—'}`);
+		lines.push(`- **Handle:** ${snap.handles.map((h) => `\`${h}\``).join(', ') || '—'}`);
+		lines.push(`- **Signing key:** \`${snap.signingKey ?? '—'}\``);
+		lines.push(`- **Rotation keys:** ${snap.rotationKeys.length}`);
+	}
+
+	lines.push(
+		'',
+		'---',
+		`*Latest operation from [plc.directory](https://plc.directory/${did}/log/last). For timestamps and prior operations, see the [full audit log →](${origin}/plc/audit/${did}).*`,
+	);
+	return lines.join('\n');
+}
+
 export function indexPage(origin: string): string {
 	return `# atproto.md
 
@@ -212,6 +391,19 @@ GET ${origin}/at://alice.bsky.social/com.whtwnd.blog.entry
 
 ### \`GET ${origin}/resolve/{actor}\`
 Full identity chain: handle → DID → DID document → PDS endpoint.
+
+### \`GET ${origin}/plc/audit/{actor}\` &nbsp;\`NEW\`
+PLC audit log for a \`did:plc\` identity — the full chronological history from plc.directory,
+with PDS migrations, handle changes, and key rotations called out. E.g.
+[\`/plc/audit/bsky.app\`](${origin}/plc/audit/bsky.app).
+
+### \`GET ${origin}/plc/data/{actor}\` &nbsp;\`NEW\`
+Current canonical PLC state — active PDS, handles, signing key, and the rotation keys that
+control the identity. E.g. [\`/plc/data/bsky.app\`](${origin}/plc/data/bsky.app).
+
+### \`GET ${origin}/plc/last/{actor}\` &nbsp;\`NEW\`
+The most recent PLC operation and the state it established. E.g.
+[\`/plc/last/bsky.app\`](${origin}/plc/last/bsky.app).
 
 ### \`GET ${origin}/at://{actor}\`
 Repo overview. Lists all collections present in the repo.
