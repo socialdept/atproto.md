@@ -105,6 +105,14 @@ export class StatsDO extends DurableObject {
 		if (!hasRich) this.sql.exec(`ALTER TABLE collections ADD COLUMN rich INTEGER NOT NULL DEFAULT 0`);
 	}
 
+	// Clear every counter (operator-triggered via the secret-gated /stats/reset endpoint).
+	reset(): void {
+		this.sql.exec(`DELETE FROM counters`);
+		this.sql.exec(`DELETE FROM collections`);
+		this.sql.exec(`DELETE FROM daily`);
+		this.sql.exec(`DELETE FROM meta`);
+	}
+
 	private add(key: string, n: number): void {
 		this.sql.exec(`INSERT INTO counters (key, count) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET count = count + ?`, key, n, n);
 	}
@@ -303,6 +311,11 @@ export async function getStats(env: Env): Promise<StatsSnapshot | null> {
 	return s.snapshot();
 }
 
+export async function resetStats(env: Env): Promise<void> {
+	const s = stub(env);
+	if (s) await s.reset();
+}
+
 const idTypeOf = (s?: string): string | undefined =>
 	s?.startsWith('did:plc:') ? 'plc' : s?.startsWith('did:web:') ? 'web' : s ? 'handle' : undefined;
 
@@ -318,7 +331,8 @@ export interface HttpClass {
 }
 
 // Derive an anonymous route label (plus any targeted collection NSID, identifier type, backlink
-// selector, and pagination flags) from the URL alone. Returns null for crawler/asset noise.
+// selector, and pagination flags) from the URL alone. Returns null for anything outside the API
+// surface — assets and unrecognized bot-probe paths — so it isn't counted.
 export function classifyHttp(url: URL): HttpClass | null {
 	const path = url.pathname;
 	const flags = paramFlags(url);
@@ -336,11 +350,9 @@ export function classifyHttp(url: URL): HttpClass | null {
 	const segments = path.replace(/^\//, '').split('/').filter(Boolean);
 	const head = segments[0];
 
-	if (['og.svg', 'og.png', 'favicon.svg', 'favicon.ico', 'robots.txt', 'sitemap.xml'].includes(head)) return null;
-
 	if (head === 'llms.txt') return { key: 'route:llms.txt' };
 	if (head === 'skill.md') return { key: 'route:skill.md' };
-	if (head === 'stats') return { key: 'route:stats' };
+	if (head === 'stats') return segments[1] === 'reset' ? null : { key: 'route:stats' };
 	if (head === 'resolve') return { key: 'route:resolve', idType: idTypeOf(segments[1]) };
 	if (head === 'discover') return { key: 'route:discover', collection: segments[1], flags };
 	if (head === 'lexicon') return { key: 'route:lexicon', collection: segments[1] };
@@ -349,5 +361,7 @@ export function classifyHttp(url: URL): HttpClass | null {
 	}
 	if (head === 'plc') return { key: `route:plc/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
 
-	return { key: 'route:other' };
+	// Assets (favicon/og/robots/sitemap) and unrecognized paths (bot probes, typos) aren't part
+	// of the API surface — don't count them.
+	return null;
 }

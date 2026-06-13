@@ -1,6 +1,7 @@
 import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
 import worker from '../src/index';
+import { classifyHttp } from '../src/stats';
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
@@ -11,6 +12,30 @@ async function workerFetch(url: string, init?: RequestInit) {
 	await waitOnExecutionContext(ctx);
 	return response;
 }
+
+describe('classifyHttp (stats tracking)', () => {
+	const c = (path: string) => classifyHttp(new URL(`http://example.com${path}`));
+
+	it('classifies recognized API routes', () => {
+		expect(c('/')?.key).toBe('route:home');
+		expect(c('/resolve/bsky.app')?.key).toBe('route:resolve');
+		expect(c('/at://bsky.app')?.key).toBe('route:repo');
+		expect(c('/at://bsky.app/app.bsky.feed.post')?.key).toBe('route:records');
+		expect(c('/plc/audit/bsky.app')?.key).toBe('route:plc/audit');
+		expect(c('/lexicon/app.bsky.feed.post')?.key).toBe('route:lexicon');
+	});
+
+	it('ignores assets and unrecognized paths (returns null)', () => {
+		expect(c('/favicon.ico')).toBeNull();
+		expect(c('/favicon.svg')).toBeNull();
+		expect(c('/og.png')).toBeNull();
+		expect(c('/robots.txt')).toBeNull();
+		expect(c('/sitemap.xml')).toBeNull();
+		expect(c('/wp-login.php')).toBeNull();
+		expect(c('/.env')).toBeNull();
+		expect(c('/random/garbage')).toBeNull();
+	});
+});
 
 describe('routing', () => {
 	it('returns the index page on GET /', async () => {
@@ -110,17 +135,36 @@ describe('routing', () => {
 		expect(body).toContain('name="robots" content="noindex"');
 	});
 
+	it('rejects /stats/reset without the secret token (404, not advertised)', async () => {
+		// wrong method
+		expect((await workerFetch('http://example.com/stats/reset')).status).toBe(404);
+		// POST without a token
+		expect((await workerFetch('http://example.com/stats/reset', { method: 'POST' })).status).toBe(404);
+		// POST with the wrong token
+		const bad = await workerFetch('http://example.com/stats/reset', { method: 'POST', headers: { Authorization: 'Bearer nope' } });
+		expect(bad.status).toBe(404);
+	});
+
+	it('clears counters on POST /stats/reset with the correct token', async () => {
+		const res = await workerFetch('http://example.com/stats/reset', {
+			method: 'POST',
+			headers: { Authorization: 'Bearer test-reset-token' },
+		});
+		expect(res.status).toBe(200);
+		expect(await res.text()).toContain('Stats reset');
+	});
+
 	it('counts requests and surfaces them on /stats', async () => {
-		// Drive a mix of requests — including an error — then read the totals back.
+		// Drive a mix of markdown requests — including an error on a known route — then read back.
 		await workerFetch('http://example.com/');
 		await workerFetch('http://example.com/');
-		await workerFetch('http://example.com/definitely/not/a/route'); // 400 → error + status code
+		await workerFetch('http://example.com/resolve'); // 400 on a known route → tracked error
 
 		const body = await (await workerFetch('http://example.com/stats')).text();
 		expect(body).toContain('**Total requests:**');
 		expect(body).toContain('HTTP (markdown)');
 		expect(body).toContain('## Status codes');
-		expect(body).toContain('`400`'); // the invalid-path error was counted by status
+		expect(body).toContain('`400`'); // the /resolve usage error was counted by status
 		expect(body).toContain('## Errors by route');
 	});
 });
