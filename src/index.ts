@@ -18,7 +18,7 @@ import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
 import { pdsGet } from './pds';
 import { listReposByCollection } from './relay';
-import { classifyHttp, getStats, recordVisit } from './stats';
+import { classifyHttp, getStats, recordVisit, resetStats } from './stats';
 import type { AtpRecord } from './types';
 import {
 	formatAuditLog,
@@ -55,6 +55,18 @@ export default {
 			return createMcpHandler(createMcpServer(origin, env, ctx))(request, env, ctx);
 		}
 
+		// Operator-only stats wipe: POST /stats/reset with `Authorization: Bearer <token>`, where
+		// the token is the STATS_RESET_TOKEN secret (set via `wrangler secret put`, never in source).
+		// Any failure (wrong method, no/unset token, mismatch) returns 404 so the endpoint isn't
+		// advertised. This keeps wipes operator-controlled — not triggerable from the public repo.
+		if (url.pathname === '/stats/reset') {
+			const token = env.STATS_RESET_TOKEN;
+			const provided = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+			if (request.method !== 'POST' || !token || provided !== token) return errMd('Not found.', 404);
+			await resetStats(env);
+			return mdResponse('# Stats reset\n\nAll counters cleared.\n');
+		}
+
 		// All other routes are GET-only
 		if (request.method !== 'GET') return errMd('Only GET requests are supported.', 405);
 
@@ -62,13 +74,14 @@ export default {
 		const response = await handleGet(request, url, origin, env);
 		const latencyMs = Date.now() - start;
 
-		// Anonymous usage counter — derived from the URL + response, fire-and-forget.
+		// Anonymous usage counter — fire-and-forget. Count only the markdown data we serve to
+		// agents; HTML chrome (browser visits to the home and /stats pages) is ignored entirely,
+		// since it would otherwise drown the API signal. The markdown (curl) variants still count.
 		const stat = classifyHttp(url);
-		if (stat) {
+		const isMarkdown = (response.headers.get('Content-Type') ?? '').startsWith('text/markdown');
+		if (stat && isMarkdown) {
 			const isError = response.status >= 400;
 			const country = typeof request.cf?.country === 'string' ? request.cf.country : undefined;
-			// Count only the markdown data we serve to agents — not HTML chrome (home/stats pages).
-			const isMarkdown = (response.headers.get('Content-Type') ?? '').startsWith('text/markdown');
 			const contentLength = response.headers.get('Content-Length');
 			recordVisit(env, ctx, {
 				channel: 'http',
@@ -81,7 +94,7 @@ export default {
 				status: response.status,
 				upstream: isError ? response.headers.get('X-Upstream') ?? undefined : undefined,
 				country,
-				bytes: isMarkdown && contentLength ? Number(contentLength) : undefined,
+				bytes: contentLength ? Number(contentLength) : undefined,
 				latencyMs,
 			});
 		}

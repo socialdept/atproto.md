@@ -7,6 +7,9 @@ declare namespace Cloudflare {
 	}
 	interface Env {
 		STATS: DurableObjectNamespace<import("./src/stats").StatsDO>;
+		// Operator secret for POST-ing to /stats/reset. Set via `wrangler secret put STATS_RESET_TOKEN`
+		// — never committed. Unset → the reset endpoint is disabled (404).
+		STATS_RESET_TOKEN?: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

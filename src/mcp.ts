@@ -7,6 +7,7 @@ import { pdsGet } from './pds';
 import { listReposByCollection } from './relay';
 import { recordSession, recordVisit } from './stats';
 import type { AtpRecord } from './types';
+import { version } from '../package.json';
 import {
 	formatAuditLog,
 	formatBacklinkRecords,
@@ -26,7 +27,7 @@ type TextResult = { content: { type: 'text'; text: string }[] };
 export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext): McpServer {
 	const server = new McpServer({
 		name: 'atproto-md',
-		version: '1.0.0',
+		version,
 	});
 
 	// Count a distinct MCP session per `initialize` handshake — the closest privacy-safe proxy
