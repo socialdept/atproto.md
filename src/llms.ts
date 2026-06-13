@@ -11,6 +11,7 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 - [PLC audit log](${origin}/plc/audit/{handle-or-did}): Chronological history of a did:plc identity — PDS migrations, handle changes, key rotations
 - [PLC data](${origin}/plc/data/{handle-or-did}): Current canonical PLC state — active PDS, handles, signing key, and rotation keys
 - [PLC last op](${origin}/plc/last/{handle-or-did}): The most recent PLC operation and the state it established
+- [Usage stats](${origin}/stats): Anonymous traffic — route + MCP-tool hit counts and most-queried collections. No user-specific data
 - [Repo overview](${origin}/at://{actor}): Lists all collections in an actor's repo
 - [List records](${origin}/at://{actor}/{collection}): Paginated records from any collection. Params: limit (default 25, max 100), cursor, reverse
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): Fetch a single record by its rkey

@@ -21,7 +21,7 @@ export async function listReposByCollection(collection: string, limit: number, c
 
 	if (!res.ok) {
 		const err: Record<string, unknown> = await res.json().catch(() => ({}));
-		throw { status: res.status, message: (err.message as string) || res.statusText };
+		throw { status: res.status, message: (err.message as string) || res.statusText, upstream: 'relay' };
 	}
 
 	const data = (await res.json()) as { repos?: { did: string }[]; cursor?: string };

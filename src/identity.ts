@@ -9,7 +9,7 @@ export async function resolveToDid(handleOrDid: string): Promise<string> {
 		`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handleOrDid)}`,
 	);
 
-	if (!res.ok) throw { status: 404, message: `Could not resolve handle: \`${handleOrDid}\`` };
+	if (!res.ok) throw { status: 404, message: `Could not resolve handle: \`${handleOrDid}\``, upstream: 'handle' };
 
 	const data = (await res.json()) as { did: string };
 	return data.did;
@@ -20,14 +20,14 @@ export async function resolveDidDoc(did: string): Promise<DidDocument> {
 
 	if (method === 'plc') {
 		const res = await fetch(`${PLC_DIRECTORY}/${encodeURIComponent(did)}`);
-		if (!res.ok) throw { status: 404, message: `DID not found: \`${did}\`` };
+		if (!res.ok) throw { status: 404, message: `DID not found: \`${did}\``, upstream: 'plc' };
 		return res.json() as Promise<DidDocument>;
 	}
 
 	if (method === 'web') {
 		const domain = did.replace('did:web:', '');
 		const res = await fetch(`https://${domain}/.well-known/did.json`);
-		if (!res.ok) throw { status: 404, message: `DID not found: \`${did}\`` };
+		if (!res.ok) throw { status: 404, message: `DID not found: \`${did}\``, upstream: 'did:web' };
 		return res.json() as Promise<DidDocument>;
 	}
 
@@ -36,7 +36,7 @@ export async function resolveDidDoc(did: string): Promise<DidDocument> {
 
 export function pdsFromDidDoc(doc: DidDocument): string {
 	const svc = doc.service?.find((s) => s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer');
-	if (!svc) throw { status: 502, message: `No PDS service found in DID doc for \`${doc.id}\`` };
+	if (!svc) throw { status: 502, message: `No PDS service found in DID doc for \`${doc.id}\``, upstream: 'identity' };
 	return svc.serviceEndpoint.replace(/\/$/, '');
 }
 
@@ -50,7 +50,7 @@ export async function resolvePlcAuditLog(did: string): Promise<PlcLogEntry[]> {
 	assertPlcDid(did);
 
 	const res = await fetch(`${PLC_DIRECTORY}/${encodeURIComponent(did)}/log/audit`);
-	if (!res.ok) throw { status: 404, message: `No PLC audit log found for \`${did}\`` };
+	if (!res.ok) throw { status: 404, message: `No PLC audit log found for \`${did}\``, upstream: 'plc' };
 
 	return res.json() as Promise<PlcLogEntry[]>;
 }
@@ -59,7 +59,7 @@ export async function resolvePlcData(did: string): Promise<PlcData> {
 	assertPlcDid(did);
 
 	const res = await fetch(`${PLC_DIRECTORY}/${encodeURIComponent(did)}/data`);
-	if (!res.ok) throw { status: 404, message: `No PLC data found for \`${did}\`` };
+	if (!res.ok) throw { status: 404, message: `No PLC data found for \`${did}\``, upstream: 'plc' };
 
 	return res.json() as Promise<PlcData>;
 }
@@ -68,7 +68,7 @@ export async function resolvePlcLastOp(did: string): Promise<PlcOperation> {
 	assertPlcDid(did);
 
 	const res = await fetch(`${PLC_DIRECTORY}/${encodeURIComponent(did)}/log/last`);
-	if (!res.ok) throw { status: 404, message: `No PLC operations found for \`${did}\`` };
+	if (!res.ok) throw { status: 404, message: `No PLC operations found for \`${did}\``, upstream: 'plc' };
 
 	return res.json() as Promise<PlcOperation>;
 }

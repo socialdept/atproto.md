@@ -93,6 +93,36 @@ describe('routing', () => {
 		expect(res.status).toBe(400);
 		expect(await res.text()).toContain('/backlinks/{at-uri-or-did-or-url}');
 	});
+
+	it('serves /stats as markdown to agents', async () => {
+		const res = await workerFetch('http://example.com/stats');
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('text/markdown; charset=utf-8');
+		expect(await res.text()).toContain('atproto.md — usage stats');
+	});
+
+	it('serves /stats as an HTML dashboard to browsers', async () => {
+		const res = await workerFetch('http://example.com/stats', { headers: { Accept: 'text/html' } });
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
+		const body = await res.text();
+		expect(body).toContain('<title>usage stats — atproto.md</title>');
+		expect(body).toContain('name="robots" content="noindex"');
+	});
+
+	it('counts requests and surfaces them on /stats', async () => {
+		// Drive a mix of requests — including an error — then read the totals back.
+		await workerFetch('http://example.com/');
+		await workerFetch('http://example.com/');
+		await workerFetch('http://example.com/definitely/not/a/route'); // 400 → error + status code
+
+		const body = await (await workerFetch('http://example.com/stats')).text();
+		expect(body).toContain('**Total requests:**');
+		expect(body).toContain('HTTP (markdown)');
+		expect(body).toContain('## Status codes');
+		expect(body).toContain('`400`'); // the invalid-path error was counted by status
+		expect(body).toContain('## Errors by route');
+	});
 });
 
 describe('content negotiation on /', () => {

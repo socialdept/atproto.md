@@ -9,7 +9,7 @@ export async function pdsGet(pds: string, lexicon: string, params: Record<string
 
 	if (!res.ok) {
 		const err: Record<string, unknown> = await res.json().catch(() => ({}));
-		throw { status: res.status, message: (err.message as string) || res.statusText };
+		throw { status: res.status, message: (err.message as string) || res.statusText, upstream: 'pds' };
 	}
 
 	return res.json() as Promise<Record<string, unknown>>;
