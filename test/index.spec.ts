@@ -52,6 +52,30 @@ describe('routing', () => {
 		expect(await res.text()).toContain('/resolve/{handle-or-did}');
 	});
 
+	it('returns usage hint for /plc/audit without an actor', async () => {
+		const res = await workerFetch('http://example.com/plc/audit');
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain('/plc/audit/{handle-or-did}');
+	});
+
+	it('returns usage hint for /plc/data without an actor', async () => {
+		const res = await workerFetch('http://example.com/plc/data');
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain('/plc/data/{handle-or-did}');
+	});
+
+	it('returns usage hint for /plc/last without an actor', async () => {
+		const res = await workerFetch('http://example.com/plc/last');
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain('/plc/last/{handle-or-did}');
+	});
+
+	it('returns a usage hint for an unknown /plc subroute', async () => {
+		const res = await workerFetch('http://example.com/plc/bogus');
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain('/plc/{audit|data|last}');
+	});
+
 	it('returns usage hint for /lexicon without an nsid', async () => {
 		const res = await workerFetch('http://example.com/lexicon');
 		expect(res.status).toBe(400);

@@ -8,6 +8,9 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 ## Endpoints
 
 - [Resolve identity](${origin}/resolve/{handle-or-did}): Full identity chain — handle → DID → DID document → PDS endpoint
+- [PLC audit log](${origin}/plc/audit/{handle-or-did}): Chronological history of a did:plc identity — PDS migrations, handle changes, key rotations
+- [PLC data](${origin}/plc/data/{handle-or-did}): Current canonical PLC state — active PDS, handles, signing key, and rotation keys
+- [PLC last op](${origin}/plc/last/{handle-or-did}): The most recent PLC operation and the state it established
 - [Repo overview](${origin}/at://{actor}): Lists all collections in an actor's repo
 - [List records](${origin}/at://{actor}/{collection}): Paginated records from any collection. Params: limit (default 25, max 100), cursor, reverse
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): Fetch a single record by its rkey
@@ -18,6 +21,8 @@ atproto.md resolves handles and DIDs, fetches data directly from the user's PDS 
 ## Examples
 
 - [Resolve bsky.app](${origin}/resolve/bsky.app)
+- [PLC audit log for bsky.app](${origin}/plc/audit/bsky.app)
+- [PLC data for bsky.app](${origin}/plc/data/bsky.app)
 - [Browse repo](${origin}/at://bsky.app)
 - [List posts](${origin}/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post?limit=5)
 - [Get profile](${origin}/at://bsky.app/app.bsky.actor.profile/self)
@@ -43,7 +48,7 @@ curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
 export function skillMd(origin: string): string {
 	return `---
 name: atproto-md
-description: Fetch any public AT Protocol data as clean Markdown — resolve handles/DIDs, browse repos, read records from any collection on any PDS (Bluesky or third-party lexicons), resolve lexicon schemas by NSID, discover every repo using a lexicon, and explore backlinks. Use whenever the user shares an at:// URI, a handle/DID, or a lexicon NSID (e.g. app.bsky.feed.post, site.standard.document), or asks to inspect AT Protocol / atproto / Bluesky / Standard.site data.
+description: Fetch any public AT Protocol data as clean Markdown — resolve handles/DIDs, browse repos, read records from any collection on any PDS (Bluesky or third-party lexicons), resolve lexicon schemas by NSID, discover every repo using a lexicon, explore backlinks, and trace a did:plc identity's history via its PLC audit log. Use whenever the user shares an at:// URI, a handle/DID, or a lexicon NSID (e.g. app.bsky.feed.post, site.standard.document), or asks to inspect AT Protocol / atproto / Bluesky / Standard.site data, or wants to know when an account migrated PDS or changed its handle.
 ---
 
 # atproto-md — AT Protocol Markdown API
@@ -64,6 +69,8 @@ Use this API whenever the user asks to:
 - Resolve a Lexicon schema definition by its NSID (e.g. inspect the \`app.bsky.feed.post\` schema)
 - Discover every repo on the network using a given collection/lexicon (e.g. all repos with \`site.standard.document\`)
 - Find who liked, reposted, replied to, follows, or otherwise links to a record, account, or URL (backlinks)
+- Date a PDS migration or trace an account's handle/key history via its PLC audit log
+- Inspect the rotation keys that control a did:plc identity (PLC data)
 
 ## How to call it
 
@@ -73,6 +80,12 @@ Open CORS — works from browser, server, or CLI.
 \`\`\`bash
 # Resolve a handle or DID
 curl ${origin}/resolve/bsky.app
+
+# Trace a did:plc identity's history (PDS migrations, handle/key changes)
+curl ${origin}/plc/audit/bsky.app
+
+# Current PLC state — active PDS, handles, and rotation keys
+curl ${origin}/plc/data/bsky.app
 
 # Browse a repo (list all collections)
 curl ${origin}/at://bsky.app
@@ -104,6 +117,30 @@ GET ${origin}/resolve/{actor}
 \`\`\`
 Full identity chain: handle → DID → DID document → PDS endpoint.
 Returns the DID, all \`alsoKnownAs\` handles, services, and verification keys.
+
+### PLC audit log
+\`\`\`
+GET ${origin}/plc/audit/{actor}
+\`\`\`
+Chronological history of a \`did:plc\` identity from plc.directory, with each operation diffed
+against the previous one. Surfaces PDS migrations (from/to endpoint and date), handle changes,
+and signing/rotation key rotations — useful for dating a migration or verifying provenance.
+\`did:web\` identities have no PLC log.
+
+### PLC data
+\`\`\`
+GET ${origin}/plc/data/{actor}
+\`\`\`
+The current canonical PLC state — active PDS, all handles (\`alsoKnownAs\`), atproto signing key,
+and rotation keys in priority order. Unlike \`/resolve\` (the DID document), this exposes the
+rotation keys that actually control the identity.
+
+### PLC last operation
+\`\`\`
+GET ${origin}/plc/last/{actor}
+\`\`\`
+The most recent PLC operation and the state it established (PDS, handles, keys, op type).
+Lightweight "what changed last" check; use \`/plc/audit\` for the full dated history.
 
 ### Repo overview
 \`\`\`

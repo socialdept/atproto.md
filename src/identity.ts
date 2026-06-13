@@ -1,4 +1,4 @@
-import type { Actor, DidDocument } from './types';
+import type { Actor, DidDocument, PlcData, PlcLogEntry, PlcOperation } from './types';
 
 const PLC_DIRECTORY = 'https://plc.directory';
 
@@ -38,6 +38,39 @@ export function pdsFromDidDoc(doc: DidDocument): string {
 	const svc = doc.service?.find((s) => s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer');
 	if (!svc) throw { status: 502, message: `No PDS service found in DID doc for \`${doc.id}\`` };
 	return svc.serviceEndpoint.replace(/\/$/, '');
+}
+
+function assertPlcDid(did: string): void {
+	if (!did.startsWith('did:plc:')) {
+		throw { status: 400, message: `PLC operations are only available for \`did:plc\` identities, not \`${did}\`` };
+	}
+}
+
+export async function resolvePlcAuditLog(did: string): Promise<PlcLogEntry[]> {
+	assertPlcDid(did);
+
+	const res = await fetch(`${PLC_DIRECTORY}/${encodeURIComponent(did)}/log/audit`);
+	if (!res.ok) throw { status: 404, message: `No PLC audit log found for \`${did}\`` };
+
+	return res.json() as Promise<PlcLogEntry[]>;
+}
+
+export async function resolvePlcData(did: string): Promise<PlcData> {
+	assertPlcDid(did);
+
+	const res = await fetch(`${PLC_DIRECTORY}/${encodeURIComponent(did)}/data`);
+	if (!res.ok) throw { status: 404, message: `No PLC data found for \`${did}\`` };
+
+	return res.json() as Promise<PlcData>;
+}
+
+export async function resolvePlcLastOp(did: string): Promise<PlcOperation> {
+	assertPlcDid(did);
+
+	const res = await fetch(`${PLC_DIRECTORY}/${encodeURIComponent(did)}/log/last`);
+	if (!res.ok) throw { status: 404, message: `No PLC operations found for \`${did}\`` };
+
+	return res.json() as Promise<PlcOperation>;
 }
 
 export async function resolveActor(actor: string): Promise<Actor> {
