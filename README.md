@@ -36,7 +36,7 @@ Model Context Protocol server endpoint. Install in Claude Code:
 claude mcp add --transport http atproto-md https://atproto.md/mcp
 ```
 
-Exposes seven tools: `resolve_identity`, `get_repo`, `list_records`, `get_record`, `get_lexicon`, `discover_repos_by_collection`, `get_backlinks`.
+Exposes ten tools: `resolve_identity`, `get_repo`, `list_records`, `get_record`, `get_lexicon`, `discover_repos_by_collection`, `get_backlinks`, `plc_audit`, `plc_data`, `plc_last`.
 
 ### `GET /skill.md`
 Full agent skill sheet with usage triggers, examples, and endpoint reference. Save it as a Claude Code slash command (invoke with `/atproto`):
@@ -47,6 +47,15 @@ curl -s https://atproto.md/skill.md > ~/.claude/commands/atproto.md
 
 ### `GET /resolve/{handle-or-did}`
 Resolves the full identity chain for an actor: handle → DID → DID document → PDS endpoint. Useful for debugging identity issues or understanding where a user's data lives.
+
+### `GET /plc/audit/{handle-or-did}`
+Chronological history of a `did:plc` identity from [plc.directory](https://plc.directory), each operation diffed against the previous one — PDS migrations (from/to host and date), handle changes, and signing/rotation key rotations. Useful for dating a migration or verifying provenance. `did:web` identities have no PLC log.
+
+### `GET /plc/data/{handle-or-did}`
+Current canonical PLC state — active PDS, all handles, atproto signing key, and rotation keys in priority order. Unlike `/resolve` (the DID document), this exposes the rotation keys that actually control the identity.
+
+### `GET /plc/last/{handle-or-did}`
+The most recent PLC operation and the state it established.
 
 ### `GET /at://{actor}`
 Lists all collections present in the actor's repo.
@@ -82,6 +91,9 @@ Finds records across the network that link to a target — likes, reposts, repli
 | `source` | —       | —   | A `{collection:path}` selector (e.g. `app.bsky.feed.like:subject.uri`) to list linking records |
 | `limit`  | 50      | 100 | Linking records per page                                                                      |
 | `cursor` | —       | —   | Pagination cursor from previous response                                                      |
+
+### `GET /stats`
+Anonymous usage dashboard — request counts by route and MCP tool, MCP sessions, most-queried collections (with which still need a formatter), status codes, upstream failures, and aggregate timing. HTML for browsers, markdown for agents. Only markdown/API responses are counted — never IPs, handles, DIDs, or record keys.
 
 ---
 
@@ -120,8 +132,8 @@ Known collection types get structured rendering. Everything else falls back to a
 | `app.bsky.graph.follow` / `block` / `list` / `listitem`    | Subjects, timestamps               |
 | `app.bsky.feed.like` / `repost` / `generator`              | Subjects, timestamps               |
 | `app.bsky.labeler.service`                                  | Label policies                     |
-| `site.standard.publication`                                 | Name, URL, description             |
-| `site.standard.document`                                    | Title, content, published date     |
+| `site.standard.publication`                                 | Name, URL, description, icon, labels, locale |
+| `site.standard.document`                                    | Title, dates, tags, labels, cover image, contributors, content |
 | `pub.leaflet.publication` / `document`                      | Name, URL, content from pages      |
 | `app.offprint.publication` / `document.article`             | References to standard records     |
 | `blog.pckt.publication`                                     | Reference to standard record       |
@@ -159,6 +171,7 @@ npm run deploy   # deploy to Cloudflare
 - **Public data only.** No authentication is supported or planned. Private records on a PDS will not be accessible.
 - **Rate limits** follow the upstream PDS. If you expect significant traffic, add Cloudflare KV-backed rate limiting per IP.
 - **Caching** is set to `Cache-Control: public, max-age=60`. Adjust per endpoint if needed.
+- **Usage stats** are aggregated anonymously in a Durable Object (the `STATS` binding, SQLite-backed) and surfaced at `/stats`. To wipe them, set a `STATS_RESET_TOKEN` secret (`wrangler secret put STATS_RESET_TOKEN`) and `POST /stats/reset` with an `Authorization: Bearer <token>` header. Without the secret the reset endpoint is disabled (404).
 
 ---
 
