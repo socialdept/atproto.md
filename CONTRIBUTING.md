@@ -18,7 +18,7 @@ npm run test   # run the test suite
 
 ## Code style
 
-Code style is enforced by `.editorconfig` and `.prettierrc` — most editors pick these up automatically.
+Code style is enforced by `.editorconfig` and `.prettierrc`, which most editors pick up automatically.
 
 - Tabs for indentation
 - Single quotes
@@ -29,7 +29,7 @@ Code style is enforced by `.editorconfig` and `.prettierrc` — most editors pic
 
 ## Adding a new formatter
 
-Adding support for a new collection type touches exactly **3 files** (plus one new test file). Here's the full walkthrough.
+Adding support for a new collection type adds two files (the formatter and its test) and touches two more (`src/formatters/index.ts` and `test/formatters/registry.spec.ts`). Here's the full walkthrough.
 
 ### 1. Create the formatter
 
@@ -77,10 +77,7 @@ describe('blue.linkat.entry', () => {
 	const m = meta({ collection: 'blue.linkat.entry' });
 
 	it('renders a link with all fields', () => {
-		const result = format(
-			record({ title: 'My Site', url: 'https://example.com', description: 'A cool site' }),
-			m,
-		);
+		const result = format(record({ title: 'My Site', url: 'https://example.com', description: 'A cool site' }), m);
 		expect(result).toContain('**Title:** My Site');
 		expect(result).toContain('**URL:** [https://example.com](https://example.com)');
 		expect(result).toContain('> A cool site');
@@ -88,7 +85,7 @@ describe('blue.linkat.entry', () => {
 
 	it('handles entry with only a URL', () => {
 		const result = format(record({ url: 'https://example.com' }), m);
-		expect(result).toContain('**URL:**');
+		expect(result).toContain('**URL:** [https://example.com](https://example.com)');
 		expect(result).not.toContain('Title');
 	});
 });
@@ -96,9 +93,9 @@ describe('blue.linkat.entry', () => {
 
 The test helpers:
 
-- `record(value)` — builds a minimal `AtpRecord` from a value object
-- `meta(overrides)` — builds a `RecordMeta` with sensible defaults
-- `formatter(collection)` — looks up a formatter and asserts it exists
+- `record(value)` builds a minimal `AtpRecord` from a value object
+- `meta(overrides)` builds a `RecordMeta` with sensible defaults
+- `formatter(collection)` looks up a formatter and asserts it exists
 
 ### 4. Add to the registry test
 
@@ -116,10 +113,10 @@ npm run test
 
 - Formatters receive `(record: AtpRecord, meta: RecordMeta)` and return `string | null`
 - Access record data via `record.value` with optional chaining throughout
-- Use `formatDate()` from `src/utils.ts` for date formatting — never inline `new Date(...).toUTCString()`
+- Use `formatDate()` from `src/utils.ts` for date formatting, never an inline `new Date(...).toUTCString()`
 - Use the `.filter(Boolean).join('\n')` pattern to build output from nullable lines
 - If a formatter needs to preserve empty string spacers (e.g. between metadata and content), use `.filter((l) => l !== null)` instead of `.filter(Boolean)`
-- Formatters should never throw — return a string or null
+- Formatters should never throw. Return a string or null
 
 ---
 
@@ -131,12 +128,17 @@ src/
   http.ts               # CORS headers, mdResponse(), errMd()
   identity.ts           # Handle/DID resolution chain
   pds.ts                # PDS XRPC helper
+  relay.ts              # Relay helper for /discover
+  constellation.ts      # Constellation helper for /backlinks
+  lexicon.ts            # DNS lexicon resolution for /lexicon
   types.ts              # Shared TypeScript interfaces
-  utils.ts              # Shared utilities (formatDate)
+  utils.ts              # Shared utilities (formatDate, extFromMime)
   format.ts             # formatRecord() dispatch + genericMd() fallback
   views.ts              # Page-level view formatters + index page
-  llms.ts               # /llms.txt endpoint
+  html.ts               # HTML pages for browsers, OG image, robots.txt, sitemap
+  llms.ts               # /llms.txt and /skill.md
   mcp.ts                # MCP server for LLM tool integration
+  stats.ts              # Anonymous usage counters (StatsDO) for /stats
   formatters/
     registry.ts         # register() and getFormatter()
     index.ts            # Barrel imports for all formatters
@@ -145,6 +147,8 @@ src/
 test/
   index.spec.ts         # Worker route tests
   format.spec.ts        # genericMd and formatRecord tests
+  lexicon.spec.ts       # Lexicon resolution tests
+  views.spec.ts         # View formatter tests
   utils.spec.ts         # Utility function tests
   formatters/
     helpers.ts          # Shared test helpers: record(), meta(), formatter()
@@ -163,7 +167,10 @@ To see what fields a collection's records contain, use the running dev server or
 curl http://localhost:8787/at://bsky.app
 
 # List records in a collection to see the shape
+curl http://localhost:8787/at://bsky.app/app.bsky.actor.profile
+
+# Fetch a single record
 curl http://localhost:8787/at://bsky.app/app.bsky.actor.profile/self
 ```
 
-The generic formatter will render unknown collections as key-value markdown — use that output to understand the record shape before writing a dedicated formatter.
+The generic formatter will render unknown collections as key-value markdown. Use that output to understand the record shape before writing a dedicated formatter.
