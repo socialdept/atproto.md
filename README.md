@@ -37,3 +37,7 @@ Find yourself stuck using it? Found a bug? Do you have general questions or sugg
 ## Contributing
 
 Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+
+## License
+
+The MIT License (MIT). Please see [LICENSE](LICENSE) for more information.
