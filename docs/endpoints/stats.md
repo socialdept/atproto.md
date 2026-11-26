@@ -4,9 +4,9 @@ Part of the [atproto.md docs](../introduction.md#documentation). The anonymous u
 
 ## `GET /stats`
 
-An anonymous usage dashboard: request counts by route and MCP tool, MCP sessions, the most-queried collections and which of them still need a [formatter](../formatting.md), status codes, upstream failures, and aggregate timing. Browsers get HTML, and agents get markdown.
+An anonymous usage dashboard: request counts by route and MCP tool, MCP sessions, the most-queried collections, status codes, upstream failures, and aggregate timing. Browsers get HTML, and agents get markdown.
 
-Only the markdown responses served over HTTP and the MCP tool calls are counted. HTML visits to the home and stats pages are not. Counters never hold IPs, handles, DIDs or record keys. HTTP requests do record a coarse country code.
+Only the data responses served over HTTP (markdown or JSON) and the MCP tool calls are counted. HTML visits to the home and stats pages are not. Counters never hold IPs, handles, DIDs or record keys. HTTP requests do record a coarse country code.
 
 The counters live in the `STATS` Durable Object, which is SQLite-backed.
 

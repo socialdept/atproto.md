@@ -6,16 +6,16 @@ Every route here takes a handle or a DID. The `/plc` routes work only for `did:p
 
 ## `GET /resolve/{handle-or-did}`
 
-Resolves the full identity chain for an actor: handle, DID, DID document and PDS endpoint. Useful for debugging identity issues or finding where a user's data lives.
+The identity and repo in one response: `did`, `handle`, `pds`, `collections` and the full `didDoc`. `collections` is `null` when the PDS does not answer `describeRepo`.
 
 ## `GET /plc/audit/{handle-or-did}`
 
-The chronological history of a `did:plc` identity from [plc.directory](https://plc.directory), each operation diffed against the previous one: PDS migrations (from and to host, and the date), handle changes, and signing and rotation key changes. Useful for dating a migration or checking provenance.
+The full operation log of a `did:plc` identity from [plc.directory](https://plc.directory), as `{did, operations}`. Each operation is returned as plc.directory serves it, with its `createdAt`, `cid` and `nullified` flag, so PDS migrations, handle changes and key rotations can be dated from the services, `alsoKnownAs` and keys of consecutive operations.
 
 ## `GET /plc/data/{handle-or-did}`
 
-The current canonical PLC state: the active PDS, all handles, the atproto signing key, and the rotation keys in priority order. Unlike `/resolve`, which shows the DID document, this exposes the rotation keys that actually control the identity.
+The current canonical PLC state as plc.directory serves it: the services (including the active PDS), all handles, the verification methods and the rotation keys in priority order. Unlike `/resolve`, which shows the DID document, this exposes the rotation keys that control the identity.
 
 ## `GET /plc/last/{handle-or-did}`
 
-The most recent PLC operation and the state it established.
+The most recent PLC operation, as `{did, operation}`.
