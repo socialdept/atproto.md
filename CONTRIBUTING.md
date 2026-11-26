@@ -1,31 +1,66 @@
-# Contributing to atproto.md
+# Contributing
 
-The most common contribution is adding a formatter for a new AT Protocol collection type. This guide walks through exactly how to do that.
+Contributions are **welcome** and will be fully **credited**.
 
----
+## Etiquette
 
-## Getting started
+This project is open source, and as such, the maintainers give their free time to build and maintain the source code held within. They make the code freely available in the hope that it will be of use to other developers. It would be extremely unfair for them to suffer abuse or anger for their hard work.
+
+Please be considerate towards maintainers when raising issues or presenting pull requests. Let's show the world that developers are civilized and selfless people.
+
+It's the duty of the maintainer to ensure that all submissions to the project are of sufficient quality to benefit the project. Many developers have different skillsets, strengths, and weaknesses. Respect the maintainer's decision, and do not be upset or abusive if your submission is not used.
+
+## Viability
+
+When requesting or submitting new features, first consider whether it might be useful to others. Open source projects are used by many developers, who may have entirely different needs to your own. Think about whether or not your feature is likely to be used by other users of the project.
+## Procedure
+
+### Before Filing an Issue
+
+- Search existing issues to avoid duplicates
+- Check the [documentation](https://socialde.pt/docs/atproto.md) to ensure it's not a usage question
+- Provide a clear title and description
+- Include the URL you requested and the Markdown you got back
+- For a missing or wrong formatter, name the collection NSID and link an example record
+
+### Before Submitting a Pull Request
+
+- **Discuss non-trivial changes first** by opening an issue
+- **Fork the repository** and create a feature branch from `main`
+- **Follow all requirements** listed below
+- **Write tests** for your changes
+- **Update documentation** if behavior changes
+- **Ensure all tests pass** with `npx vitest run`
+- **Write clear commit messages** that explain what and why
+
+## Requirements
+
+- **Follow the editor config** - Tabs, single quotes, semicolons and a 140 character line width, from `.editorconfig` and `.prettierrc`. Most editors pick these up automatically.
+- **Add tests** - Your patch won't be accepted if it doesn't have tests. Every formatter gets its own spec file and an entry in the registry test.
+- **Formatters never throw** - A formatter returns a string or null for any record, including ones with missing or unexpected fields.
+- **Document any change in behavior** - Make sure the `README.md`, the docs and the `/llms.txt` and `/skill.md` output are kept up-to-date.
+- **Keep URLs stable** - Agents and tools link to atproto.md paths. Changing what an existing path returns, or removing one, is a breaking change.
+- **One pull request per feature** - If you want to do more than one thing, send multiple pull requests.
+- **Send coherent history** - Make sure each individual commit in your pull request is meaningful. If you had to make multiple intermediate commits while developing, please [squash them](https://www.git-scm.com/book/en/v2/Git-Tools-Rewriting-History#Changing-Multiple-Commit-Messages) before submitting.
+
+## How Changes Land
+
+`main` is protected. Every change arrives by pull request, and direct pushes are
+blocked.
+
+- **Merges are squash-only, and the PR title becomes the permanent commit
+  message on `main`.** Write it as one descriptive line. Individual commit
+  messages are preserved in the body.
+- No approval is required, but review threads must be resolved.
+
+## Running Tests
 
 ```bash
-git clone git@tangled.org:socialde.pt/atproto.md atproto-md
-cd atproto-md
 npm install
-npm run dev    # local dev server at http://localhost:8787
-npm run test   # run the test suite
+npx vitest run
 ```
 
----
-
-## Code style
-
-Code style is enforced by `.editorconfig` and `.prettierrc`, which most editors pick up automatically.
-
-- Tabs for indentation
-- Single quotes
-- Semicolons
-- 140 character line width
-
----
+The tests run inside the Workers runtime through `@cloudflare/vitest-pool-workers`. `npm run test` runs the same suite in watch mode, and `npm run dev` serves the Worker at http://localhost:8787.
 
 ## Adding a new formatter
 
@@ -107,7 +142,6 @@ Add your collection NSID(s) to the `expectedCollections` array in `test/formatte
 npm run test
 ```
 
----
 
 ## Formatter conventions
 
@@ -118,7 +152,6 @@ npm run test
 - If a formatter needs to preserve empty string spacers (e.g. between metadata and content), use `.filter((l) => l !== null)` instead of `.filter(Boolean)`
 - Formatters should never throw. Return a string or null
 
----
 
 ## Project structure
 
@@ -156,7 +189,6 @@ test/
     {nsid}.spec.ts      # One test file per formatter
 ```
 
----
 
 ## Finding record shapes
 
