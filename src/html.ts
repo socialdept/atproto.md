@@ -1,14 +1,14 @@
-// Browser- and crawler-facing HTML. The API itself is markdown-first (every data
-// route returns text/markdown); this exists only so link-sharing cards, Google,
+// Browser- and crawler-facing HTML. The API itself returns JSON in a markdown fence
+// (or bare JSON on request); this exists only so link-sharing cards, Google,
 // and humans hitting the root in a browser get a real <head> with SEO/OG meta —
 // and, since they came for a console, an interface that behaves like one.
 
 import type { StatsSnapshot } from './stats';
 import { abbrevNum, fmtNum, routeLabel } from './views';
 
-const TITLE = 'atproto.md — AT Protocol data as Markdown';
+const TITLE = 'atproto.md | AT Protocol records as raw JSON';
 const DESCRIPTION =
-	'A read-only, markdown-first API for the AT Protocol. Fetch any repo, collection, or record from any PDS as clean Markdown, discover every repo using a lexicon, and explore backlinks. No auth, no API key.';
+	'A read-only AT Protocol API built for agents. Fetch any repo, collection or record from any PDS as raw JSON, up to 25 records in one call, with the records they reference. Discover every repo using a lexicon and explore backlinks. No auth, no API key.';
 
 // Detect clients that should get HTML instead of markdown: real browsers
 // (Accept: text/html) and link-unfurling / search crawlers (by User-Agent).
@@ -75,7 +75,7 @@ export function ogImageSvg(): string {
   <rect x="64" y="64" width="1072" height="4" fill="${C.lime}"/>
   <!-- title bar -->
   <text x="96" y="118" font-size="26" fill="${C.dim}">atproto.md</text>
-  <text x="1104" y="118" font-size="22" fill="${C.dim}" text-anchor="end">read-only · markdown · no-auth</text>
+  <text x="1104" y="118" font-size="22" fill="${C.dim}" text-anchor="end">read-only · raw json · no-auth</text>
   <line x1="64" y1="150" x2="1136" y2="150" stroke="${C.line}" stroke-width="1.5"/>
   <!-- prompt -->
   <text x="96" y="220" font-size="27" fill="${C.dim}"><tspan fill="${C.lime}">~ ▸</tspan> <tspan fill="${C.text}">curl</tspan> <tspan fill="${C.dim}">atproto.md/at://{actor}/{collection}/{rkey}</tspan></text>
@@ -324,36 +324,41 @@ export function htmlIndexPage(origin: string): string {
 
   <div class="bar reveal">
     <span class="bar__id mono">atproto.md</span>
-    <span class="bar__meta">read-only · markdown · no-auth</span>
+    <span class="bar__meta">read-only · raw json · no-auth</span>
     <span class="bar__status"><i class="dot"></i> live</span>
   </div>
 
   <section class="hero reveal">
     <div class="prompt"><span class="cue">~ ▸</span> <span class="cmd">curl</span> atproto.md/at://{actor}/{collection}/{rkey}</div>
     <h1>atproto.md<span class="cursor" aria-hidden="true"></span></h1>
-    <p class="lede">AT Protocol data as clean Markdown. Any collection on any PDS — first-party Bluesky or third-party lexicons. No auth, no API key.</p>
+    <p class="lede">AT Protocol records as raw JSON, exactly as the PDS stores them. Any collection on any PDS. Batched, with referenced records and blob URLs included, so one call answers what used to take several. No auth, no API key.</p>
   </section>
 
   <h2 class="reveal">routes</h2>
   <div class="routes reveal">
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/at://{actor}</div>
-      <div class="route__desc">Repo overview — every collection in the repo.</div>
+      <div class="route__desc">DID, handle, PDS, DID document and every collection in the repo.</div>
       <a class="route__eg" href="${origin}/at://bsky.app">/at://bsky.app</a>
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/at://{actor}/{collection}</div>
-      <div class="route__desc">List records in any collection on any PDS. Paginated.</div>
+      <div class="route__desc">List records in any collection on any PDS. Paginated, with <code>expand</code> for referenced records.</div>
       <a class="route__eg" href="${origin}/at://bsky.app/app.bsky.feed.post">/at://bsky.app/app.bsky.feed.post</a>
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/at://{actor}/{collection}/{rkey}</div>
-      <div class="route__desc">Fetch a single record by rkey.</div>
+      <div class="route__desc">One record, with <code>expand</code> for the records it references.</div>
       <a class="route__eg" href="${origin}/at://bsky.app/app.bsky.actor.profile/self">/at://bsky.app/app.bsky.actor.profile/self</a>
     </div>
     <div class="route">
+      <div class="route__sig"><span class="m">GET</span>/get?uri={at-uri}&amp;uri=…<span class="badge">new</span></div>
+      <div class="route__desc">Up to 25 records in one call, by at:// URI or bsky.app link.</div>
+      <a class="route__eg" href="${origin}/get?uri=at://bsky.app/app.bsky.actor.profile/self">/get?uri=at://bsky.app/app.bsky.actor.profile/self</a>
+    </div>
+    <div class="route">
       <div class="route__sig"><span class="m">GET</span>/backlinks/{at-uri-or-did-or-url}<span class="badge">new</span></div>
-      <div class="route__desc">Who links to a target — likes, reposts, replies, follows, or any lexicon.</div>
+      <div class="route__desc">Who links to a target: likes, reposts, replies, follows or any lexicon. <code>hydrate</code> returns the records.</div>
       <a class="route__eg" href="${origin}/backlinks/at://did:plc:btxrwcaeyodrap5mnjw2fvmz/site.standard.document/3md4qsktbms24">/backlinks/at://…/site.standard.document/3md4qsktbms24</a>
     </div>
     <div class="route">
@@ -363,17 +368,17 @@ export function htmlIndexPage(origin: string): string {
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/lexicon/{nsid}<span class="badge">new</span></div>
-      <div class="route__desc">Resolve a Lexicon schema by NSID — DNS <code>_lexicon</code> TXT → DID → schema record.</div>
+      <div class="route__desc">The published Lexicon schema for an NSID, via its <code>_lexicon</code> DNS record.</div>
       <a class="route__eg" href="${origin}/lexicon/app.bsky.feed.post">/lexicon/app.bsky.feed.post</a>
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/plc/audit/{actor}<span class="badge">new</span></div>
-      <div class="route__desc">PLC audit log — PDS migrations, handle changes, and key rotations over time.</div>
+      <div class="route__desc">The raw PLC audit log: PDS migrations, handle changes and key rotations over time.</div>
       <a class="route__eg" href="${origin}/plc/audit/bsky.app">/plc/audit/bsky.app</a>
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/plc/data/{actor}<span class="badge">new</span></div>
-      <div class="route__desc">Current PLC state — active PDS, handles, signing key, and rotation keys.</div>
+      <div class="route__desc">Current PLC state: active PDS, handles, signing key and rotation keys.</div>
       <a class="route__eg" href="${origin}/plc/data/bsky.app">/plc/data/bsky.app</a>
     </div>
     <div class="route">
@@ -383,7 +388,7 @@ export function htmlIndexPage(origin: string): string {
     </div>
     <div class="route">
       <div class="route__sig"><span class="m">GET</span>/resolve/{actor}</div>
-      <div class="route__desc">Full identity chain — handle → DID → DID document → PDS endpoint.</div>
+      <div class="route__desc">The same as /at://{actor}: identity, PDS and collections.</div>
       <a class="route__eg" href="${origin}/resolve/bsky.app">/resolve/bsky.app</a>
     </div>
   </div>
@@ -498,15 +503,13 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
 		roCell(abbrevNum(sessions), 'mcp sessions', full(sessions)),
 		roCell(errPct, 'error rate'),
 		roCell(stats?.latency.count ? `${fmtNum(stats.latency.avgMs)}ms` : '—', 'avg latency'),
-		roCell(bytesHuman(stats?.bytes ?? 0), 'md bytes served'),
-		roCell(`~${abbrevNum(estTokens)}`, 'est. md tokens', estTokens >= 10_000 ? `~${fmtNum(estTokens)}` : undefined),
+		roCell(bytesHuman(stats?.bytes ?? 0), 'bytes served'),
+		roCell(`~${abbrevNum(estTokens)}`, 'est. tokens', estTokens >= 10_000 ? `~${fmtNum(estTokens)}` : undefined),
 	].join('\n');
 
-	// Collections carry a rich/generic badge; the generic ones are formatter candidates.
 	const collMax = Math.max(0, ...(stats?.collections.map((c) => c.count) ?? []));
 	const collRows = (stats?.collections ?? []).map((c) => {
-		const tag = c.rich ? '<span class="tag tag--rich">rich</span>' : '<span class="tag tag--gen">generic</span>';
-		return `    <div class="srow"><span class="srow__bar" style="width:${barWidth(c.count, collMax)}"></span><span class="srow__k mono"><a href="${esc(origin)}/discover/${esc(c.nsid)}">${esc(c.nsid)}</a> ${tag}</span><span class="srow__v mono">${esc(fmtNum(c.count))}</span></div>`;
+		return `    <div class="srow"><span class="srow__bar" style="width:${barWidth(c.count, collMax)}"></span><span class="srow__k mono"><a href="${esc(origin)}/discover/${esc(c.nsid)}">${esc(c.nsid)}</a></span><span class="srow__v mono">${esc(fmtNum(c.count))}</span></div>`;
 	});
 
 	const lat = stats?.latency;
@@ -526,11 +529,7 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
 	// responsive grid so the page reads as a composed dashboard, not an endless ledger.
 	const wide =
 		statSection('http routes', countRows(stats?.routes ?? [], routeLabel)) +
-		statSection('most queried collections', collRows) +
-		statSection(
-			'collections needing a formatter',
-			countRows((stats?.needsFormatter ?? []).map((c) => ({ key: c.nsid, count: c.count })), (k) => k, (k) => `${origin}/discover/${k}`),
-		);
+		statSection('most queried collections', collRows);
 
 	const cells = [
 		gridCell('mcp tools', countRows(stats?.tools ?? [])),
@@ -612,9 +611,6 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
   .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; align-items: start; margin-top: 1rem; }
   .cell h3 { font-family: var(--mono); font-weight: 500; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin: 0 0 0.7rem; }
   .cell h3::before { content: '// '; color: var(--lime); }
-  .tag { font-family: var(--mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.05rem 0.35rem; border-radius: 4px; vertical-align: 0.12em; }
-  .tag--rich { color: var(--bg); background: var(--lime); }
-  .tag--gen { color: var(--faint); border: 1px solid var(--line); }
   .serieswrap { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 1.25rem; }
   .series { display: flex; align-items: flex-end; justify-content: flex-start; gap: 3px; height: 56px; overflow-x: auto; }
   .series__bar { flex: 1 1 0; min-width: 3px; max-width: 26px; background: color-mix(in oklch, var(--lime) 45%, transparent); border-radius: 2px 2px 0 0; transition: background 0.12s ease; }
@@ -659,7 +655,7 @@ ${readout}
   </div>
 
 ${series}${latLine}
-  <p class="note reveal">${esc(fmtNum(stats?.distinctCollections ?? 0))} distinct collections · ${esc(fmtNum(stats?.richTotal ?? 0))} queries to richly-formatted, ${esc(fmtNum(stats?.genericTotal ?? 0))} to generic.</p>
+  <p class="note reveal">${esc(fmtNum(stats?.distinctCollections ?? 0))} distinct collections queried.</p>
 
 ${wide}${grid}
   <footer class="reveal">

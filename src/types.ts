@@ -23,13 +23,6 @@ export interface Actor {
 	handle: string;
 }
 
-export interface RecordMeta {
-	handle: string;
-	collection: string;
-	rkey: string;
-	uri: string;
-}
-
 export interface AtpRecord {
 	uri: string;
 	cid?: string;
@@ -67,5 +60,3 @@ export interface PlcData {
 	services?: Record<string, { type: string; endpoint: string }>;
 }
 
-
-export type RecordFormatter = (record: AtpRecord, meta: RecordMeta) => string | null;

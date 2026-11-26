@@ -68,7 +68,7 @@ describe('routing', () => {
 	it('returns 400 for unrecognized paths', async () => {
 		const res = await workerFetch('http://example.com/invalid/path');
 		expect(res.status).toBe(400);
-		expect(await res.text()).toContain('Error');
+		expect(await res.text()).toContain('"error"');
 	});
 
 	it('returns usage hint for /resolve without an actor', async () => {
@@ -162,7 +162,7 @@ describe('routing', () => {
 
 		const body = await (await workerFetch('http://example.com/stats')).text();
 		expect(body).toContain('**Total requests:**');
-		expect(body).toContain('HTTP (markdown)');
+		expect(body).toContain('| HTTP |');
 		expect(body).toContain('## Status codes');
 		expect(body).toContain('`400`'); // the /resolve usage error was counted by status
 		expect(body).toContain('## Errors by route');
@@ -302,15 +302,7 @@ describe('index page content', () => {
 		expect(body).toContain('/lexicon/{nsid}');
 		expect(body).toContain('/discover/{collection}');
 		expect(body).toContain('/backlinks/{at-uri-or-did-or-url}');
-	});
-
-	it('lists known collection formatters', async () => {
-		const body = await (await workerFetch('http://example.com/')).text();
-		expect(body).toContain('app.bsky.feed.post');
-		expect(body).toContain('app.bsky.actor.profile');
-		expect(body).toContain('site.standard.publication');
-		expect(body).toContain('blue.linkat.entry');
-		expect(body).toContain('events.smokesignal.calendar.event');
+		expect(body).toContain('/get?uri=');
 	});
 
 	it('mentions skill.md, llms.txt, and MCP', async () => {

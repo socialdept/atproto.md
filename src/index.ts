@@ -1,6 +1,5 @@
 import { createMcpHandler } from 'agents/mcp';
-import { getBacklinks, getLinkSources } from './constellation';
-import { resolveLexiconDid } from './lexicon';
+import { backlinks, discover, getRecord, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve } from './api';
 import {
 	faviconSvg,
 	htmlIndexPage,
@@ -13,31 +12,12 @@ import {
 	svgResponse,
 } from './html';
 import { CORS, errMd, mdResponse } from './http';
-import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid } from './identity';
+import { dataResponse, errorResponse } from './output';
+import { parseTarget } from './refs';
 import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
-import { pdsGet } from './pds';
-import { listReposByCollection } from './relay';
 import { classifyHttp, getStats, recordVisit, resetStats } from './stats';
-import type { AtpRecord } from './types';
-import {
-	formatAuditLog,
-	formatBacklinkRecords,
-	formatBacklinkSources,
-	formatDiscovery,
-	formatPlcData,
-	formatPlcLastOp,
-	formatLexicon,
-	formatRecordList,
-	formatRepo,
-	formatResolution,
-	formatSingleRecord,
-	formatStats,
-	indexPage,
-} from './views';
-
-// Populates the formatter registry via side-effect imports
-import './formatters';
+import { formatStats, indexPage } from './views';
 
 export { StatsDO } from './stats';
 
@@ -68,18 +48,17 @@ export default {
 		}
 
 		// All other routes are GET-only
-		if (request.method !== 'GET') return errMd('Only GET requests are supported.', 405);
+		if (request.method !== 'GET') return errorResponse(request, url, 'Only GET requests are supported.', 405);
 
 		const start = Date.now();
 		const response = await handleGet(request, url, origin, env);
 		const latencyMs = Date.now() - start;
 
-		// Anonymous usage counter — fire-and-forget. Count only the markdown data we serve to
-		// agents; HTML chrome (browser visits to the home and /stats pages) is ignored entirely,
-		// since it would otherwise drown the API signal. The markdown (curl) variants still count.
+		// Anonymous usage counter, fire-and-forget. Counts only what agents get (markdown and JSON).
+		// HTML for browser visits to the home and /stats pages is ignored, since it would drown the API signal.
 		const stat = classifyHttp(url);
-		const isMarkdown = (response.headers.get('Content-Type') ?? '').startsWith('text/markdown');
-		if (stat && isMarkdown) {
+		const type = response.headers.get('Content-Type') ?? '';
+		if (stat && (type.startsWith('text/markdown') || type.startsWith('application/json'))) {
 			const isError = response.status >= 400;
 			const country = typeof request.cf?.country === 'string' ? request.cf.country : undefined;
 			const contentLength = response.headers.get('Content-Length');
@@ -102,12 +81,24 @@ export default {
 	},
 } satisfies ExportedHandler<Env>;
 
+const flag = (url: URL, name: string): boolean => {
+	const v = url.searchParams.get(name);
+	return v !== null && v !== 'false' && v !== '0';
+};
+
+const int = (url: URL, name: string): number | undefined => {
+	const v = url.searchParams.get(name);
+	const n = v === null ? NaN : parseInt(v, 10);
+	return Number.isFinite(n) ? n : undefined;
+};
+
 async function handleGet(request: Request, url: URL, origin: string, env: Env): Promise<Response> {
 	const segments = url.pathname.replace(/^\//, '').split('/').filter(Boolean);
+	const data = (body: unknown) => dataResponse(request, url, body);
+	const usage = (message: string) => errorResponse(request, url, message, 400);
 
 	try {
-		// Root: HTML (with SEO/OG meta) for browsers and link-card crawlers,
-		// markdown for curl and programmatic agents.
+		// Root: HTML (with SEO/OG meta) for browsers and link-card crawlers, markdown docs for agents.
 		if (!segments.length) {
 			return prefersHtml(request) ? htmlResponse(htmlIndexPage(origin)) : mdResponse(indexPage(origin));
 		}
@@ -132,136 +123,74 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 
 		if (segments[0] === 'resolve') {
 			const input = segments.slice(1).join('/');
-			if (!input) return errMd('Usage: `/resolve/{handle-or-did}`');
-			const actor = await resolveActor(input);
-			return mdResponse(formatResolution(origin, actor));
+			if (!input) return usage('Usage: /resolve/{handle-or-did}');
+			return data(await resolve(input));
 		}
 
 		// PLC operations: identity history and current state via plc.directory
 		if (segments[0] === 'plc') {
-			const sub = segments[1];
+			const view = segments[1];
 			const input = segments.slice(2).join('/');
-
-			if (sub === 'audit') {
-				if (!input) return errMd('Usage: `/plc/audit/{handle-or-did}` — e.g. `/plc/audit/bsky.app`');
-				const did = await resolveToDid(input);
-				const log = await resolvePlcAuditLog(did);
-				const handle = log[log.length - 1]?.operation?.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
-				return mdResponse(formatAuditLog(origin, did, handle, log));
-			}
-
-			if (sub === 'data') {
-				if (!input) return errMd('Usage: `/plc/data/{handle-or-did}` — e.g. `/plc/data/bsky.app`');
-				const did = await resolveToDid(input);
-				const data = await resolvePlcData(did);
-				const handle = data.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
-				return mdResponse(formatPlcData(origin, did, handle, data));
-			}
-
-			if (sub === 'last') {
-				if (!input) return errMd('Usage: `/plc/last/{handle-or-did}` — e.g. `/plc/last/bsky.app`');
-				const did = await resolveToDid(input);
-				const op = await resolvePlcLastOp(did);
-				const handle = op.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
-				return mdResponse(formatPlcLastOp(origin, did, handle, op));
-			}
-
-			return errMd('Usage: `/plc/{audit|data|last}/{handle-or-did}`', 400);
+			if (view !== 'audit' && view !== 'data' && view !== 'last') return usage('Usage: /plc/{audit|data|last}/{handle-or-did}');
+			if (!input) return usage(`Usage: /plc/${view}/{handle-or-did}, for example /plc/${view}/bsky.app`);
+			return data(await plc(input, view));
 		}
 
-		// Network-wide discovery: every repo with records in a collection
 		if (segments[0] === 'discover') {
 			const collection = segments.slice(1).join('/');
-			if (!collection) return errMd('Usage: `/discover/{collection}` — e.g. `/discover/app.bsky.feed.post`');
-			const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '100', 10), 2000);
-			const result = await listReposByCollection(collection, limit, url.searchParams.get('cursor') ?? undefined);
-			return mdResponse(formatDiscovery(origin, collection, result));
+			if (!collection) return usage('Usage: /discover/{collection}, for example /discover/app.bsky.feed.post');
+			return data(await discover(collection, int(url, 'limit'), url.searchParams.get('cursor') ?? undefined));
 		}
 
-		// Lexicon: resolve an NSID to its published com.atproto.lexicon.schema record
 		if (segments[0] === 'lexicon') {
 			const nsid = segments.slice(1).join('/');
-			if (!nsid) return errMd('Usage: `/lexicon/{nsid}` — e.g. `/lexicon/app.bsky.feed.post`');
-			const { did, authority } = await resolveLexiconDid(nsid);
-			const actor = await resolveActor(did);
-			const data = await pdsGet(actor.pds, 'com.atproto.repo.getRecord', {
-				repo: actor.did,
-				collection: 'com.atproto.lexicon.schema',
-				rkey: nsid,
-			});
-			return mdResponse(formatLexicon(origin, nsid, authority, actor, data as unknown as AtpRecord));
+			if (!nsid) return usage('Usage: /lexicon/{nsid}, for example /lexicon/app.bsky.feed.post');
+			return data(await lexicon(nsid));
 		}
 
-		// Backlinks: who links to a given at-uri, DID, or web URL (via Constellation)
 		if (segments[0] === 'backlinks') {
 			const target = url.pathname.slice('/backlinks/'.length);
-			if (!target) return errMd('Usage: `/backlinks/{at-uri-or-did-or-url}`');
+			if (!target) return usage('Usage: /backlinks/{at-uri-or-did-or-url}');
+			return data(
+				await backlinks(target, {
+					source: url.searchParams.get('source') ?? undefined,
+					limit: int(url, 'limit'),
+					cursor: url.searchParams.get('cursor') ?? undefined,
+					hydrate: flag(url, 'hydrate'),
+				}),
+			);
+		}
 
-			const source = url.searchParams.get('source');
-			if (source) {
-				const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10), 100);
-				const data = await getBacklinks(target, source, limit, url.searchParams.get('cursor') ?? undefined);
-				return mdResponse(formatBacklinkRecords(origin, target, source, data));
-			}
-
-			const sources = await getLinkSources(target);
-			return mdResponse(formatBacklinkSources(origin, target, sources));
+		// Batch: /get?uri={at-uri-or-bsky-link}&uri=...
+		if (segments[0] === 'get') {
+			const uris = url.searchParams.getAll('uri').flatMap((u) => u.split(/\s+/)).filter(Boolean);
+			if (!uris.length) return usage(`Usage: /get?uri={at-uri}&uri={at-uri}, up to ${MAX_BATCH} records`);
+			return data(await getRecords(uris, { expand: flag(url, 'expand') }));
 		}
 
 		// All remaining routes are AT URIs: /at://{actor}[/{collection}[/{rkey}]]
 		const atUri = url.pathname.slice(1);
-
 		if (!atUri.startsWith('at://')) {
-			return errMd(
-				'Invalid path. Expected an `at://` URI, e.g.:\n' +
-					'`/at://did:plc:eob75vcjtmbaef2tn4evc4sl`\n' +
-					'`/at://did:plc:eob75vcjtmbaef2tn4evc4sl/app.bsky.feed.post`\n' +
-					'`/at://did:plc:eob75vcjtmbaef2tn4evc4sl/app.bsky.feed.post/{rkey}`',
-				400,
-			);
+			return usage('Invalid path. Expected an at:// URI, for example /at://bsky.app, /at://bsky.app/app.bsky.feed.post or /at://bsky.app/app.bsky.feed.post/{rkey}');
 		}
 
-		const without = atUri.slice('at://'.length);
-		const slashIdx = without.indexOf('/');
-		const atActor = slashIdx === -1 ? without : without.slice(0, slashIdx);
-		const rest = slashIdx === -1 ? '' : without.slice(slashIdx + 1);
-		const restParts = rest ? rest.split('/') : [];
-		const collection = restParts[0];
-		const rkey = restParts[1];
-
-		if (!atActor) return errMd('Invalid AT URI — missing authority.');
-
-		const actor = await resolveActor(atActor);
-
-		if (!collection) {
-			const data = await pdsGet(actor.pds, 'com.atproto.repo.describeRepo', { repo: actor.did });
-			return mdResponse(formatRepo(origin, actor, (data.collections as string[]) ?? []));
-		}
-
+		const { actor, collection, rkey } = parseTarget(atUri);
+		if (!collection) return data(await resolve(actor));
 		if (!rkey) {
-			const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '25', 10), 100);
-			const data = await pdsGet(actor.pds, 'com.atproto.repo.listRecords', {
-				repo: actor.did,
-				collection,
-				limit,
-				cursor: url.searchParams.get('cursor') ?? undefined,
-				reverse: url.searchParams.get('reverse') === 'true' ? true : undefined,
-			});
-			return mdResponse(
-				formatRecordList(actor, collection, (data.records as AtpRecord[]) ?? [], data.cursor as string | undefined),
+			return data(
+				await listRecords(actor, collection, {
+					limit: int(url, 'limit'),
+					cursor: url.searchParams.get('cursor') ?? undefined,
+					reverse: flag(url, 'reverse'),
+					expand: flag(url, 'expand'),
+				}),
 			);
 		}
-
-		const data = await pdsGet(actor.pds, 'com.atproto.repo.getRecord', {
-			repo: actor.did,
-			collection,
-			rkey,
-		});
-		return mdResponse(formatSingleRecord(actor, collection, rkey, data as unknown as AtpRecord));
+		return data(await getRecord(atUri, { expand: flag(url, 'expand') }));
 	} catch (err: unknown) {
 		const error = err as { status?: number; message?: string; upstream?: string };
 		const status = error?.status ?? 502;
 		const message = error?.message ?? 'Upstream error. The PDS may be unavailable.';
-		return errMd(message, status, error?.upstream);
+		return errorResponse(request, url, message, status, error?.upstream);
 	}
 }
