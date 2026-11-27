@@ -142,7 +142,7 @@ export function atUriFromHtml(html: string): string | null {
 const MAX_PAGE_BYTES = 256 * 1024;
 
 /** Fetches a page and reads the AT URI it publishes. Reads at most 256 KB, gives up after 4 seconds. */
-export async function atUriFromPage(url: string): Promise<string | null> {
+async function atUriFromPage(url: string): Promise<string | null> {
 	try {
 		const res = await fetch(url, {
 			redirect: 'follow',

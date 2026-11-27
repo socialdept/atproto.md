@@ -21,7 +21,7 @@ export const ICON_CHECK = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="tr
 // A nine-slice pixel frame as CSS: stepped corners (pixel size p, corner rows set in by ins) that stay fixed while
 // the edges stretch, with the middle filled. The border keeps its width (bw) so layout and spacing do not change.
 // The image is drawn wider than the border, over the element's own padding, which it fills with the same color.
-export function pixelFrame(stroke: string, fill: string, p: number, ins: number[], sw = 1, bw = sw): string {
+function pixelFrame(stroke: string, fill: string, p: number, ins: number[], sw = 1, bw = sw): string {
 	const slice = Math.max(ins[0] ?? 0, ins.length) * p + Math.ceil(sw) + 2;
 	const S = slice * 2 + 8;
 	const outer = pixelBox(0, 0, S, S, p, ins),

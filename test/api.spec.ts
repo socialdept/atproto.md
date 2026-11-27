@@ -137,7 +137,7 @@ describe('HTTP output', () => {
 		expect(JSON.parse(await res.text()).value.displayName).toBe('Alice');
 	});
 
-	it('returns bare JSON for ?format=json and Accept: application/json', async () => {
+	it('still answers older links with ?format=json, and Accept: application/json, with the same JSON', async () => {
 		const a = await workerFetch('/at://alice.test/app.bsky.actor.profile/self?format=json');
 		expect(a.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
 		expect((await a.json<{ cid: string }>()).cid).toBe('cprofile');
@@ -147,14 +147,14 @@ describe('HTTP output', () => {
 	});
 
 	it('serves batches at /get', async () => {
-		const res = await workerFetch(`/get?format=json&expand&uri=${encodeURIComponent(`at://${DID}/app.bsky.feed.post/reply`)}`);
+		const res = await workerFetch(`/get?expand&uri=${encodeURIComponent(`at://${DID}/app.bsky.feed.post/reply`)}`);
 		const body = await res.json<{ records: unknown[]; expanded: Record<string, unknown> }>();
 		expect(body.records).toHaveLength(1);
 		expect(Object.keys(body.expanded)).toHaveLength(1);
 	});
 
 	it('returns errors as JSON with the HTTP status', async () => {
-		const res = await workerFetch('/at://alice.test/app.bsky.feed.post/missing?format=json');
+		const res = await workerFetch('/at://alice.test/app.bsky.feed.post/missing');
 		expect(res.status).toBe(400);
 		expect(await res.json()).toEqual({ error: 'Could not locate record', status: 400 });
 	});

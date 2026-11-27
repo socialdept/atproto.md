@@ -9,7 +9,7 @@ export function stringify(body: unknown, pretty = false): string {
 
 const bytesOf = (body: string): string => String(new TextEncoder().encode(body).length);
 
-export function dataResponse(_request: Request, url: URL, body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
+export function dataResponse(url: URL, body: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
 	const text = stringify(body, url.searchParams.has('pretty'));
 	return new Response(text, {
 		status,
@@ -25,6 +25,6 @@ export function dataResponse(_request: Request, url: URL, body: unknown, status 
 
 // `upstream` names the failed dependency (pds, plc, relay, ...) for anonymous stats. It rides along as an
 // X-Upstream header that the fetch handler reads back when counting.
-export function errorResponse(request: Request, url: URL, error: string, status = 400, upstream?: string): Response {
-	return dataResponse(request, url, { error, status }, status, upstream ? { 'X-Upstream': upstream } : {});
+export function errorResponse(url: URL, error: string, status = 400, upstream?: string): Response {
+	return dataResponse(url, { error, status }, status, upstream ? { 'X-Upstream': upstream } : {});
 }

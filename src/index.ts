@@ -51,7 +51,7 @@ export default {
 		}
 
 		// All other routes are GET-only
-		if (request.method !== 'GET') return errorResponse(request, url, 'Only GET requests are supported.', 405);
+		if (request.method !== 'GET') return errorResponse(url, 'Only GET requests are supported.', 405);
 
 		const start = Date.now();
 		const response = await handleGet(request, url, origin, env);
@@ -97,8 +97,8 @@ const int = (url: URL, name: string): number | undefined => {
 
 async function handleGet(request: Request, url: URL, origin: string, env: Env): Promise<Response> {
 	const segments = url.pathname.replace(/^\//, '').split('/').filter(Boolean);
-	const data = (body: unknown) => dataResponse(request, url, body);
-	const usage = (message: string) => errorResponse(request, url, message, 400);
+	const data = (body: unknown) => dataResponse(url, body);
+	const usage = (message: string) => errorResponse(url, message, 400);
 
 	try {
 		// Root: HTML (with SEO/OG meta) for browsers and link-card crawlers, markdown docs for agents.
@@ -198,6 +198,6 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 		const error = err as { status?: number; message?: string; upstream?: string };
 		const status = error?.status ?? 502;
 		const message = error?.message ?? 'Upstream error. The PDS may be unavailable.';
-		return errorResponse(request, url, message, status, error?.upstream);
+		return errorResponse(url, message, status, error?.upstream);
 	}
 }

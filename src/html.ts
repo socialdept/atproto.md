@@ -5,8 +5,7 @@
 // themselves live in src/web: kit (palette, icons, pixel frames), chrome (head, header, footer, shared scripts), brand
 // (Open Graph card, mark, favicon), home and stats. This module routes to them.
 
-export { faviconSvg, markSvg, ogImageSvg, BEAST_AT, BEAST_MD } from './web/brand';
-export { pixelBox } from './web/kit';
+export { faviconSvg, ogImageSvg } from './web/brand';
 export { htmlIndexPage } from './web/home/index';
 export { htmlStatsPage } from './web/stats/index';
 

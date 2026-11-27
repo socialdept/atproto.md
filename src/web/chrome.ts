@@ -5,12 +5,12 @@ export const TITLE = 'ATMD | Every Atmosphere record, one address for agents';
 export const DESCRIPTION =
 	'Any record on any PDS as raw JSON, through an MCP server or a URL. Paste an at:// URI, a handle or a link after atproto.md/. No auth, no API key.';
 
-export const REPO = 'https://github.com/socialdept/atproto.md';
-export const DOCS = 'https://socialde.pt/docs/atproto.md';
+const REPO = 'https://github.com/socialdept/atproto.md';
+const DOCS = 'https://socialde.pt/docs/atproto.md';
 
 // --- Shared chrome ---------------------------------------------------------------------------------------------
 
-export const STYLES = `
+const STYLES = `
 @font-face { font-family: Inter; src: url('/fonts/InterVariable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
 /* JetBrains Mono (OFL) for small accents: chips, GET badges, parameter tags and headings. */
 @font-face { font-family: 'JetBrains Mono'; src: url('/fonts/JetBrainsMono-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
@@ -177,7 +177,7 @@ export function footer(origin: string, wrapped = true): string {
 // Text that changes with state morphs with torph (loaded in the page head as window.TextMorph). Each element keeps one
 // TextMorph, and its current text in data-text, since torph adds a screen reader copy that doubles textContent.
 // Before torph loads, or with reduced motion, the text is swapped plainly.
-export const TEXT_SCRIPT = `
+const TEXT_SCRIPT = `
 window.setText = (el, text) => {
   if (!el) return;
   const current = el.dataset.text ?? el.textContent;

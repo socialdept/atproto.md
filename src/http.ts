@@ -18,8 +18,7 @@ export function mdResponse(body: string, status = 200, extraHeaders: Record<stri
 	});
 }
 
-// `upstream` names the failed dependency (pds, plc, relay, …) for anonymous stats; it rides
-// along as an X-Upstream header that the worker's fetch handler reads back when counting.
-export function errMd(msg: string, status = 400, upstream?: string): Response {
-	return mdResponse(`# Error ${status}\n\n${msg}\n`, status, upstream ? { 'X-Upstream': upstream } : {});
+// A markdown error, for the routes that answer in markdown. API errors are JSON, from errorResponse in output.ts.
+export function errMd(msg: string, status = 400): Response {
+	return mdResponse(`# Error ${status}\n\n${msg}\n`, status);
 }
