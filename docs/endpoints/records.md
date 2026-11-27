@@ -29,11 +29,11 @@ Records are then fetched from the user's PDS with `com.atproto.repo.describeRepo
 
 ## `GET /at://{actor}`
 
-The actor's identity and repo in one response: `did`, `handle`, `pds`, `collections` and `didDoc`. The same as [`/resolve/{actor}`](identity.md).
+The actor's identity and repo in one response: `did`, `handle`, `pds`, `entryway`, `collections` and `didDoc`. The same as [`/resolve/{actor}`](identity.md).
 
 ## `GET /at://{actor}/{collection}`
 
-The records in any collection, newest first, as `{did, handle, pds, collection, cursor, records}`. No knowledge of the lexicon is needed.
+The records in any collection, newest first, as `{did, handle, pds, entryway, collection, cursor, records}`. No knowledge of the lexicon is needed.
 
 | Param     | Default | Max | Notes                                                        |
 | --------- | ------- | --- | ------------------------------------------------------------ |

@@ -87,8 +87,8 @@ curl "${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.po
 ## Endpoint reference
 
 \`\`\`
-GET ${origin}/at://{actor}                                  {did, handle, pds, collections, didDoc}
-GET ${origin}/at://{actor}/{collection}                     {did, handle, pds, collection, cursor, records}
+GET ${origin}/at://{actor}                                  {did, handle, pds, entryway, collections, didDoc}
+GET ${origin}/at://{actor}/{collection}                     {did, handle, pds, entryway, collection, cursor, records}
 GET ${origin}/at://{actor}/{collection}/{rkey}              {uri, cid, value, blobs}
 GET ${origin}/get?uri={address}&uri=...                     {records, errors, expanded}, up to 25
 GET ${origin}/resolve/{actor}                               same as /at://{actor}

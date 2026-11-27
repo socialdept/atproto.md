@@ -6,6 +6,7 @@ import { backlinks, getRecord, getRecords, listRecords, resolve } from '../src/a
 // A small fake network: one PLC DID on one PDS, with a reply thread and a profile.
 const DID = 'did:plc:alice';
 const PDS = 'https://pds.example';
+const ENTRYWAY = 'https://entryway.example';
 
 const RECORDS: Record<string, { cid: string; value: Record<string, unknown> }> = {
 	'app.bsky.actor.profile/self': {
@@ -38,6 +39,7 @@ function fakeNetwork(input: RequestInfo | URL): Response {
 		return json({ total: 1, records: [{ did: DID, collection: 'app.bsky.feed.post', rkey: 'reply' }] });
 	}
 	if (url.origin === PDS) {
+		if (url.pathname === '/.well-known/oauth-protected-resource') return json({ resource: PDS, authorization_servers: [ENTRYWAY] });
 		if (url.pathname.endsWith('describeRepo')) return json({ collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'] });
 		if (url.pathname.endsWith('listRecords')) {
 			const records = Object.entries(RECORDS)
@@ -99,14 +101,19 @@ describe('records', () => {
 
 	it('lists records with the cursor and raw values', async () => {
 		const r = await listRecords('alice.test', 'app.bsky.feed.post', { limit: 5 });
-		expect(r).toMatchObject({ did: DID, handle: 'alice.test', pds: PDS, collection: 'app.bsky.feed.post', cursor: 'next' });
+		expect(r).toMatchObject({ did: DID, handle: 'alice.test', pds: PDS, entryway: ENTRYWAY, collection: 'app.bsky.feed.post', cursor: 'next' });
 		expect(r.records[1].value).toEqual(RECORDS['app.bsky.feed.post/reply'].value);
 	});
 
 	it('resolves identity and collections together', async () => {
 		const r = await resolve('alice.test');
-		expect(r).toMatchObject({ did: DID, handle: 'alice.test', pds: PDS, collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'] });
+		expect(r).toMatchObject({ did: DID, handle: 'alice.test', pds: PDS, entryway: ENTRYWAY, collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'] });
 		expect(r.didDoc.id).toBe(DID);
+	});
+
+	it('leaves the entryway null when it is the PDS itself or unpublished', async () => {
+		const { entryway } = await import('../src/identity');
+		expect(await entryway('https://bare.example')).toBeNull();
 	});
 
 	it('hydrates backlinks into records', async () => {

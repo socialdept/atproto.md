@@ -6,7 +6,9 @@ Every route here takes a handle or a DID. The `/plc` routes work only for `did:p
 
 ## `GET /resolve/{handle-or-did}`
 
-The identity and repo in one response: `did`, `handle`, `pds`, `collections` and the full `didDoc`. `collections` is `null` when the PDS does not answer `describeRepo`.
+The identity and repo in one response: `did`, `handle`, `pds`, `entryway`, `collections` and the full `didDoc`. `collections` is `null` when the PDS does not answer `describeRepo`.
+
+`pds` is the PDS host from the DID document, the server that stores the repo and serves its records and blobs. `entryway` is the server that signs the account in and manages it, taken from the PDS's OAuth protected resource metadata, and is `null` when it is the PDS itself. The two differ for accounts on a fleet of PDS hosts behind one entryway: a Bluesky account lives on a host such as `https://puffball.us-east.host.bsky.network` with the entryway `https://bsky.social`. On a self-hosted PDS, or when the PDS does not publish the metadata, `entryway` is `null`.
 
 ## `GET /plc/audit/{handle-or-did}`
 

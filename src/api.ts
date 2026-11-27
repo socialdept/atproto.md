@@ -2,7 +2,7 @@
 // application/json and the MCP layer returns as text.
 
 import { getBacklinks, getLinkSources } from './constellation';
-import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid } from './identity';
+import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid, entryway as entrywayOf } from './identity';
 import { resolveLexiconDid } from './lexicon';
 import { pdsGet } from './pds';
 import { blobUrl, collectBlobCids, collectRecordUris, parseTarget } from './refs';
@@ -88,11 +88,15 @@ export function errorMessage(e: unknown): string {
 
 export async function resolve(input: string, resolver = new Resolver()) {
 	const actor = await resolver.actor(await actorOf(input));
-	const repo = await pdsGet(actor.pds, 'com.atproto.repo.describeRepo', { repo: actor.did }).catch(() => null);
+	const [repo, entryway] = await Promise.all([
+		pdsGet(actor.pds, 'com.atproto.repo.describeRepo', { repo: actor.did }).catch(() => null),
+		entrywayOf(actor.pds),
+	]);
 	return {
 		did: actor.did,
 		handle: actor.handle,
 		pds: actor.pds,
+		entryway,
 		collections: (repo?.collections as string[] | undefined) ?? null,
 		didDoc: actor.doc,
 	};
@@ -119,18 +123,22 @@ export interface ListOptions {
 export async function listRecords(actorInput: string, collection: string, options: ListOptions = {}) {
 	const resolver = new Resolver();
 	const actor = await resolver.actor(await actorOf(actorInput));
-	const data = await pdsGet(actor.pds, 'com.atproto.repo.listRecords', {
-		repo: actor.did,
-		collection,
-		limit: Math.min(Math.max(options.limit ?? 25, 1), 100),
-		cursor: options.cursor,
-		reverse: options.reverse || undefined,
-	});
+	const [data, entryway] = await Promise.all([
+		pdsGet(actor.pds, 'com.atproto.repo.listRecords', {
+			repo: actor.did,
+			collection,
+			limit: Math.min(Math.max(options.limit ?? 25, 1), 100),
+			cursor: options.cursor,
+			reverse: options.reverse || undefined,
+		}),
+		entrywayOf(actor.pds),
+	]);
 	const records = ((data.records as AtpRecord[]) ?? []).map((r) => recordOut(actor, r));
 	return {
 		did: actor.did,
 		handle: actor.handle,
 		pds: actor.pds,
+		entryway,
 		collection,
 		cursor: (data.cursor as string | undefined) ?? null,
 		records,
