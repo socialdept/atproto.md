@@ -27,6 +27,8 @@ export default {
 		if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
 		const url = new URL(request.url);
+		// Behind a local TLS proxy (Herd in development) the worker sees http, so links follow the proxy's scheme.
+		if (url.protocol === 'http:' && request.headers.get('X-Forwarded-Proto') === 'https') url.protocol = 'https:';
 		const origin = url.origin;
 
 		// MCP endpoint — accepts POST and GET per Streamable HTTP spec. Tool calls are

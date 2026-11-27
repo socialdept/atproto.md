@@ -1,4 +1,4 @@
-// Pre-render the static Open Graph card (src/html.ts → ogImageSvg) to a raster PNG.
+// Pre-render the static Open Graph card (ogImageSvg in src/web/brand.ts) to a raster PNG.
 // SVG og:image is rejected by several link-card scrapers (X, Facebook, iMessage),
 // so we ship a PNG. The card has no per-request data, so a build-time render is enough.
 //
@@ -14,7 +14,7 @@ import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const url = process.env.OG_SVG_URL ?? 'http://127.0.0.1:8799/og.svg';
-const fontPath = join(here, 'og-font.ttf');
+const fonts = ['Inter-SemiBold.ttf', 'MartianMono.ttf'].map((f) => readFileSync(join(here, f)));
 const outPath = join(here, '..', 'public', 'og.png');
 
 const res = await fetch(url).catch(() => null);
@@ -23,11 +23,10 @@ if (!res || !res.ok) {
 	process.exit(1);
 }
 const svg = await res.text();
-const font = readFileSync(fontPath);
 
 const resvg = new Resvg(svg, {
 	fitTo: { mode: 'width', value: 1200 },
-	font: { fontBuffers: [font], defaultFontFamily: 'Martian Mono', loadSystemFonts: false },
+	font: { fontBuffers: fonts, defaultFontFamily: 'Inter', loadSystemFonts: false },
 });
 const png = resvg.render().asPng();
 writeFileSync(outPath, png);

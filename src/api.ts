@@ -49,7 +49,10 @@ function recordOut(actor: Actor, record: AtpRecord): RecordOut {
 function requireRecord(input: string) {
 	const target = parseTarget(input);
 	if (!target.collection || !target.rkey) {
-		throw { status: 400, message: `${input} is not a record address. Use at://{actor}/{collection}/{rkey}, or resolve or list_records for a repo or collection.` };
+		throw {
+			status: 400,
+			message: `${input} is not a record address. Use at://{actor}/{collection}/{rkey}, or resolve or list_records for a repo or collection.`,
+		};
 	}
 	return target as Required<typeof target>;
 }

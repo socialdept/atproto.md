@@ -29,6 +29,15 @@ export interface CollectionStat {
 	count: number;
 }
 
+/** One UTC day. `http`, `mcp` and `errors` are zero on days recorded before they were split out. */
+export interface DailyStat {
+	day: string;
+	count: number;
+	http: number;
+	mcp: number;
+	errors: number;
+}
+
 export interface LatencyStat {
 	count: number;
 	avgMs: number;
@@ -59,7 +68,7 @@ export interface StatsSnapshot {
 	clients: StatCount[];
 	countries: StatCount[];
 	collections: CollectionStat[];
-	daily: { day: string; count: number }[];
+	daily: DailyStat[];
 	latency: LatencyStat;
 }
 
@@ -89,6 +98,11 @@ export class StatsDO extends DurableObject {
 		// Tables created before formatters were removed still carry an unused `rich` column.
 		this.sql.exec(`CREATE TABLE IF NOT EXISTS collections (nsid TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0)`);
 		this.sql.exec(`CREATE TABLE IF NOT EXISTS daily (day TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0)`);
+		// Per-day split by channel and errors, added after `count`. Days recorded before it hold zeros here.
+		const columns = new Set([...this.sql.exec(`PRAGMA table_info(daily)`)].map((c) => String(c.name)));
+		for (const column of ['http', 'mcp', 'errors']) {
+			if (!columns.has(column)) this.sql.exec(`ALTER TABLE daily ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`);
+		}
 		this.sql.exec(`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)`);
 	}
 
@@ -116,7 +130,20 @@ export class StatsDO extends DurableObject {
 		this.bump('total');
 		this.bump(`channel:${event.channel}`);
 		this.bump(event.key);
-		this.sql.exec(`INSERT INTO daily (day, count) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET count = count + 1`, event.day);
+		const http = event.channel === 'http' ? 1 : 0;
+		const mcp = event.channel === 'mcp' ? 1 : 0;
+		const error = event.isError ? 1 : 0;
+		this.sql.exec(
+			`INSERT INTO daily (day, count, http, mcp, errors) VALUES (?, 1, ?, ?, ?)
+			 ON CONFLICT(day) DO UPDATE SET count = count + 1, http = http + ?, mcp = mcp + ?, errors = errors + ?`,
+			event.day,
+			http,
+			mcp,
+			error,
+			http,
+			mcp,
+			error,
+		);
 
 		if (event.status) this.bump(`status:${event.status}`);
 		if (event.isError) {
@@ -173,8 +200,8 @@ export class StatsDO extends DurableObject {
 		].map((r) => ({ nsid: String(r.nsid), count: Number(r.count) }));
 		const distinctCollections = Number([...this.sql.exec(`SELECT COUNT(*) AS n FROM collections`)][0]?.n ?? 0);
 
-		const daily = [...this.sql.exec(`SELECT day, count FROM daily ORDER BY day DESC LIMIT ?`, DAILY_DAYS)]
-			.map((r) => ({ day: String(r.day), count: Number(r.count) }))
+		const daily = [...this.sql.exec(`SELECT day, count, http, mcp, errors FROM daily ORDER BY day DESC LIMIT ?`, DAILY_DAYS)]
+			.map((r) => ({ day: String(r.day), count: Number(r.count), http: Number(r.http), mcp: Number(r.mcp), errors: Number(r.errors) }))
 			.reverse();
 
 		const sinceRows = [...this.sql.exec(`SELECT value FROM meta WHERE key = 'since'`)];

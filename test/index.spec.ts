@@ -135,7 +135,7 @@ describe('routing', () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
 		const body = await res.text();
-		expect(body).toContain('<title>usage stats — atproto.md</title>');
+		expect(body).toContain('<title>Usage | ATMD</title>');
 		expect(body).toContain('name="robots" content="noindex"');
 	});
 
@@ -181,7 +181,7 @@ describe('content negotiation on /', () => {
 
 		const body = await res.text();
 		expect(body).toContain('<!doctype html>');
-		expect(body).toContain('<title>atproto.md');
+		expect(body).toContain('<title>ATMD | ');
 		expect(body).toContain('property="og:title"');
 		expect(body).toContain('name="twitter:card"');
 		expect(body).toContain('http://example.com/og.png');

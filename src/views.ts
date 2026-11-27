@@ -45,9 +45,11 @@ export const routeLabel = (key: string): string => ROUTE_LABELS[key] ?? `/${key}
 export const CHANNEL_LABELS: Record<string, string> = { http: 'HTTP', mcp: 'MCP (tools)' };
 
 const ID_LABELS: Record<string, string> = { handle: 'handle', plc: 'did:plc', web: 'did:web' };
-const STATS_THRESHOLD = 5; // hide country/client buckets below this so a rare one can't deanonymize
+// Country and client rows below this many requests are hidden, on the stats page and in its markdown, so a rare one
+// cannot identify anyone.
+export const STATS_THRESHOLD = 5;
 
-function bytesHuman(n: number): string {
+export function bytesHuman(n: number): string {
 	if (n < 1024) return `${n} B`;
 	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
 	if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
@@ -130,8 +132,20 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 		for (const c of stats.collections) lines.push(`| [\`${c.nsid}\`](${origin}/discover/${c.nsid}) | ${fmtNum(c.count)} |`);
 		lines.push('');
 	}
-	lines.push(...countTable('MCP clients', 'Client', stats.clients.filter((c) => c.count >= STATS_THRESHOLD)));
-	lines.push(...countTable('Countries', 'Country', stats.countries.filter((c) => c.count >= STATS_THRESHOLD)));
+	lines.push(
+		...countTable(
+			'MCP clients',
+			'Client',
+			stats.clients.filter((c) => c.count >= STATS_THRESHOLD),
+		),
+	);
+	lines.push(
+		...countTable(
+			'Countries',
+			'Country',
+			stats.countries.filter((c) => c.count >= STATS_THRESHOLD),
+		),
+	);
 	lines.push(...countTable('Latency distribution', 'Bucket', stats.latency.buckets));
 
 	lines.push('---', footer);

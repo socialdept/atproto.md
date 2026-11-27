@@ -1,0 +1,218 @@
+import { esc } from '../kit';
+
+interface Param {
+	name: string;
+	/** Where it goes: in the path or the query string. */
+	in: 'path' | 'query';
+	type: string;
+	def?: string;
+	desc: string;
+}
+
+interface Endpoint {
+	path: string;
+	desc: string;
+	params: Param[];
+	returns: string;
+	note?: string;
+	example: string;
+}
+
+const ACTOR: Param = {
+	name: 'actor',
+	in: 'path',
+	type: 'handle or DID',
+	desc: 'The account, as a handle such as bsky.app or a did:plc or did:web.',
+};
+const EXPAND: Param = {
+	name: 'expand',
+	in: 'query',
+	type: 'flag',
+	desc: 'Also fetch the records these reference (reply parent and root, quoted post, like or repost subject), one level deep, up to 25, under expanded.',
+};
+
+export const ROUTES: [string, string, Endpoint[]][] = [
+	[
+		'Records',
+		'Read from each account’s own PDS. Values are returned exactly as stored, with direct blob URLs.',
+		[
+			{
+				path: '/{link}',
+				desc: 'A web link in place of the AT URI. Returns the account, collection or record the link shows.',
+				params: [
+					{
+						name: 'link',
+						in: 'path',
+						type: 'URL',
+						desc: 'A link from a Bluesky-style client, an explorer such as pdsls.dev, or any page that publishes its AT URI with at-tags.',
+					},
+				],
+				returns: 'The same response as the matching /at:// route.',
+				note: 'A link that names no record or account returns a 400 that lists what is supported.',
+				example: '/https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d',
+			},
+			{
+				path: '/at://{actor}',
+				desc: 'The account’s identity and repo in one response.',
+				params: [ACTOR],
+				returns: '{ did, handle, pds, entryway, collections, didDoc }',
+				note: 'collections is null when the PDS does not answer describeRepo.',
+				example: '/at://bsky.app',
+			},
+			{
+				path: '/at://{actor}/{collection}',
+				desc: 'Records in one collection, newest first.',
+				params: [
+					ACTOR,
+					{ name: 'collection', in: 'path', type: 'NSID', desc: 'The collection, such as app.bsky.feed.post.' },
+					{ name: 'limit', in: 'query', type: '1 to 100', def: '25', desc: 'Records per page.' },
+					{ name: 'cursor', in: 'query', type: 'string', desc: 'The cursor from the previous page.' },
+					{ name: 'reverse', in: 'query', type: 'flag', desc: 'Oldest first.' },
+					EXPAND,
+				],
+				returns: '{ did, handle, pds, entryway, collection, cursor, records: [{ uri, cid, value, blobs }] }',
+				note: 'cursor is null on the last page.',
+				example: '/at://bsky.app/app.bsky.feed.post?limit=5',
+			},
+			{
+				path: '/at://{actor}/{collection}/{rkey}',
+				desc: 'One record.',
+				params: [
+					ACTOR,
+					{ name: 'collection', in: 'path', type: 'NSID', desc: 'The record’s collection.' },
+					{ name: 'rkey', in: 'path', type: 'string', desc: 'The record key, such as self or 3l6oveex3ii2l.' },
+					EXPAND,
+				],
+				returns: '{ uri, cid, value, blobs, expanded }',
+				note: 'blobs lists a getBlob URL for each image or video in value. expanded is present only with expand.',
+				example: '/at://bsky.app/app.bsky.actor.profile/self',
+			},
+			{
+				path: '/get',
+				desc: 'Up to 25 records in one call, fetched in parallel.',
+				params: [
+					{
+						name: 'uri',
+						in: 'query',
+						type: 'repeatable',
+						desc: 'An at:// record URI or a link to the record: a Bluesky-style client, an explorer such as pdsls.dev, or any page that publishes at-tags. Repeat it for each record, up to 25.',
+					},
+					EXPAND,
+				],
+				returns: '{ records, errors, expanded }',
+				note: 'Each account is looked up once per call. An address that fails goes into errors as { address, error }, and the rest still come back.',
+				example: '/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&expand',
+			},
+		],
+	],
+	[
+		'Identity',
+		'Handles and DIDs both work. The PLC routes need a did:plc.',
+		[
+			{
+				path: '/resolve/{actor}',
+				desc: 'The same response as /at://{actor}.',
+				params: [ACTOR],
+				returns: '{ did, handle, pds, entryway, collections, didDoc }',
+				example: '/resolve/bsky.app',
+			},
+			{
+				path: '/plc/data/{actor}',
+				desc: 'The current PLC state, as plc.directory serves it.',
+				params: [ACTOR],
+				returns: '{ did, verificationMethods, rotationKeys, alsoKnownAs, services }',
+				note: 'rotationKeys are in priority order. did:web accounts get a 400.',
+				example: '/plc/data/bsky.app',
+			},
+			{
+				path: '/plc/audit/{actor}',
+				desc: 'Every PLC operation, dated.',
+				params: [ACTOR],
+				returns: '{ did, operations: [{ operation, cid, nullified, createdAt }] }',
+				note: 'Compare consecutive operations to date PDS migrations, handle changes and key rotations.',
+				example: '/plc/audit/bsky.app',
+			},
+			{
+				path: '/plc/last/{actor}',
+				desc: 'The latest PLC operation.',
+				params: [ACTOR],
+				returns: '{ did, operation }',
+				example: '/plc/last/bsky.app',
+			},
+		],
+	],
+	[
+		'Network',
+		'Answers no single PDS can give, from the Bluesky relay, DNS and Constellation.',
+		[
+			{
+				path: '/discover/{collection}',
+				desc: 'Every repo with at least one record in a collection.',
+				params: [
+					{ name: 'collection', in: 'path', type: 'NSID', desc: 'The collection, such as site.standard.document.' },
+					{ name: 'limit', in: 'query', type: '1 to 2000', def: '100', desc: 'Repos per page.' },
+					{ name: 'cursor', in: 'query', type: 'string', desc: 'The cursor from the previous page.' },
+				],
+				returns: '{ collection, cursor, repos: [did] }',
+				example: '/discover/site.standard.document?limit=20',
+			},
+			{
+				path: '/lexicon/{nsid}',
+				desc: 'The published Lexicon schema, found through the NSID’s _lexicon DNS record.',
+				params: [{ name: 'nsid', in: 'path', type: 'NSID', desc: 'The lexicon, such as app.bsky.feed.post.' }],
+				returns: '{ nsid, authority, did, uri, cid, schema }',
+				example: '/lexicon/app.bsky.feed.post',
+			},
+			{
+				path: '/backlinks/{target}',
+				desc: 'Records anywhere on the network that link to a record, account or URL.',
+				params: [
+					{ name: 'target', in: 'path', type: 'at:// URI, DID or URL', desc: 'What the records link to.' },
+					{
+						name: 'source',
+						in: 'query',
+						type: 'collection:path',
+						desc: 'One source from the summary, such as app.bsky.feed.like:subject.uri. Leave it out for the summary.',
+					},
+					{ name: 'hydrate', in: 'query', type: 'flag', desc: 'With source, return the linking records instead of their URIs.' },
+					{ name: 'limit', in: 'query', type: '1 to 100', def: '50', desc: 'Records per page with source. At most 25 with hydrate.' },
+					{ name: 'cursor', in: 'query', type: 'string', desc: 'The cursor from the previous page.' },
+				],
+				returns:
+					'Without source: { target, total, sources: [{ source, records, dids }] }. With source: { target, source, total, cursor, records }',
+				example:
+					'/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3n2opitxdyc2j?source=app.bsky.feed.post:reply.parent.uri&hydrate&limit=5',
+			},
+		],
+	],
+];
+
+export const EXAMPLES: [string, string][] = [
+	['Profile', 'at://bsky.app/app.bsky.actor.profile/self'],
+	['Reply, expanded', 'https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d'],
+	['Latest posts', 'at://bsky.app/app.bsky.feed.post'],
+	['Lexicon', 'lexicon/site.standard.document'],
+	// A page that publishes its AT URI with at-tags, resolved through the page lookup.
+	['Blog link', 'https://blog.pds.rip'],
+];
+
+// One table per kind of parameter, so what goes in the path never mixes with what goes after the ?.
+// Dotted names in prose (NSIDs, source paths) may break after a dot or colon, so one never sets a column's minimum width.
+const breakable = (text: string): string => esc(text).replace(/([\w-])([.:])(?=[\w-])/g, '$1$2<wbr>');
+export function paramTable(title: string, params: Param[]): string {
+	if (!params.length) return '';
+	// The Default column shows only when a parameter in this table has one.
+	const hasDef = params.some((p) => p.def);
+	const rows = params
+		.map(
+			(p) =>
+				`<tr><td><code>${esc(p.name)}</code></td><td class="c-type">${p.type
+					.split(/,\s*/)
+					.map((part) => `<span>${esc(part)}</span>`)
+					.join(
+						', ',
+					)}</td>${hasDef ? `<td class="c-def">${p.def ? `<code>${esc(p.def)}</code>` : ''}</td>` : ''}<td>${breakable(p.desc)}</td></tr>`,
+		)
+		.join('');
+	return `<div class="params"><h4>${title}</h4><div class="ptable"><div class="ptable__scroll"><table><thead><tr><th>Name</th><th class="c-type">Type</th>${hasDef ? '<th class="c-def">Default</th>' : ''}<th>What it does</th></tr></thead><tbody>${rows}</tbody></table></div><i class="ptable__edge" aria-hidden="true"></i></div></div>`;
+}

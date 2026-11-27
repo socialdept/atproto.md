@@ -8,14 +8,21 @@
     "start": "wrangler dev",
     "test": "vitest",
     "og": "node scripts/gen-og.mjs",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "og:glyphs": "node scripts/og-glyphs.mjs",
+    "world:grid": "node scripts/world-grid.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^25.5.2",
+    "d3-geo": "^3.1.1",
+    "fontkit": "^2.0.4",
+    "i18n-iso-countries": "^7.14.0",
+    "topojson-client": "^3.1.0",
     "typescript": "^5.5.2",
     "vitest": "~3.2.0",
+    "world-atlas": "^2.0.2",
     "wrangler": "^4.80.0"
   },
   "dependencies": {
