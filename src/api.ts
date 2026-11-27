@@ -6,8 +6,12 @@ import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, res
 import { resolveLexiconDid } from './lexicon';
 import { pdsGet } from './pds';
 import { blobUrl, collectBlobCids, collectRecordUris, parseTarget } from './refs';
+import { toAddress } from './links';
 import { listReposByCollection } from './relay';
 import type { Actor, AtpRecord } from './types';
+
+// The account an address names, from an at:// URI, a handle, a DID or a web link.
+const actorOf = async (input: string): Promise<string> => parseTarget(await toAddress(input)).actor;
 
 /** The most records one `get` or hydrated backlinks call fetches, and the most references `expand` follows. */
 export const MAX_BATCH = 25;
@@ -51,7 +55,7 @@ function requireRecord(input: string) {
 }
 
 async function fetchRecord(resolver: Resolver, input: string): Promise<RecordOut> {
-	const { actor: actorInput, collection, rkey } = requireRecord(input);
+	const { actor: actorInput, collection, rkey } = requireRecord(await toAddress(input));
 	const actor = await resolver.actor(actorInput);
 	const data = await pdsGet(actor.pds, 'com.atproto.repo.getRecord', { repo: actor.did, collection, rkey });
 	return recordOut(actor, data as unknown as AtpRecord);
@@ -83,7 +87,7 @@ export function errorMessage(e: unknown): string {
 // --- Identity and repos ---------------------------------------------------------------------------------------
 
 export async function resolve(input: string, resolver = new Resolver()) {
-	const actor = await resolver.actor(parseTarget(input).actor);
+	const actor = await resolver.actor(await actorOf(input));
 	const repo = await pdsGet(actor.pds, 'com.atproto.repo.describeRepo', { repo: actor.did }).catch(() => null);
 	return {
 		did: actor.did,
@@ -97,7 +101,7 @@ export async function resolve(input: string, resolver = new Resolver()) {
 export type PlcView = 'data' | 'audit' | 'last';
 
 export async function plc(input: string, view: PlcView) {
-	const did = await resolveToDid(parseTarget(input).actor);
+	const did = await resolveToDid(await actorOf(input));
 	if (view === 'audit') return { did, operations: await resolvePlcAuditLog(did) };
 	if (view === 'last') return { did, operation: await resolvePlcLastOp(did) };
 	return await resolvePlcData(did);
@@ -114,7 +118,7 @@ export interface ListOptions {
 
 export async function listRecords(actorInput: string, collection: string, options: ListOptions = {}) {
 	const resolver = new Resolver();
-	const actor = await resolver.actor(parseTarget(actorInput).actor);
+	const actor = await resolver.actor(await actorOf(actorInput));
 	const data = await pdsGet(actor.pds, 'com.atproto.repo.listRecords', {
 		repo: actor.did,
 		collection,

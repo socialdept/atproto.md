@@ -1,37 +1,20 @@
 // Parsing record addresses and finding the references and blobs inside a record value.
 
-export interface Target {
-	actor: string;
-	collection?: string;
-	rkey?: string;
-}
+import { matchLink, UNKNOWN_LINK, type Target } from './links';
 
-// bsky.app path segments that map to a record collection: /profile/{actor}/{segment}/{rkey}
-const BSKY_PATHS: Record<string, string> = {
-	post: 'app.bsky.feed.post',
-	feed: 'app.bsky.feed.generator',
-	lists: 'app.bsky.graph.list',
-	'starter-pack': 'app.bsky.graph.starterpack',
-};
-
-const BSKY_HOSTS = new Set(['bsky.app', 'www.bsky.app', 'staging.bsky.app', 'main.bsky.dev']);
+export type { Target };
 
 /**
- * Accepts an at:// URI, a bare handle or DID, or a bsky.app link, and returns the actor, collection and rkey it
- * names. Throws a 400 for anything else.
+ * Accepts an at:// URI, a bare handle or DID, or a link from a known client, and returns the actor, collection and
+ * rkey it names. Throws a 400 for anything else. Links from other pages are resolved first by toAddress in links.ts.
  */
 export function parseTarget(input: string): Target {
 	const raw = input.trim();
 
 	if (/^https?:\/\//i.test(raw)) {
-		const url = new URL(raw);
-		const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
-		if (BSKY_HOSTS.has(url.hostname) && parts[0] === 'profile' && parts[1]) {
-			if (parts.length === 2) return { actor: parts[1] };
-			const collection = BSKY_PATHS[parts[2]];
-			if (collection && parts[3]) return { actor: parts[1], collection, rkey: parts[3] };
-		}
-		throw { status: 400, message: `Unsupported URL: ${raw}. Use an at:// URI or a bsky.app profile, post, feed, list or starter pack link.` };
+		const target = matchLink(new URL(raw));
+		if (target) return target;
+		throw { status: 400, message: `Unsupported link: ${raw}. ${UNKNOWN_LINK}` };
 	}
 
 	const path = raw.replace(/^at:\/\//, '');

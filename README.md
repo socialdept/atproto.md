@@ -2,7 +2,7 @@
 
 A read-only API for the AT Protocol ecosystem, built for LLM agents. Records come back as raw JSON, exactly as the PDS stores them.
 
-atproto.md is a Cloudflare Worker that takes `at://` URIs in the URL path and returns JSON in a markdown code fence, or bare JSON on request. Records come from the user's own PDS, not a Bluesky-specific AppView, so it works with any collection on any PDS. It also answers network-wide questions: which repos use a lexicon, and which records link to a record, identity or URL. To learn all about it, head over to [the documentation](https://socialde.pt/docs/atproto.md).
+atproto.md is a Cloudflare Worker that takes `at://` URIs, handles or links in the URL path and returns JSON. Records come from the user's own PDS, not a Bluesky-specific AppView, so it works with any collection on any PDS. It also answers network-wide questions: which repos use a lexicon, and which records link to a record, identity or URL. To learn all about it, head over to [the documentation](https://socialde.pt/docs/atproto.md).
 
 Here are a few short examples of what you can do. List the records in any collection on any PDS:
 

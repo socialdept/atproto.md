@@ -155,7 +155,7 @@ GET ${origin}/at://{actor}/{collection}/{rkey}              one record
 GET ${origin}/get?uri={address}&uri={address}               up to 25 records in one call
 \`\`\`
 
-- \`{actor}\` is a handle or DID. A \`{address}\` is an at:// record URI or a bsky.app post, feed, list or starter pack link.
+- \`{actor}\` is a handle or DID. A \`{address}\` is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
 - Lists take \`limit\` (25 by default, 100 at most), \`cursor\` and \`reverse\` (oldest first).
 - \`expand\` on any record route also returns the records they reference (reply parent and root, quoted post,
   like or repost subject), one level deep, under \`expanded\`.

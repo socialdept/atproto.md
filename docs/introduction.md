@@ -4,7 +4,7 @@
 
 - **Repos and records:** pass an `at://` URI in the URL path and get the repo, a collection or a single record back, fetched from the user's own PDS.
 - **Raw records:** every record is the exact JSON the PDS stores, for any collection, with direct blob URLs.
-- **Fewer calls:** fetch up to 25 records by URI or bsky.app link in one call, and add `expand` to get the records they reference in the same response.
+- **Fewer calls:** fetch up to 25 records by URI or web link in one call, and add `expand` to get the records they reference in the same response.
 - **Identity:** resolve a handle or DID to its DID document and PDS, and read a `did:plc` identity's history and current state from [plc.directory](https://plc.directory).
 - **Network-wide:** discover every repo using a lexicon, explore the backlinks pointing at any record, identity or URL, and resolve a lexicon schema by its NSID through DNS.
 - **For agents:** an MCP server, an [llms.txt](https://llmstxt.org/) summary and a skill sheet for Claude Code.

@@ -8,7 +8,7 @@ export function llmsTxt(origin: string): string {
 - [Repo](${origin}/at://{actor}): DID, handle, PDS, DID document and every collection
 - [List records](${origin}/at://{actor}/{collection}): records newest first. Params: limit (25, at most 100), cursor, reverse, expand
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): one record with blob URLs. Param: expand
-- [Get many](${origin}/get?uri={address}&uri={address}): up to 25 records by at:// URI or bsky.app link in one call. Param: expand
+- [Get many](${origin}/get?uri={address}&uri={address}): up to 25 records by at:// URI or web link in one call. Param: expand
 
 expand also returns the records the results reference (reply parent and root, quoted post, like or repost subject), one level deep, under expanded.
 
@@ -42,7 +42,7 @@ expand also returns the records the results reference (reply parent and root, qu
 export function skillMd(origin: string): string {
 	return `---
 name: atproto-md
-description: Read any public AT Protocol data as raw JSON. Resolve a handle or DID to its PDS and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or bsky.app link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, and read a did:plc identity's PLC history. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
+description: Read any public AT Protocol data as raw JSON. Resolve a handle or DID to its PDS and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, and read a did:plc identity's PLC history. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
 ---
 
 # atproto-md
@@ -52,7 +52,7 @@ Read-only AT Protocol data, as JSON. No auth. Base URL: ${origin}
 ## When to use this skill
 
 - Read a record, a collection or a whole repo on any PDS, for Bluesky or any other lexicon
-- Dereference an at:// URI or a bsky.app post, feed, list or starter pack link
+- Dereference an at:// URI or a web link to a record: Bluesky-style client links, explorer links, or any page with at-tags
 - Read a post together with its parent, root and quoted post
 - Find who liked, reposted, replied to, quoted or follows something
 - Find every repo using a lexicon, or fetch a lexicon's schema
@@ -101,7 +101,7 @@ GET ${origin}/backlinks/{target}                            {target, total, sour
 GET ${origin}/backlinks/{target}?source={collection:path}   {target, source, total, cursor, records}
 \`\`\`
 
-- {actor} is a handle or DID. An {address} is an at:// record URI or a bsky.app link.
+- {actor} is a handle or DID. An {address} is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
 - Lists take limit, cursor and reverse (oldest first). cursor is null on the last page.
 - expand works on every record route. hydrate works on backlinks with source, 25 records at most.
 - A batch reports a failed address in errors and still returns the rest.

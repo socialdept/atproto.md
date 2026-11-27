@@ -58,9 +58,9 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 
 	server.tool(
 		'resolve',
-		'Resolve an Atmosphere account (handle, DID, at:// URI or bsky.app profile link) to its DID, handle, PDS, DID document and the collections in its repo. Pass plc to get plc.directory data instead: "data" for current state with rotation keys, "audit" for the full dated operation log (migrations, handle changes, key rotations), "last" for the latest operation.',
+		'Resolve an Atmosphere account (handle, DID, at:// URI, or a profile link or page from an Atmosphere app) to its DID, handle, PDS, DID document and the collections in its repo. Pass plc to get plc.directory data instead: "data" for current state with rotation keys, "audit" for the full dated operation log (migrations, handle changes, key rotations), "last" for the latest operation.',
 		{
-			actor: z.string().describe('Handle, DID, at:// URI or bsky.app profile link'),
+			actor: z.string().describe('Handle, DID, at:// URI, or a profile link or page from an Atmosphere app'),
 			plc: z.enum(['data', 'audit', 'last']).optional().describe('Return plc.directory data for a did:plc instead of the identity'),
 		},
 		tracked('resolve', async ({ actor, plc: view }) => json(view ? await plc(actor, view) : await resolve(actor))),
@@ -68,9 +68,9 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 
 	server.tool(
 		'get',
-		`Fetch up to ${MAX_BATCH} records by address in one call, as raw JSON exactly as the PDS stores them, with blob URLs. Addresses are at:// record URIs or bsky.app post, feed, list or starter pack links. expand also fetches every record the results reference (reply parent and root, quoted post, like or repost subject), one level deep.`,
+		`Fetch up to ${MAX_BATCH} records by address in one call, as raw JSON exactly as the PDS stores them, with blob URLs. Addresses are at:// record URIs or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical). expand also fetches every record the results reference (reply parent and root, quoted post, like or repost subject), one level deep.`,
 		{
-			uris: z.array(z.string()).min(1).max(MAX_BATCH).describe('Record addresses: at://{actor}/{collection}/{rkey} or a bsky.app link'),
+			uris: z.array(z.string()).min(1).max(MAX_BATCH).describe('Record addresses: at://{actor}/{collection}/{rkey} or a link to the record from an Atmosphere app or page'),
 			expand: z.boolean().default(false).describe('Also fetch the records these reference, under expanded'),
 		},
 		tracked('get', async ({ uris, expand }) => json(await getRecords(uris, { expand }))),

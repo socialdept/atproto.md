@@ -48,10 +48,27 @@ One record as `{uri, cid, value, blobs}`. Takes `expand`.
 
 ## `GET /get?uri={address}&uri={address}`
 
-Up to 25 records in one call, fetched in parallel, as `{records, errors, expanded}`. Each address is an `at://` record URI or a bsky.app link to a post, feed, list or starter pack:
+Up to 25 records in one call, fetched in parallel, as `{records, errors, expanded}`. Each address is an `at://` record URI or a web link to the record (see [Links](#links)):
 
 ```bash
 curl "https://atproto.md/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&uri=at://bsky.app/app.bsky.actor.profile/self&expand"
 ```
 
 Each actor is resolved once per call. An address that fails goes into `errors` as `{address, error}`, and the other records still come back. Takes `expand`.
+
+## Links
+
+Anywhere an address is taken (`/get`, `/resolve`, the MCP tools), a web link works in place of an `at://` URI. A link also works straight after the address, like an `at://` URI, and returns the account, collection or record it shows:
+
+```bash
+curl "https://atproto.md/https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d"
+```
+
+atproto.md turns a link into the AT URI it shows, in this order:
+
+1. **Known client layouts.** Bluesky-style clients share `/profile/{actor}`, `/profile/{actor}/post/{rkey}`, `/feed/`, `/lists/` and `/starter-pack/`: bsky.app, deer.social, blacksky.community, witchsky.app, northsky.app, mu.social, impro.social, reddwarf.app, lea.ac and anisota.net. Explorers carry the AT URI in the path: pdsls.dev, atp.tools, bluepy.social, atproto.at (`/uri/at://...`) and aturi.to. A few apps have their own layouts: margin.at, grain.social, standard-reader.app, unthread.at and pinkleap.app, and profile pages on leaflet.pub, tangled.org, semble.so, stream.place, popfeed.social, sifa.id and blento.app.
+2. **The page itself.** Any other link is fetched, and its `<head>` is read for the AT URI it publishes: an [at-tags](https://tangled.org/chrisshank.me/at-tags) `<meta name="at:canonical">` first, then any `<link href="at://...">` (standard.site publications and documents use one), then `at:me` for the account the site belongs to. The page is read up to its `</head>`, for at most 4 seconds.
+
+A link to a path that is not a known layout is never guessed as the profile. If neither step finds an AT URI, the response is a 400 that says what is supported.
+
+The client list follows the reverse parsers in [@aturi.to/waypoints](https://github.com/atpota-to/aturi).

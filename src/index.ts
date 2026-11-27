@@ -14,6 +14,7 @@ import {
 import { CORS, errMd, mdResponse } from './http';
 import { dataResponse, errorResponse } from './output';
 import { parseTarget } from './refs';
+import { toAddress } from './links';
 import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
 import { classifyHttp, getStats, recordVisit, resetStats } from './stats';
@@ -122,7 +123,8 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 		}
 
 		if (segments[0] === 'resolve') {
-			const input = segments.slice(1).join('/');
+			// Read the raw path so a pasted link keeps its //.
+			const input = decodeURIComponent(url.pathname.slice('/resolve/'.length));
 			if (!input) return usage('Usage: /resolve/{handle-or-did}');
 			return data(await resolve(input));
 		}
@@ -168,9 +170,12 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 			return data(await getRecords(uris, { expand: flag(url, 'expand') }));
 		}
 
-		// All remaining routes are AT URIs: /at://{actor}[/{collection}[/{rkey}]]
-		const atUri = url.pathname.slice(1);
-		if (!atUri.startsWith('at://')) {
+		// All remaining routes are AT URIs, /at://{actor}[/{collection}[/{rkey}]], or a web link in their place,
+		// /https://bsky.app/profile/{actor}/post/{rkey}, which is first turned into the AT URI it shows.
+		let atUri = url.pathname.slice(1);
+		const link = decodeURIComponent(atUri).replace(/^(https?:)\/(?!\/)/i, '$1//');
+		if (/^https?:\/\//i.test(link)) atUri = await toAddress(link);
+		if (!atUri.startsWith('at://') && !/^https?:\/\//i.test(atUri)) {
 			return usage('Invalid path. Expected an at:// URI, for example /at://bsky.app, /at://bsky.app/app.bsky.feed.post or /at://bsky.app/app.bsky.feed.post/{rkey}');
 		}
 
