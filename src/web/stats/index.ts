@@ -101,7 +101,7 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
     </div>
   </section>`;
 
-	return `${head(origin, 'Usage | ATMD', `<meta name="robots" content="noindex">\n<link rel="canonical" href="${origin}/stats">`)}${STATS_STYLES}</style>
+	return `${head(origin, 'Public stats | ATMD', `<meta name="robots" content="noindex">\n<link rel="canonical" href="${origin}/stats">`)}${STATS_STYLES}</style>
 </head>
 <body>
 ${topBar(origin, 'stats')}

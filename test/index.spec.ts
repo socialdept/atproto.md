@@ -135,7 +135,7 @@ describe('routing', () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
 		const body = await res.text();
-		expect(body).toContain('<title>Usage | ATMD</title>');
+		expect(body).toContain('<title>Public stats | ATMD</title>');
 		expect(body).toContain('name="robots" content="noindex"');
 	});
 
