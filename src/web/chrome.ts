@@ -1,7 +1,7 @@
 import { version } from '../../package.json';
 import { C, CURVE, frameSrc, ICON_CHECK, ICON_COPY, NOTCH, px } from './kit';
 
-export const TITLE = 'ATMD | Every Atmosphere record, one address for agents';
+export const TITLE = 'Every Atmosphere record, one address for agents | ATMD';
 export const DESCRIPTION =
 	'Any record on any PDS as raw JSON, through an MCP server or a URL. Paste an at:// URI, a handle or a link after atproto.md/. No auth, no API key.';
 

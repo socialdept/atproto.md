@@ -181,7 +181,7 @@ describe('content negotiation on /', () => {
 
 		const body = await res.text();
 		expect(body).toContain('<!doctype html>');
-		expect(body).toContain('<title>ATMD | ');
+		expect(body).toContain('<title>Every Atmosphere record, one address for agents | ATMD</title>');
 		expect(body).toContain('property="og:title"');
 		expect(body).toContain('name="twitter:card"');
 		expect(body).toContain('http://example.com/og.png');
