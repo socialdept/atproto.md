@@ -1,7 +1,7 @@
 export function llmsTxt(origin: string): string {
 	return `# atproto.md
 
-> A read-only AT Protocol API for agents. Every data route returns one JSON object in a \`\`\`json fence, or bare JSON with ?format=json. Records are raw, exactly as the PDS stores them, for any collection on any PDS. No authentication, public data only.
+> A read-only AT Protocol API for agents. Every data route returns one JSON object as application/json. Records are raw, exactly as the PDS stores them, for any collection on any PDS. No authentication, public data only.
 
 ## Records
 
@@ -62,7 +62,7 @@ For Bluesky threads, timelines, feeds and search, use the Bluesky AppView or bsk
 
 ## How to call it
 
-Every data route returns one JSON object inside a \`\`\`json fence. Add \`?format=json\` for bare JSON and \`?pretty\` to indent it.
+Every data route returns one JSON object as application/json. Add \`?pretty\` to indent it.
 Records are \`{uri, cid, value, blobs}\`. \`value\` is exactly what the PDS stores, and \`blobs\` lists direct getBlob URLs.
 Errors are \`{"error": "...", "status": 404}\`.
 

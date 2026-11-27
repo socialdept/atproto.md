@@ -1,23 +1,16 @@
 # Response format
 
-Part of the [atproto.md docs](introduction.md#documentation). What every data route returns, and how to ask for bare JSON.
+Part of the [atproto.md docs](introduction.md#documentation). What every data route returns.
 
 ## One JSON object per response
 
-Every data route returns a single JSON object. By default it comes inside a fenced `json` code block with `Content-Type: text/markdown`, so the body is still markdown:
+Every data route returns a single JSON object as `application/json`:
 
-````
 ```json
 {"uri":"at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.actor.profile/self","cid":"bafy...","value":{...}}
 ```
-````
 
-Two ways to get the JSON without the fence, served as `application/json`:
-
-- add `?format=json` to the URL
-- send `Accept: application/json`
-
-Add `?pretty` to indent the JSON. It is compact by default, which keeps responses small for agents.
+Add `?pretty` to indent the JSON. It is compact by default, which keeps responses small for agents. `?format=json`, from older links, is still accepted and changes nothing.
 
 ## Records are raw
 

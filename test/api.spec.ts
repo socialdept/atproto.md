@@ -124,12 +124,10 @@ async function workerFetch(path: string, init?: RequestInit) {
 }
 
 describe('HTTP output', () => {
-	it('wraps the JSON in a markdown fence by default', async () => {
+	it('returns raw JSON by default', async () => {
 		const res = await workerFetch('/at://alice.test/app.bsky.actor.profile/self');
-		expect(res.headers.get('Content-Type')).toBe('text/markdown; charset=utf-8');
-		const body = await res.text();
-		expect(body.startsWith('```json\n')).toBe(true);
-		expect(JSON.parse(body.slice(8, body.lastIndexOf('\n```'))).value.displayName).toBe('Alice');
+		expect(res.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
+		expect(JSON.parse(await res.text()).value.displayName).toBe('Alice');
 	});
 
 	it('returns bare JSON for ?format=json and Accept: application/json', async () => {

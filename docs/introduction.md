@@ -1,6 +1,6 @@
 # Introduction
 
-**atproto.md** is a read-only API for the AT Protocol ecosystem, built for LLM agents. It runs as a Cloudflare Worker, serves public data only, and returns every response as one JSON object inside a markdown code fence, or as bare JSON on request:
+**atproto.md** is a read-only API for the AT Protocol ecosystem, built for LLM agents. It runs as a Cloudflare Worker, serves public data only, and returns every response as one JSON object, served as `application/json`:
 
 - **Repos and records:** pass an `at://` URI in the URL path and get the repo, a collection or a single record back, fetched from the user's own PDS.
 - **Raw records:** every record is the exact JSON the PDS stores, for any collection, with direct blob URLs.

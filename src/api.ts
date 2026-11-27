@@ -1,5 +1,5 @@
-// The data behind every route and MCP tool. Each function returns a plain object, which the HTTP layer wraps
-// in a ```json fence (or returns as bare JSON) and the MCP layer returns as text.
+// The data behind every route and MCP tool. Each function returns a plain object, which the HTTP layer serves as
+// application/json and the MCP layer returns as text.
 
 import { getBacklinks, getLinkSources } from './constellation';
 import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid } from './identity';

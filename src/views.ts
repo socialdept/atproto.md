@@ -141,10 +141,10 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 export function indexPage(origin: string): string {
 	return `# atproto.md
 
-A read-only AT Protocol API for agents. Every data route returns one JSON object inside a \`\`\`json fence.
+A read-only AT Protocol API for agents. Every data route returns one JSON object as application/json.
 Records are raw JSON, exactly as the PDS stores them, with direct blob URLs. Any collection on any PDS.
 
-Add \`?format=json\` or send \`Accept: application/json\` for bare JSON. Add \`?pretty\` to indent it.
+Add \`?pretty\` to indent the JSON.
 
 ## Records
 
