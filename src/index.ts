@@ -54,8 +54,8 @@ export default {
 		const response = await handleGet(request, url, origin, env);
 		const latencyMs = Date.now() - start;
 
-		// Anonymous usage counter, fire-and-forget. Counts only what agents get (markdown and JSON).
-		// HTML for browser visits to the home and /stats pages is ignored, since it would drown the API signal.
+		// Anonymous usage counter, fire-and-forget. Counts only the API: JSON responses, plus llms.txt and skill.md.
+		// The home page and /stats are never counted, for browsers or agents, since they would drown the API signal.
 		const stat = classifyHttp(url);
 		const type = response.headers.get('Content-Type') ?? '';
 		if (stat && (type.startsWith('text/markdown') || type.startsWith('application/json'))) {

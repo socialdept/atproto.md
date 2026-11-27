@@ -189,10 +189,11 @@ export class StatsDO extends DurableObject {
 			sessions: counter('mcp:sessions'),
 			distinctCollections,
 			channels: prefixed('channel:'),
-			routes: prefixed('route:'),
+			// Visits to / and /stats counted before they were excluded stay in the totals, but not in the route list.
+			routes: prefixed('route:').filter((r) => r.key !== 'home' && r.key !== 'stats'),
 			tools: prefixed('tool:'),
 			statuses: prefixed('status:'),
-			errorRoutes: prefixed('errroute:'),
+			errorRoutes: prefixed('errroute:').filter((r) => r.key !== 'home' && r.key !== 'stats'),
 			upstreams: prefixed('upstream:'),
 			authorities: prefixed('authority:'),
 			idTypes: prefixed('idtype:'),
@@ -313,7 +314,8 @@ export function classifyHttp(url: URL): HttpClass | null {
 	const path = url.pathname;
 	const flags = paramFlags(url);
 
-	if (path === '/') return { key: 'route:home' };
+	// The home page and the stats page are not part of the API, for browsers or agents.
+	if (path === '/') return null;
 
 	if (path.startsWith('/at://')) {
 		const parts = path.slice('/at://'.length).split('/').filter(Boolean);
@@ -328,7 +330,7 @@ export function classifyHttp(url: URL): HttpClass | null {
 
 	if (head === 'llms.txt') return { key: 'route:llms.txt' };
 	if (head === 'skill.md') return { key: 'route:skill.md' };
-	if (head === 'stats') return segments[1] === 'reset' ? null : { key: 'route:stats' };
+	if (head === 'stats') return null;
 	if (head === 'get') return { key: 'route:get', flags };
 	if (head === 'resolve') return { key: 'route:resolve', idType: idTypeOf(segments[1]) };
 	if (head === 'discover') return { key: 'route:discover', collection: segments[1], flags };

@@ -17,12 +17,16 @@ describe('classifyHttp (stats tracking)', () => {
 	const c = (path: string) => classifyHttp(new URL(`http://example.com${path}`));
 
 	it('classifies recognized API routes', () => {
-		expect(c('/')?.key).toBe('route:home');
 		expect(c('/resolve/bsky.app')?.key).toBe('route:resolve');
 		expect(c('/at://bsky.app')?.key).toBe('route:repo');
 		expect(c('/at://bsky.app/app.bsky.feed.post')?.key).toBe('route:records');
 		expect(c('/plc/audit/bsky.app')?.key).toBe('route:plc/audit');
 		expect(c('/lexicon/app.bsky.feed.post')?.key).toBe('route:lexicon');
+	});
+
+	it('never counts the home page or the stats page', () => {
+		expect(c('/')).toBeNull();
+		expect(c('/stats')).toBeNull();
 	});
 
 	it('ignores assets and unrecognized paths (returns null)', () => {
