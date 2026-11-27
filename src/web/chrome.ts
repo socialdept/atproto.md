@@ -46,13 +46,14 @@ code, pre, .mono { font-family: var(--mono); }
 .bar nav.end { justify-self: end; }
 .bar a.link { color: var(--muted); text-decoration: none; font-size: 14px; padding: 6px 10px; border-radius: 999px; }
 .bar a.link:hover, .bar a.link[aria-current] { color: var(--ink); background: var(--tray); }
-.bar__mark { position: relative; justify-self: center; font-family: var(--beast); font-weight: 400; font-size: 18px; letter-spacing: 0.04em; text-decoration: none; padding: 7px 18px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--bg); transition: border-color .2s; }
+.bar__mark { position: relative; justify-self: center; font-family: var(--beast); font-weight: 400; font-size: 18px; letter-spacing: -0.03em; font-kerning: none; text-decoration: none; padding: 7px calc(18px + 0.03em) 7px 18px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--bg); transition: border-color .2s; }
 /* The stepped outline is drawn on a layer behind the wordmark, so it can fade and shrink away when the header turns
    frosted on scroll (a border image cannot be transitioned). */
 .bar__mark { isolation: isolate; border-color: transparent; background: none; }
-/* Beast kerns A and T to about one pixel apart, but leaves two between T, M and D. Closing those by one Beast pixel
-   (0.07em) makes the four letters look evenly spaced. */
-.bar__tight { letter-spacing: -0.03em; }
+/* Every Beast glyph has the same 0.07em side bearing, so without kerning each pair of letters sits 0.14em apart.
+   Kerning is off because Beast pulls T toward A by 0.14em, and browsers apply that pair only when both letters share
+   a text run. One letter-spacing for the whole word then keeps every gap at 0.11em. The last letter's spacing tightens
+   the right edge, so the right padding gives that 0.03em back and the word stays centered in the pill. */
 .bar__mark::before { content: ''; position: absolute; inset: -1.5px; z-index: -1; ${px(C.ink, C.bg, CURVE, 1.5, 1.5)} transition: opacity .25s ease, transform .25s ease; }
 .top.scrolled .bar__mark::before { opacity: 0; transform: scale(.92); }
 .bar .btn--ghost { height: 32px; padding: 0 12px; font-weight: 500; font-size: 13px; margin-left: 4px; }
@@ -123,7 +124,7 @@ export function topBar(origin: string, current: 'home' | 'stats'): string {
     <a class="link" href="${DOCS}">Docs</a>
     <a class="link" href="${origin}/stats"${current === 'stats' ? ' aria-current="page"' : ''}>Stats</a>
   </nav>
-  <a class="bar__mark" href="${origin}/" aria-label="atproto.md">A<span class="bar__tight">TM</span>D</a>
+  <a class="bar__mark" href="${origin}/" aria-label="atproto.md">ATMD</a>
   <nav class="end" aria-label="More">
     <a class="link" href="${REPO}">GitHub</a>
     <button class="btn btn--ghost" type="button" data-copy="claude mcp add --transport http atproto-md ${origin}/mcp" aria-label="Copy the command that adds the MCP server to Claude Code">${ICON_COPY}<span>Add to Claude</span></button>
