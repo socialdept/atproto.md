@@ -52,7 +52,7 @@ Procedures are forwarded with their body and `Content-Type`, for app views that 
 
 ## Responses
 
-The upstream response is passed on unchanged: its status, its body and its `Content-Type`. An `X-Upstream-Host` header names the server that answered. Cookies and other upstream headers are left behind.
+The upstream response is passed on unchanged: its status, its body and its `Content-Type`. An `X-Upstream-Host` header names the server that answered, and `X-Upstream-Kind` says what it is: `pds`, `relay`, `appview`, `labeler`, `proxy` (named by an `atproto-proxy` header), `discovered` (found from the app's domain) or `local` (answered by atproto.md). Cookies and other upstream headers are left behind.
 
 - **Blobs and repos redirect:** `com.atproto.sync.getBlob` and `com.atproto.sync.getRepo` answer with a redirect to the account's PDS, which is built to stream files and whole repos. Clients that follow redirects, as SDKs and `curl -L` do, get the file from the PDS.
 - **Caching:** responses are cached for 60 seconds, and redirects for 5 minutes. Errors are not cached.

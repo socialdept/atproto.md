@@ -166,7 +166,8 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 		}
 
 		if (segments[0] === 'og.svg') return svgResponse(ogImageSvg());
-		if (segments[0] === 'favicon.svg' || segments[0] === 'favicon.ico') return svgResponse(faviconSvg());
+		// favicon.ico and the PNG icons are static files in public/, rendered from this mark by npm run icons.
+		if (segments[0] === 'favicon.svg') return svgResponse(faviconSvg());
 		if (segments[0] === 'robots.txt') {
 			return new Response(robotsTxt(origin), { headers: { ...CORS, 'Content-Type': 'text/plain; charset=utf-8' } });
 		}
