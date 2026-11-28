@@ -31,4 +31,11 @@ const resvg = new Resvg(svg, {
 });
 const png = resvg.render().asPng();
 writeFileSync(outPath, png);
-console.log(`wrote public/og.png (${png.length} bytes) from ${url}`);
+// The card's address carries the time it was rendered, so link-card caches fetch the new one without anyone
+// remembering to bump a number.
+const version = new Date().toISOString().replace(/[-:]/g, '').slice(0, 13);
+writeFileSync(
+	join(here, '..', 'src', 'og-version.ts'),
+	`// Written by scripts/gen-og.mjs each time public/og.png is rendered. Do not edit by hand.\nexport const OG_VERSION = '${version}';\n`,
+);
+console.log(`wrote public/og.png (${png.length} bytes) from ${url}, version ${version}`);

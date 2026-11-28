@@ -2,6 +2,7 @@ import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloud
 import { describe, it, expect } from 'vitest';
 import worker from '../src/index';
 import { classifyHttp } from '../src/stats';
+import { OG_VERSION } from '../src/og-version';
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
@@ -204,7 +205,7 @@ describe('content negotiation on /', () => {
 
 	it('uses the request origin in og:image and canonical URLs', async () => {
 		const body = await (await workerFetch('https://atproto.md/', { headers: { Accept: 'text/html' } })).text();
-		expect(body).toContain('content="https://atproto.md/og.png"');
+		expect(body).toContain(`content="https://atproto.md/og.png?v=${OG_VERSION}"`);
 		expect(body).toContain('<link rel="canonical" href="https://atproto.md/">');
 	});
 });

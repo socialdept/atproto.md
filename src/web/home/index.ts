@@ -1,4 +1,5 @@
 import { esc, EXTERNAL, ICON_COPY } from '../kit';
+import { OG_VERSION } from '../../og-version';
 import { COPY_SCRIPT, DESCRIPTION, footer, head, TABLE_SCRIPT, TITLE, topBar } from '../chrome';
 import { EXAMPLES, paramTable, ROUTES, XRPC_ROUTES } from './routes';
 import { INTRO_SCRIPT, INTRO_STYLES } from './intro';
@@ -23,8 +24,9 @@ const HOST_POOL = ['northsky.social', 'pds.sprk.so', 'surf.social', 'roomy.chat'
 const CHEVRON = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 
 export function htmlIndexPage(origin: string): string {
-	// A raster PNG from public/, since several scrapers (X, Facebook, iMessage) reject SVG. Regenerate with `npm run og`.
-	const ogImage = `${origin}/og.png`;
+	// A raster PNG from public/, since several scrapers (X, Facebook, iMessage) reject SVG. Regenerate with `npm run og`,
+	// which also stamps the render time into the address, so caches fetch the new card.
+	const ogImage = `${origin}/og.png?v=${OG_VERSION}`;
 	const meta = `<meta name="description" content="${DESCRIPTION}">
 <link rel="canonical" href="${origin}/">
 <meta property="og:type" content="website">
