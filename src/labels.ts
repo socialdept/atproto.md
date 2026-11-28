@@ -41,7 +41,14 @@ export async function pickLabelers(value?: string | null): Promise<string[]> {
 	const v = value?.trim();
 	if (!v) return [DEFAULT_LABELER];
 	if (v === 'all') return LABELERS.map((l) => l.did);
-	const parts = [...new Set(v.split(',').map((p) => p.trim().replace(/^@/, '')).filter(Boolean))];
+	const parts = [
+		...new Set(
+			v
+				.split(',')
+				.map((p) => p.trim().replace(/^@/, ''))
+				.filter(Boolean),
+		),
+	];
 	if (parts.length > LABELERS.length + 5) throw { status: 400, message: `Name at most ${LABELERS.length + 5} labelers.` };
 	return Promise.all(parts.map(async (p) => (p.startsWith('did:') ? p : (byHandle.get(p) ?? (await resolveToDid(p))))));
 }
@@ -79,7 +86,10 @@ export function current(raw: RawLabel[], now = Date.now()): RawLabel[] {
 }
 
 /** Every label the labelers hold on the subjects, by subject, plus how each labeler answered. */
-export async function queryLabels(subjects: string[], labelers: string[]): Promise<{ bySubject: Map<string, Label[]>; labelers: LabelerResult[] }> {
+export async function queryLabels(
+	subjects: string[],
+	labelers: string[],
+): Promise<{ bySubject: Map<string, Label[]>; labelers: LabelerResult[] }> {
 	const answers = await Promise.all(
 		labelers.map(async (did) => {
 			const handle = known.get(did)?.handle ?? null;
@@ -88,7 +98,12 @@ export async function queryLabels(subjects: string[], labelers: string[]): Promi
 			} catch (e) {
 				const raw = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e);
 				// The runtime reports a host it cannot reach as an internal error.
-				const error = e instanceof Error && e.name === 'TimeoutError' ? `No answer within ${TIMEOUT / 1000} seconds.` : raw.startsWith('internal error') ? 'Could not connect to the labeler.' : raw;
+				const error =
+					e instanceof Error && e.name === 'TimeoutError'
+						? `No answer within ${TIMEOUT / 1000} seconds.`
+						: raw.startsWith('internal error')
+							? 'Could not connect to the labeler.'
+							: raw;
 				return { result: { did, handle, ok: false, error } as LabelerResult, labels: [] };
 			}
 		}),
@@ -98,7 +113,14 @@ export async function queryLabels(subjects: string[], labelers: string[]): Promi
 		for (const l of labels) {
 			const list = bySubject.get(l.uri);
 			if (!list) continue;
-			list.push({ val: l.val, uri: l.uri, ...(l.cid ? { cid: l.cid } : {}), cts: l.cts, ...(l.exp ? { exp: l.exp } : {}), labeler: { did: result.did, handle: result.handle } });
+			list.push({
+				val: l.val,
+				uri: l.uri,
+				...(l.cid ? { cid: l.cid } : {}),
+				cts: l.cts,
+				...(l.exp ? { exp: l.exp } : {}),
+				labeler: { did: result.did, handle: result.handle },
+			});
 		}
 	}
 	return { bySubject, labelers: answers.map((a) => a.result) };

@@ -26,7 +26,8 @@ async function timed(step: string, request: string, run: () => Promise<Omit<Trac
 		const out = await run();
 		return { step, request, ms: Date.now() - start, ...out };
 	} catch (e) {
-		const message = e instanceof Error ? (e.name === 'TimeoutError' ? `No answer within ${TIMEOUT / 1000} seconds.` : e.message) : String(e);
+		const message =
+			e instanceof Error ? (e.name === 'TimeoutError' ? `No answer within ${TIMEOUT / 1000} seconds.` : e.message) : String(e);
 		return { step, request, ok: false, ms: Date.now() - start, error: message };
 	}
 }
@@ -38,12 +39,16 @@ const text = async (res: Response) => (await res.text()).slice(0, BODY_LIMIT);
 function dnsStep(handle: string): Promise<TraceStep> {
 	const name = `_atproto.${handle}`;
 	return timed('handle-dns', `TXT ${name}`, async () => {
-		const res = await fetch(`${DOH}?name=${encodeURIComponent(name)}&type=TXT`, { headers: { accept: 'application/dns-json' }, signal: signal() });
+		const res = await fetch(`${DOH}?name=${encodeURIComponent(name)}&type=TXT`, {
+			headers: { accept: 'application/dns-json' },
+			signal: signal(),
+		});
 		const data = (await res.json()) as { Status?: number; Answer?: { data?: string }[] };
 		const records = (data.Answer ?? []).map((a) => String(a.data ?? '').replace(/^"|"$/g, ''));
 		const dids = records.flatMap((r) => r.match(/^did=(.+)$/)?.[1]?.trim() ?? []);
 		if (dids.length === 1) return { ok: true, status: res.status, result: { did: dids[0], records } };
-		const error = dids.length > 1 ? `${name} has ${dids.length} did= records. It must have exactly one.` : `${name} has no did= TXT record.`;
+		const error =
+			dids.length > 1 ? `${name} has ${dids.length} did= records. It must have exactly one.` : `${name} has no did= TXT record.`;
 		return { ok: false, status: res.status, result: { records }, error };
 	});
 }
@@ -62,7 +67,8 @@ function httpStep(handle: string): Promise<TraceStep> {
 		}
 		const body = (await text(res)).trim();
 		if (!res.ok) return { ok: false, status: res.status, result: { body }, error: `${url} answered ${res.status}.` };
-		if (!/^did:[a-z]+:[A-Za-z0-9._:%-]+$/.test(body)) return { ok: false, status: res.status, result: { body }, error: 'The body is not a DID.' };
+		if (!/^did:[a-z]+:[A-Za-z0-9._:%-]+$/.test(body))
+			return { ok: false, status: res.status, result: { body }, error: 'The body is not a DID.' };
 		return { ok: true, status: res.status, result: { did: body } };
 	});
 }
@@ -80,7 +86,8 @@ function didDocStep(did: string): Promise<{ step: TraceStep; doc?: DidDocument }
 	return timed('did-document', `GET ${url}`, async () => {
 		const res = await fetch(url, { signal: signal() });
 		const body = await res.text();
-		if (!res.ok) return { ok: false, status: res.status, result: { body: body.slice(0, BODY_LIMIT) }, error: `${url} answered ${res.status}.` };
+		if (!res.ok)
+			return { ok: false, status: res.status, result: { body: body.slice(0, BODY_LIMIT) }, error: `${url} answered ${res.status}.` };
 		try {
 			doc = JSON.parse(body) as DidDocument;
 		} catch {
@@ -102,7 +109,12 @@ function pdsStep(pds: string, did: string): Promise<TraceStep> {
 		} catch {}
 		if (!res.ok) return { ok: false, status: res.status, result, error: `The PDS answered ${res.status}.` };
 		const active = (result as { active?: boolean }).active;
-		return { ok: active !== false, status: res.status, result, error: active === false ? 'The PDS has the repo, but it is not active.' : undefined };
+		return {
+			ok: active !== false,
+			status: res.status,
+			result,
+			error: active === false ? 'The PDS has the repo, but it is not active.' : undefined,
+		};
 	});
 }
 
@@ -120,7 +132,13 @@ export async function trace(input: string) {
 		steps.push(dns, http);
 		const found = [dns, http].flatMap((s) => (s.ok ? [(s.result as { did: string }).did] : []));
 		if (new Set(found).size > 1) {
-			steps.push({ step: 'handle-agree', request: handle, ok: false, ms: 0, error: `DNS and HTTPS name different DIDs: ${found.join(' and ')}.` });
+			steps.push({
+				step: 'handle-agree',
+				request: handle,
+				ok: false,
+				ms: 0,
+				error: `DNS and HTTPS name different DIDs: ${found.join(' and ')}.`,
+			});
 		}
 		did = found[0];
 	}
@@ -137,10 +155,18 @@ export async function trace(input: string) {
 		const [dns, http] = await Promise.all([dnsStep(named), httpStep(named)]);
 		steps.push(dns, http);
 	}
-	const back = steps.filter((s) => (s.step === 'handle-dns' || s.step === 'handle-http') && s.ok).map((s) => (s.result as { did: string }).did);
+	const back = steps
+		.filter((s) => (s.step === 'handle-dns' || s.step === 'handle-http') && s.ok)
+		.map((s) => (s.result as { did: string }).did);
 	const handleVerified = !!handle && named === handle && back.includes(did);
 	if (doc && handle && named !== handle) {
-		steps.push({ step: 'handle-document', request: handle, ok: false, ms: 0, error: named ? `The DID document names ${named}, not ${handle}.` : 'The DID document names no handle.' });
+		steps.push({
+			step: 'handle-document',
+			request: handle,
+			ok: false,
+			ms: 0,
+			error: named ? `The DID document names ${named}, not ${handle}.` : 'The DID document names no handle.',
+		});
 	}
 
 	let pds: string | null = null;
@@ -152,9 +178,24 @@ export async function trace(input: string) {
 			steps.push(step);
 			entryway = server;
 		} catch (e) {
-			steps.push({ step: 'pds', request: did, ok: false, ms: 0, error: (e as { message?: string }).message ?? 'No PDS in the DID document.' });
+			steps.push({
+				step: 'pds',
+				request: did,
+				ok: false,
+				ms: 0,
+				error: (e as { message?: string }).message ?? 'No PDS in the DID document.',
+			});
 		}
 	}
 
-	return { input, did, handle: handle ?? null, handleVerified, pds, entryway, ok: handleVerified && steps.every((s) => s.ok || s.step.startsWith('handle-')), steps };
+	return {
+		input,
+		did,
+		handle: handle ?? null,
+		handleVerified,
+		pds,
+		entryway,
+		ok: handleVerified && steps.every((s) => s.ok || s.step.startsWith('handle-')),
+		steps,
+	};
 }

@@ -40,7 +40,6 @@ export const CHART_SCRIPT = `
   });
 })();`;
 
-
 // Sets html.motion before the page paints, so marks start hidden only when they will animate.
 export const MOTION_HEAD = `if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion');`;
 

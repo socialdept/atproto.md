@@ -5,9 +5,7 @@ const PLC_DIRECTORY = 'https://plc.directory';
 export async function resolveToDid(handleOrDid: string): Promise<string> {
 	if (handleOrDid.startsWith('did:')) return handleOrDid;
 
-	const res = await fetch(
-		`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handleOrDid)}`,
-	);
+	const res = await fetch(`https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handleOrDid)}`);
 
 	if (!res.ok) throw { status: 404, message: `Could not resolve handle: ${handleOrDid}`, upstream: 'handle' };
 

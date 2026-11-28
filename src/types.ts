@@ -59,4 +59,3 @@ export interface PlcData {
 	alsoKnownAs?: string[];
 	services?: Record<string, { type: string; endpoint: string }>;
 }
-

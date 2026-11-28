@@ -133,7 +133,7 @@ describe('formatStats', () => {
 			clients: [],
 			countries: [],
 			collections: [],
-				daily: [],
+			daily: [],
 			latency: { count: 0, avgMs: 0, p50: '—', p95: '—', buckets: [] },
 		};
 		expect(formatStats(ORIGIN, zero)).toContain('*No requests recorded yet.*');

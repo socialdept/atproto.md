@@ -59,7 +59,8 @@ export function ogImageSvg(): string {
 	let cells = '';
 	FIGURES.forEach(([n, l], i) => {
 		const x = 151 + cell * i;
-		if (i < 3) cells += `<rect x="${+(x + cell - 1).toFixed(2)}" y="${+(cardY + 1).toFixed(2)}" width="1" height="118.68" fill="${C.line}"/>`;
+		if (i < 3)
+			cells += `<rect x="${+(x + cell - 1).toFixed(2)}" y="${+(cardY + 1).toFixed(2)}" width="1" height="118.68" fill="${C.line}"/>`;
 		cells += text(n, x + 22, cardY + 21, 49.68, 46, C.ink) + text(l, x + 22, cardY + 76.68, 23, 18, C.muted);
 	});
 

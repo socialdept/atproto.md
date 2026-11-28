@@ -3,7 +3,11 @@ import { blobUrl, collectBlobCids, collectRecordUris, isRecordUri, parseTarget }
 
 describe('parseTarget', () => {
 	it('splits an at:// URI', () => {
-		expect(parseTarget('at://bsky.app/app.bsky.feed.post/3abc')).toEqual({ actor: 'bsky.app', collection: 'app.bsky.feed.post', rkey: '3abc' });
+		expect(parseTarget('at://bsky.app/app.bsky.feed.post/3abc')).toEqual({
+			actor: 'bsky.app',
+			collection: 'app.bsky.feed.post',
+			rkey: '3abc',
+		});
 		expect(parseTarget('at://did:plc:abc')).toEqual({ actor: 'did:plc:abc', collection: undefined, rkey: undefined });
 	});
 

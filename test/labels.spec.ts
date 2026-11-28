@@ -12,8 +12,10 @@ const POST = `at://${DID}/app.bsky.feed.post/p1`;
 const SECOND = 'did:plc:second';
 const DOWN = 'did:plc:down';
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-const doc = (did: string, service: Record<string, string>) => json({ id: did, alsoKnownAs: [`at://${did.slice(8)}.test`], service: [service] });
+const json = (body: unknown, status = 200) =>
+	new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const doc = (did: string, service: Record<string, string>) =>
+	json({ id: did, alsoKnownAs: [`at://${did.slice(8)}.test`], service: [service] });
 
 const LABELS: Record<string, unknown[]> = {
 	[DEFAULT_LABELER]: [{ src: DEFAULT_LABELER, uri: POST, val: 'porn', cts: '2026-01-01T00:00:00Z' }],
@@ -48,7 +50,11 @@ beforeEach(() => {
 			return json({ labels: (LABELS[src] ?? []).filter((l) => patterns.includes((l as { uri: string }).uri)) });
 		}
 		if (url.origin === PDS && url.pathname.endsWith('getRecord')) {
-			return json({ uri: `at://${DID}/${url.searchParams.get('collection')}/${url.searchParams.get('rkey')}`, cid: 'c', value: { text: 'hi' } });
+			return json({
+				uri: `at://${DID}/${url.searchParams.get('collection')}/${url.searchParams.get('rkey')}`,
+				cid: 'c',
+				value: { text: 'hi' },
+			});
 		}
 		return json({ message: `unexpected ${url}` }, 500);
 	});
@@ -84,7 +90,9 @@ describe('labels', () => {
 	it("returns a record's labels from the default labeler", async () => {
 		const r = await labels(POST);
 		expect(r.target).toBe(POST);
-		expect(r.labels).toEqual([{ val: 'porn', uri: POST, cts: '2026-01-01T00:00:00Z', labeler: { did: DEFAULT_LABELER, handle: 'moderation.bsky.app' } }]);
+		expect(r.labels).toEqual([
+			{ val: 'porn', uri: POST, cts: '2026-01-01T00:00:00Z', labeler: { did: DEFAULT_LABELER, handle: 'moderation.bsky.app' } },
+		]);
 		expect(r).not.toHaveProperty('authorLabels');
 	});
 

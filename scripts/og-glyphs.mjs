@@ -26,7 +26,12 @@ const RUNS = {
 	hub: [beast, 'atproto.md/mcp', -0.02, ['ss01', 'cv11']],
 	question: [mono, 'Who replied to this post, and how many liked it?', 0, []],
 	...Object.fromEntries(TOOLS.map((t) => [t, [courneuf, t, 0, []]])),
-	...Object.fromEntries(FIGURES.flatMap(([n, l]) => [[n, [beast, n, -0.04, ['ss01', 'cv11']]], [l, [mono, l, 0, []]]])),
+	...Object.fromEntries(
+		FIGURES.flatMap(([n, l]) => [
+			[n, [beast, n, -0.04, ['ss01', 'cv11']]],
+			[l, [mono, l, 0, []]],
+		]),
+	),
 };
 
 const round = (d) => d.replace(/-?\d+\.\d+/g, (m) => String(Math.round(+m)));

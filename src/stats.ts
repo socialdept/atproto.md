@@ -195,9 +195,10 @@ export class StatsDO extends DurableObject {
 		const total = counter('total');
 		const bytes = counter('bytes:sum');
 
-		const collRows = [
-			...this.sql.exec(`SELECT nsid, count FROM collections ORDER BY count DESC LIMIT ?`, TOP_COLLECTIONS),
-		].map((r) => ({ nsid: String(r.nsid), count: Number(r.count) }));
+		const collRows = [...this.sql.exec(`SELECT nsid, count FROM collections ORDER BY count DESC LIMIT ?`, TOP_COLLECTIONS)].map((r) => ({
+			nsid: String(r.nsid),
+			count: Number(r.count),
+		}));
 		const distinctCollections = Number([...this.sql.exec(`SELECT COUNT(*) AS n FROM collections`)][0]?.n ?? 0);
 
 		const daily = [...this.sql.exec(`SELECT day, count, http, mcp, errors FROM daily ORDER BY day DESC LIMIT ?`, DAILY_DAYS)]
@@ -324,7 +325,9 @@ const idTypeOf = (s?: string): string | undefined =>
 	s?.startsWith('did:plc:') ? 'plc' : s?.startsWith('did:web:') ? 'web' : s ? 'handle' : undefined;
 
 const paramFlags = (url: URL): string[] =>
-	['cursor', 'reverse', 'limit', 'source', 'expand', 'hydrate', 'labels', 'labelers', 'author', 'format'].filter((p) => url.searchParams.has(p)).map((p) => `param:${p}`);
+	['cursor', 'reverse', 'limit', 'source', 'expand', 'hydrate', 'labels', 'labelers', 'author', 'format']
+		.filter((p) => url.searchParams.has(p))
+		.map((p) => `param:${p}`);
 
 export interface HttpClass {
 	key: string;
@@ -368,9 +371,15 @@ export function classifyHttp(url: URL): HttpClass | null {
 	if (head === 'labels') return { key: 'route:labels', flags };
 	if (head === 'labelers') return { key: 'route:labelers' };
 	if (head === 'blob') return { key: 'route:blob', idType: idTypeOf(segments[1]) };
-	if (head === 'did' || head === 'repo') return { key: `route:${head}/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
+	if (head === 'did' || head === 'repo')
+		return { key: `route:${head}/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
 	if (head === 'xrpc') {
-		const repo = url.searchParams.get('repo') ?? url.searchParams.get('did') ?? url.searchParams.get('identifier') ?? url.searchParams.get('handle') ?? undefined;
+		const repo =
+			url.searchParams.get('repo') ??
+			url.searchParams.get('did') ??
+			url.searchParams.get('identifier') ??
+			url.searchParams.get('handle') ??
+			undefined;
 		return { key: 'route:xrpc', idType: repo ? idTypeOf(repo) : undefined };
 	}
 	if (head === 'plc') return { key: `route:plc/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };

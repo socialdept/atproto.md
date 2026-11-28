@@ -1,5 +1,20 @@
 import { createMcpHandler } from 'agents/mcp';
-import { backlinks, didDocument, knownLabelers, labels, discover, getRecord, getRecords, lexicon, listRecords, MAX_BATCH, plc, repoCar, resolve, traceActor } from './api';
+import {
+	backlinks,
+	didDocument,
+	knownLabelers,
+	labels,
+	discover,
+	getRecord,
+	getRecords,
+	lexicon,
+	listRecords,
+	MAX_BATCH,
+	plc,
+	repoCar,
+	resolve,
+	traceActor,
+} from './api';
 import {
 	faviconSvg,
 	htmlIndexPage,
@@ -79,7 +94,7 @@ export default {
 				flags: stat.flags,
 				isError,
 				status: response.status,
-				upstream: isError ? response.headers.get('X-Upstream') ?? undefined : undefined,
+				upstream: isError ? (response.headers.get('X-Upstream') ?? undefined) : undefined,
 				country,
 				bytes: contentLength ? Number(contentLength) : undefined,
 				latencyMs,
@@ -95,7 +110,11 @@ const flag = (url: URL, name: string): boolean => {
 };
 
 // The label options every record route takes.
-const labelOpts = (url: URL) => ({ labels: flag(url, 'labels'), author: flag(url, 'author'), labelers: url.searchParams.get('labelers') ?? undefined });
+const labelOpts = (url: URL) => ({
+	labels: flag(url, 'labels'),
+	author: flag(url, 'author'),
+	labelers: url.searchParams.get('labelers') ?? undefined,
+});
 
 const int = (url: URL, name: string): number | undefined => {
 	const v = url.searchParams.get(name);
@@ -163,11 +182,19 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 		// after it, /blob/{actor}/{cid}/{params} redirects to the co/infra image CDN, which resizes and reformats it.
 		if (segments[0] === 'blob') {
 			const [, actor, cid, params] = segments.map(decodeURIComponent);
-			if (!actor || !cid || !/^[A-Za-z0-9]+$/.test(cid)) return usage('Usage: /blob/{handle-or-did}/{cid}, or /blob/{handle-or-did}/{cid}/{params} for a transformed image');
+			if (!actor || !cid || !/^[A-Za-z0-9]+$/.test(cid))
+				return usage('Usage: /blob/{handle-or-did}/{cid}, or /blob/{handle-or-did}/{cid}/{params} for a transformed image');
 			const did = await resolveToDid(actor);
 			if (params) {
 				if (!/^[\w=,.-]+$/.test(params)) return usage('Transform options are a comma-separated list such as p=avatar or w=400,f=webp.');
-				return new Response(null, { status: 302, headers: { ...CORS, Location: `${IMG_CDN}/blob/${encodeURIComponent(did)}/${cid}/${params}`, 'Cache-Control': 'public, max-age=86400' } });
+				return new Response(null, {
+					status: 302,
+					headers: {
+						...CORS,
+						Location: `${IMG_CDN}/blob/${encodeURIComponent(did)}/${cid}/${params}`,
+						'Cache-Control': 'public, max-age=86400',
+					},
+				});
 			}
 			const blob = new URL(`/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${cid}`, url);
 			return xrpc(new Request(blob, { headers: request.headers }), blob);
@@ -227,7 +254,10 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 
 		// Batch: /get?uri={at-uri-or-bsky-link}&uri=...
 		if (segments[0] === 'get') {
-			const uris = url.searchParams.getAll('uri').flatMap((u) => u.split(/\s+/)).filter(Boolean);
+			const uris = url.searchParams
+				.getAll('uri')
+				.flatMap((u) => u.split(/\s+/))
+				.filter(Boolean);
 			if (!uris.length) return usage(`Usage: /get?uri={at-uri}&uri={at-uri}, up to ${MAX_BATCH} records`);
 			return data(await getRecords(uris, { expand: flag(url, 'expand'), ...labelOpts(url) }));
 		}
@@ -238,7 +268,9 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 		const link = decodeURIComponent(atUri).replace(/^(https?:)\/(?!\/)/i, '$1//');
 		if (/^https?:\/\//i.test(link)) atUri = await toAddress(link);
 		if (!atUri.startsWith('at://') && !/^https?:\/\//i.test(atUri)) {
-			return usage('Invalid path. Expected an at:// URI, for example /at://bsky.app, /at://bsky.app/app.bsky.feed.post or /at://bsky.app/app.bsky.feed.post/{rkey}');
+			return usage(
+				'Invalid path. Expected an at:// URI, for example /at://bsky.app, /at://bsky.app/app.bsky.feed.post or /at://bsky.app/app.bsky.feed.post/{rkey}',
+			);
 		}
 
 		const { actor, collection, rkey } = parseTarget(atUri);

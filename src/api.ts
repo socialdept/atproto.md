@@ -126,7 +126,11 @@ export async function resolve(input: string, resolver = new Resolver()) {
 		pdsGet(actor.pds, 'com.atproto.repo.describeRepo', { repo: actor.did }).catch(() => null),
 		entrywayOf(actor.pds),
 		pdsGet(actor.pds, 'com.atproto.sync.getRepoStatus', { did: actor.did }).catch(() => null),
-		actor.did.startsWith('did:plc:') ? resolvePlcAuditLog(actor.did).then(pdsSinceOf).catch(() => null) : null,
+		actor.did.startsWith('did:plc:')
+			? resolvePlcAuditLog(actor.did)
+					.then(pdsSinceOf)
+					.catch(() => null)
+			: null,
 	]);
 	return {
 		did: actor.did,

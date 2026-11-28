@@ -61,7 +61,11 @@ const top = views
 	.filter((v) => v.creator?.handle && v.creator.handle !== 'handle.invalid')
 	.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
 	.slice(0, COUNT);
-const line = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+const line = (s, n) =>
+	String(s ?? '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, n);
 
 console.log(`${dids.length} labelers on the network. The top ${top.length} by likes:\n`);
 for (const v of top) {

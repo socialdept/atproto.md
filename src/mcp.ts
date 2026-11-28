@@ -37,24 +37,26 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 
 	// Wrap a tool callback so every invocation is counted exactly once (success or error),
 	// against the `mcp` channel, carrying the anonymous arg meta.
-	const tracked = (tool: string, cb: (args: any) => Promise<TextResult>) => async (args: any): Promise<TextResult> => {
-		let isError = false;
-		let status: number | undefined;
-		let upstream: string | undefined;
-		try {
-			return await cb(args);
-		} catch (e) {
-			isError = true;
-			const err = e as { status?: number; upstream?: string; message?: string };
-			status = err?.status ?? 502;
-			upstream = err?.upstream;
-			// Errors come back as the same JSON shape the HTTP API uses, flagged so the client sees a failed call.
-			const body = { error: err?.message ?? 'Upstream error.', status };
-			return { content: [{ type: 'text', text: JSON.stringify(body) }], isError: true };
-		} finally {
-			recordVisit(env, ctx, { channel: 'mcp', key: `tool:${tool}`, isError, status, upstream, ...argMeta(args) });
-		}
-	};
+	const tracked =
+		(tool: string, cb: (args: any) => Promise<TextResult>) =>
+		async (args: any): Promise<TextResult> => {
+			let isError = false;
+			let status: number | undefined;
+			let upstream: string | undefined;
+			try {
+				return await cb(args);
+			} catch (e) {
+				isError = true;
+				const err = e as { status?: number; upstream?: string; message?: string };
+				status = err?.status ?? 502;
+				upstream = err?.upstream;
+				// Errors come back as the same JSON shape the HTTP API uses, flagged so the client sees a failed call.
+				const body = { error: err?.message ?? 'Upstream error.', status };
+				return { content: [{ type: 'text', text: JSON.stringify(body) }], isError: true };
+			} finally {
+				recordVisit(env, ctx, { channel: 'mcp', key: `tool:${tool}`, isError, status, upstream, ...argMeta(args) });
+			}
+		};
 
 	const json = (body: unknown): TextResult => ({ content: [{ type: 'text', text: JSON.stringify(body) }] });
 
@@ -67,7 +69,15 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 			did: z.enum(['doc', 'trace']).optional().describe('Return the raw DID document, or every resolution step, instead of the identity'),
 		},
 		tracked('resolve', async ({ actor, plc: view, did }) =>
-			json(view ? await plc(actor, view) : did === 'doc' ? await didDocument(actor) : did === 'trace' ? await traceActor(actor) : await resolve(actor)),
+			json(
+				view
+					? await plc(actor, view)
+					: did === 'doc'
+						? await didDocument(actor)
+						: did === 'trace'
+							? await traceActor(actor)
+							: await resolve(actor),
+			),
 		),
 	);
 
@@ -75,13 +85,22 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 		'get',
 		`Fetch up to ${MAX_BATCH} records by address in one call, as raw JSON exactly as the PDS stores them, with blob URLs. Addresses are at:// record URIs or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical). expand also fetches every record the results reference (reply parent and root, quoted post, like or repost subject), one level deep.`,
 		{
-			uris: z.array(z.string()).min(1).max(MAX_BATCH).describe('Record addresses: at://{actor}/{collection}/{rkey} or a link to the record from an Atmosphere app or page'),
+			uris: z
+				.array(z.string())
+				.min(1)
+				.max(MAX_BATCH)
+				.describe('Record addresses: at://{actor}/{collection}/{rkey} or a link to the record from an Atmosphere app or page'),
 			expand: z.boolean().default(false).describe('Also fetch the records these reference, under expanded'),
-			labels: z.boolean().default(false).describe('Attach each record\'s labels, from Bluesky\'s moderation labeler unless labelers says otherwise'),
+			labels: z
+				.boolean()
+				.default(false)
+				.describe("Attach each record's labels, from Bluesky's moderation labeler unless labelers says otherwise"),
 			labelers: z.string().optional().describe('"all", or labeler handles and DIDs separated by commas'),
-			author: z.boolean().default(false).describe('Also attach the labels on each record\'s account'),
+			author: z.boolean().default(false).describe("Also attach the labels on each record's account"),
 		},
-		tracked('get', async ({ uris, expand, labels, labelers, author }) => json(await getRecords(uris, { expand, labels, labelers, author }))),
+		tracked('get', async ({ uris, expand, labels, labelers, author }) =>
+			json(await getRecords(uris, { expand, labels, labelers, author })),
+		),
 	);
 
 	server.tool(
@@ -94,9 +113,12 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 			cursor: z.string().optional().describe('cursor from the previous page'),
 			reverse: z.boolean().default(false).describe('Oldest first'),
 			expand: z.boolean().default(false).describe(`Also fetch up to ${MAX_BATCH} records these reference, under expanded`),
-			labels: z.boolean().default(false).describe('Attach each record\'s labels, from Bluesky\'s moderation labeler unless labelers says otherwise'),
+			labels: z
+				.boolean()
+				.default(false)
+				.describe("Attach each record's labels, from Bluesky's moderation labeler unless labelers says otherwise"),
 			labelers: z.string().optional().describe('"all", or labeler handles and DIDs separated by commas'),
-			author: z.boolean().default(false).describe('Also attach the labels on each record\'s account'),
+			author: z.boolean().default(false).describe("Also attach the labels on each record's account"),
 		},
 		tracked('list_records', async ({ actor, collection, limit, cursor, reverse, expand, labels, labelers, author }) =>
 			json(await listRecords(actor, collection, { limit, cursor, reverse, expand, labels, labelers, author })),
@@ -113,7 +135,9 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 			cursor: z.string().optional(),
 			hydrate: z.boolean().default(false).describe('Return the linking records instead of their URIs'),
 		},
-		tracked('backlinks', async ({ target, source, limit, cursor, hydrate }) => json(await backlinks(target, { source, limit, cursor, hydrate }))),
+		tracked('backlinks', async ({ target, source, limit, cursor, hydrate }) =>
+			json(await backlinks(target, { source, limit, cursor, hydrate })),
+		),
 	);
 
 	server.tool(
@@ -132,7 +156,10 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 		'The labels on a record or an account, from Bluesky\'s moderation labeler by default. Pass labelers as "all" for every known labeler (the list is at /labelers), or as handles and DIDs separated by commas. Negated and expired labels are left out. author also returns the labels on a record\'s account.',
 		{
 			target: z.string().describe('An at:// record URI, a handle, a DID, or a link to a post or profile'),
-			labelers: z.string().optional().describe('"all", or handles and DIDs separated by commas. Bluesky\'s moderation labeler when left out'),
+			labelers: z
+				.string()
+				.optional()
+				.describe('"all", or handles and DIDs separated by commas. Bluesky\'s moderation labeler when left out'),
 			author: z.boolean().default(false).describe('For a record, also return the labels on its account'),
 		},
 		tracked('labels', async ({ target, labelers, author }) => json(await labels(target, { labelers, author }))),

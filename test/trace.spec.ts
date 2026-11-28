@@ -6,7 +6,8 @@ import { trace } from '../src/trace';
 // alice.test publishes its DID over DNS only. bob.test publishes a different DID over HTTPS than over DNS.
 const DID = 'did:plc:alice';
 const PDS = 'https://pds.example';
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const json = (body: unknown, status = 200) =>
+	new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const txt = (name: string, values: string[]) => json({ Status: 0, Answer: values.map((v) => ({ name, data: `"${v}"` })) });
 
 beforeEach(() => {
@@ -24,9 +25,14 @@ beforeEach(() => {
 			return new Response('Not found', { status: 404 });
 		}
 		if (url.hostname === 'plc.directory') {
-			return json({ id: decodeURIComponent(url.pathname.slice(1)), alsoKnownAs: ['at://alice.test'], service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }] });
+			return json({
+				id: decodeURIComponent(url.pathname.slice(1)),
+				alsoKnownAs: ['at://alice.test'],
+				service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }],
+			});
 		}
-		if (url.origin === PDS && url.pathname === '/.well-known/oauth-protected-resource') return json({ authorization_servers: ['https://entryway.example'] });
+		if (url.origin === PDS && url.pathname === '/.well-known/oauth-protected-resource')
+			return json({ authorization_servers: ['https://entryway.example'] });
 		if (url.origin === PDS && url.pathname.endsWith('getRepoStatus')) return json({ did: DID, active: true });
 		if (url.pathname.endsWith('getBlob')) return new Response('img', { headers: { 'Content-Type': 'image/png' } });
 		if (url.pathname.endsWith('getRepo')) return new Response('car-bytes', { headers: { 'Content-Type': 'application/vnd.ipld.car' } });
@@ -42,7 +48,14 @@ const steps = (r: Awaited<ReturnType<typeof trace>>) => Object.fromEntries(r.ste
 describe('trace', () => {
 	it('verifies a handle both ways and checks the PDS, while a missing HTTPS record is not a failure', async () => {
 		const r = await trace('alice.test');
-		expect(r).toMatchObject({ did: DID, handle: 'alice.test', handleVerified: true, pds: PDS, entryway: 'https://entryway.example', ok: true });
+		expect(r).toMatchObject({
+			did: DID,
+			handle: 'alice.test',
+			handleVerified: true,
+			pds: PDS,
+			entryway: 'https://entryway.example',
+			ok: true,
+		});
 		expect(steps(r)['handle-http']).toMatchObject({ ok: false, status: 404 });
 		expect(steps(r)['pds']).toMatchObject({ ok: true, result: { active: true } });
 	});

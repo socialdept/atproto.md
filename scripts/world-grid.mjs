@@ -16,8 +16,12 @@ const topo = JSON.parse(readFileSync(join(root, 'node_modules/world-atlas/countr
 const world = feature(topo, topo.objects.countries);
 
 // 2.5 degree cells from 180W to 180E and from 83N to 57S.
-const CELL = 2.5, WEST = -180, NORTH = 83, SOUTH = -57;
-const COLS = Math.round(360 / CELL), ROWS = Math.round((NORTH - SOUTH) / CELL);
+const CELL = 2.5,
+	WEST = -180,
+	NORTH = 83,
+	SOUTH = -57;
+const COLS = Math.round(360 / CELL),
+	ROWS = Math.round((NORTH - SOUTH) / CELL);
 
 const shapes = world.features
 	.map((f) => ({ f, code: countries.numericToAlpha2(String(f.id).padStart(3, '0')), bounds: geoBounds(f) }))
@@ -73,7 +77,8 @@ function rounded(cells) {
 	const dir = (e) => [Math.sign(e.x2 - e.x1), Math.sign(e.y2 - e.y1)];
 	// With y pointing down, a right turn from (dx, dy) heads to (-dy, dx).
 	const turnRank = (a, b) => {
-		const [ax, ay] = dir(a), [bx, by] = dir(b);
+		const [ax, ay] = dir(a),
+			[bx, by] = dir(b);
 		if (bx === -ay && by === ax) return 0; // right
 		if (bx === ax && by === ay) return 1; // straight
 		return 2; // left
@@ -94,8 +99,10 @@ function rounded(cells) {
 			// Corners: points where the direction changes, with the turn's direction.
 			const corners = [];
 			for (let i = 0; i < loop.length; i++) {
-				const a = loop[i], b = loop[(i + 1) % loop.length];
-				const [ax, ay] = dir(a), [bx, by] = dir(b);
+				const a = loop[i],
+					b = loop[(i + 1) % loop.length];
+				const [ax, ay] = dir(a),
+					[bx, by] = dir(b);
 				if (ax === bx && ay === by) continue;
 				corners.push({ x: a.x2, y: a.y2, in: [ax, ay], out: [bx, by], sweep: bx === -ay && by === ax ? 1 : 0 });
 			}
@@ -127,7 +134,7 @@ const aliasCount = new Map();
 for (const c of Object.keys(paths)) aliasCount.set(alias(c), (aliasCount.get(alias(c)) ?? 0) + 1);
 const nameOf = (c) => {
 	const a = alias(c);
-	return a && a.length > 3 && !a.includes(',') && aliasCount.get(a) === 1 ? a : countries.getName(c, 'en') ?? c;
+	return a && a.length > 3 && !a.includes(',') && aliasCount.get(a) === 1 ? a : (countries.getName(c, 'en') ?? c);
 };
 const names = Object.fromEntries(Object.keys(paths).map((c) => [c, nameOf(c)]));
 

@@ -63,7 +63,8 @@ export function matchLink(url: URL): Target | null {
 
 	if (BLUESKY_FAMILY.includes(host) || host.endsWith('.anisota.net')) {
 		// bsky.app also links starter packs as /starter-pack/{actor}/{rkey}.
-		if (a === 'starter-pack' && isActor(b) && c && parts.length === 3) return { actor: b, collection: 'app.bsky.graph.starterpack', rkey: c };
+		if (a === 'starter-pack' && isActor(b) && c && parts.length === 3)
+			return { actor: b, collection: 'app.bsky.graph.starterpack', rkey: c };
 		if (a !== 'profile' || !isActor(b)) return null;
 		if (parts.length === 2) return { actor: b };
 		const collection = BLUESKY_SEGMENTS[c];
@@ -92,7 +93,8 @@ export function matchLink(url: URL): Target | null {
 		}
 		case 'margin.at':
 			if (a === 'profile' && isActor(b) && parts.length === 2) return { actor: b };
-			if (isActor(a) && ['annotation', 'highlight', 'bookmark'].includes(b) && c && parts.length === 3) return { actor: a, collection: `at.margin.${b}`, rkey: c };
+			if (isActor(a) && ['annotation', 'highlight', 'bookmark'].includes(b) && c && parts.length === 3)
+				return { actor: a, collection: `at.margin.${b}`, rkey: c };
 			return null;
 		case 'grain.social':
 			if (a !== 'profile' || !isActor(b)) return null;

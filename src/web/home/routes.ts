@@ -107,7 +107,12 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				params: [
 					ACTOR,
 					{ name: 'cid', in: 'path', type: 'CID', desc: 'The blob, as listed in a record’s blobs.' },
-					{ name: 'params', in: 'path', type: 'optional', desc: 'Transform options for the co/infra image CDN, such as p=avatar or w=400,f=webp. With them, the response redirects to the CDN.' },
+					{
+						name: 'params',
+						in: 'path',
+						type: 'optional',
+						desc: 'Transform options for the co/infra image CDN, such as p=avatar or w=400,f=webp. With them, the response redirects to the CDN.',
+					},
 				],
 				returns: 'The file with its own Content-Type, or a redirect to img.infra.coop',
 				note: 'Originals are cached for a day and sandboxed. The CDN’s options and presets are listed at github.com/co-infra/co-infra-img.',
@@ -199,7 +204,12 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				path: '/labels/{target}',
 				desc: 'The labels on a record or an account.',
 				params: [
-					{ name: 'target', in: 'path', type: 'at:// URI, handle, DID or link', desc: 'A record, or an account by handle, DID or profile link.' },
+					{
+						name: 'target',
+						in: 'path',
+						type: 'at:// URI, handle, DID or link',
+						desc: 'A record, or an account by handle, DID or profile link.',
+					},
 					LABELERS,
 					{ name: 'author', in: 'query', type: 'flag', desc: 'For a record, also return the labels on its account.' },
 				],
@@ -262,7 +272,12 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 	],
 ];
 
-const METHOD_PARAMS: Param = { name: 'params', in: 'query', type: 'per method', desc: 'The method’s own parameters, exactly as its lexicon defines them.' };
+const METHOD_PARAMS: Param = {
+	name: 'params',
+	in: 'query',
+	type: 'per method',
+	desc: 'The method’s own parameters, exactly as its lexicon defines them.',
+};
 
 // The XRPC endpoint, one entry per kind of method, since each kind goes to a different server.
 export const XRPC_ROUTES: [string, string, Endpoint[]][] = [

@@ -5,7 +5,8 @@ import { xrpc } from '../src/xrpc';
 const DID = 'did:plc:alice';
 const PDS = 'https://pds.example';
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const json = (body: unknown, status = 200) =>
+	new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 let calls: string[] = [];
 
@@ -18,7 +19,11 @@ beforeEach(() => {
 			return url.searchParams.get('handle') === 'alice.test' ? json({ did: DID }) : json({ message: 'no' }, 400);
 		}
 		if (url.hostname === 'plc.directory') {
-			return json({ id: DID, alsoKnownAs: ['at://alice.test'], service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }] });
+			return json({
+				id: DID,
+				alsoKnownAs: ['at://alice.test'],
+				service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }],
+			});
 		}
 		if (url.pathname.endsWith('getBlob')) return new Response('bytes', { headers: { 'Content-Type': 'text/html', 'Set-Cookie': 'a=b' } });
 		return json({ from: url.host, repo: url.searchParams.get('repo'), did: url.searchParams.get('did') });
@@ -42,7 +47,9 @@ describe('xrpc', () => {
 
 	it('sends a sync method that names an account to its PDS, and the rest of sync to the relay', async () => {
 		expect(await (await call('com.atproto.sync.getLatestCommit?did=alice.test')).json()).toMatchObject({ from: 'pds.example', did: DID });
-		expect(await (await call('com.atproto.sync.listReposByCollection?collection=a.b.c')).json()).toMatchObject({ from: 'relay1.us-west.bsky.network' });
+		expect(await (await call('com.atproto.sync.listReposByCollection?collection=a.b.c')).json()).toMatchObject({
+			from: 'relay1.us-west.bsky.network',
+		});
 	});
 
 	it('sends app.bsky methods to the public app view', async () => {

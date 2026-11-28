@@ -42,9 +42,12 @@ export function htmlIndexPage(origin: string): string {
 <meta name="twitter:image" content="${ogImage}">`;
 
 	// A GitHub address in a note becomes a link to that repo.
-	const linked = (text: string) => esc(text).replace(/github\.com\/[\w.-]+\/[\w.-]*[\w-]/g, (m) => `<a href="https://${m}"${EXTERNAL}>${m}</a>`);
-	const trays = (list: typeof ROUTES, openFirst: boolean) => list.map(
-		([title, note, endpoints], g) => `<div class="tray">
+	const linked = (text: string) =>
+		esc(text).replace(/github\.com\/[\w.-]+\/[\w.-]*[\w-]/g, (m) => `<a href="https://${m}"${EXTERNAL}>${m}</a>`);
+	const trays = (list: typeof ROUTES, openFirst: boolean) =>
+		list
+			.map(
+				([title, note, endpoints], g) => `<div class="tray">
       <div class="tray__head"><h3>${title}</h3><p>${esc(note)}</p></div>
       <div class="card eps">${endpoints
 				.map(
@@ -71,7 +74,8 @@ export function htmlIndexPage(origin: string): string {
 				.join('')}
       </div>
     </div>`,
-	).join('\n    ');
+			)
+			.join('\n    ');
 	const groups = trays(ROUTES, true);
 	const xrpcGroups = trays(XRPC_ROUTES, false);
 

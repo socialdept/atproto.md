@@ -12,7 +12,15 @@ import { labelerEndpoint } from './labels';
 const APPVIEW = 'https://public.api.bsky.app';
 
 // Upstream headers worth passing on. Everything else (cookies, the upstream's own CORS) is left behind.
-const PASS = ['content-type', 'content-length', 'content-encoding', 'etag', 'last-modified', 'atproto-repo-rev', 'atproto-content-labelers'];
+const PASS = [
+	'content-type',
+	'content-length',
+	'content-encoding',
+	'etag',
+	'last-modified',
+	'atproto-repo-rev',
+	'atproto-content-labelers',
+];
 
 // Blobs are whatever the account uploaded, so nothing proxied may run as a page on this origin.
 const SAFE = { 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff' };

@@ -11,7 +11,11 @@ const ENTRYWAY = 'https://entryway.example';
 const RECORDS: Record<string, { cid: string; value: Record<string, unknown> }> = {
 	'app.bsky.actor.profile/self': {
 		cid: 'cprofile',
-		value: { $type: 'app.bsky.actor.profile', displayName: 'Alice', avatar: { $type: 'blob', ref: { $link: 'bafyavatar' }, mimeType: 'image/jpeg', size: 9 } },
+		value: {
+			$type: 'app.bsky.actor.profile',
+			displayName: 'Alice',
+			avatar: { $type: 'blob', ref: { $link: 'bafyavatar' }, mimeType: 'image/jpeg', size: 9 },
+		},
 	},
 	'app.bsky.feed.post/root': { cid: 'croot', value: { $type: 'app.bsky.feed.post', text: 'root', createdAt: '2026-01-01T00:00:00Z' } },
 	'app.bsky.feed.post/reply': {
@@ -20,20 +24,28 @@ const RECORDS: Record<string, { cid: string; value: Record<string, unknown> }> =
 			$type: 'app.bsky.feed.post',
 			text: 'reply',
 			langs: ['en'],
-			reply: { root: { uri: `at://${DID}/app.bsky.feed.post/root`, cid: 'croot' }, parent: { uri: `at://${DID}/app.bsky.feed.post/root`, cid: 'croot' } },
+			reply: {
+				root: { uri: `at://${DID}/app.bsky.feed.post/root`, cid: 'croot' },
+				parent: { uri: `at://${DID}/app.bsky.feed.post/root`, cid: 'croot' },
+			},
 		},
 	},
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const json = (body: unknown, status = 200) =>
+	new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 function fakeNetwork(input: RequestInfo | URL): Response {
 	const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
 	const q = url.searchParams;
 
-	if (url.pathname.endsWith('com.atproto.identity.resolveHandle')) return q.get('handle') === 'alice.test' ? json({ did: DID }) : json({ message: 'no' }, 400);
+	if (url.pathname.endsWith('com.atproto.identity.resolveHandle'))
+		return q.get('handle') === 'alice.test' ? json({ did: DID }) : json({ message: 'no' }, 400);
 	if (url.hostname === 'plc.directory' && url.pathname.endsWith('/log/audit')) {
-		const op = (endpoint: string) => ({ type: 'plc_operation', services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint } } });
+		const op = (endpoint: string) => ({
+			type: 'plc_operation',
+			services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint } },
+		});
 		return json([
 			{ did: DID, cid: 'c1', nullified: false, createdAt: '2024-01-01T00:00:00Z', operation: op(PDS) },
 			{ did: DID, cid: 'c2', nullified: false, createdAt: '2025-01-01T00:00:00Z', operation: op('https://old.example') },
@@ -43,7 +55,11 @@ function fakeNetwork(input: RequestInfo | URL): Response {
 		]);
 	}
 	if (url.hostname === 'plc.directory') {
-		return json({ id: DID, alsoKnownAs: ['at://alice.test'], service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }] });
+		return json({
+			id: DID,
+			alsoKnownAs: ['at://alice.test'],
+			service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }],
+		});
 	}
 	if (url.hostname === 'constellation.microcosm.blue') {
 		return json({ total: 1, records: [{ did: DID, collection: 'app.bsky.feed.post', rkey: 'reply' }] });
@@ -60,7 +76,9 @@ function fakeNetwork(input: RequestInfo | URL): Response {
 		}
 		if (url.pathname.endsWith('getRecord')) {
 			const r = RECORDS[`${q.get('collection')}/${q.get('rkey')}`];
-			return r ? json({ uri: `at://${DID}/${q.get('collection')}/${q.get('rkey')}`, ...r }) : json({ error: 'RecordNotFound', message: 'Could not locate record' }, 400);
+			return r
+				? json({ uri: `at://${DID}/${q.get('collection')}/${q.get('rkey')}`, ...r })
+				: json({ error: 'RecordNotFound', message: 'Could not locate record' }, 400);
 		}
 	}
 	return json({ message: `unexpected ${url}` }, 500);
@@ -112,13 +130,26 @@ describe('records', () => {
 
 	it('lists records with the cursor and raw values', async () => {
 		const r = await listRecords('alice.test', 'app.bsky.feed.post', { limit: 5 });
-		expect(r).toMatchObject({ did: DID, handle: 'alice.test', pds: PDS, entryway: ENTRYWAY, collection: 'app.bsky.feed.post', cursor: 'next' });
+		expect(r).toMatchObject({
+			did: DID,
+			handle: 'alice.test',
+			pds: PDS,
+			entryway: ENTRYWAY,
+			collection: 'app.bsky.feed.post',
+			cursor: 'next',
+		});
 		expect(r.records[1].value).toEqual(RECORDS['app.bsky.feed.post/reply'].value);
 	});
 
 	it('resolves identity and collections together', async () => {
 		const r = await resolve('alice.test');
-		expect(r).toMatchObject({ did: DID, handle: 'alice.test', pds: PDS, entryway: ENTRYWAY, collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'] });
+		expect(r).toMatchObject({
+			did: DID,
+			handle: 'alice.test',
+			pds: PDS,
+			entryway: ENTRYWAY,
+			collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'],
+		});
 		expect(r.didDoc.id).toBe(DID);
 	});
 
@@ -130,7 +161,13 @@ describe('records', () => {
 	it('dates the move to the current PDS, skipping nullified operations and trailing slashes', async () => {
 		const { pdsSinceOf } = await import('../src/api');
 		const op = (endpoint: string) => ({ services: { atproto_pds: { endpoint } } }) as never;
-		const entry = (createdAt: string, endpoint: string, nullified = false) => ({ did: DID, cid: createdAt, nullified, createdAt, operation: op(endpoint) });
+		const entry = (createdAt: string, endpoint: string, nullified = false) => ({
+			did: DID,
+			cid: createdAt,
+			nullified,
+			createdAt,
+			operation: op(endpoint),
+		});
 		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://one/')])).toBe('a');
 		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://two', true)])).toBe('a');
 		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://two'), entry('c', 'https://two')])).toBe('b');
