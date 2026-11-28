@@ -141,6 +141,7 @@ export function footer(origin: string, wrapped = true): string {
 			[
 				['Docs', DOCS],
 				['Routes', `${origin}/#routes`],
+				['XRPC', `${origin}/#xrpc`],
 				['Public stats', `${origin}/stats`],
 			],
 		],

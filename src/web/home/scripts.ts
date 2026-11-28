@@ -60,7 +60,6 @@ async function run(value) {
   if (!path) { input.focus(); return; }
   const url = new URL(path, location.origin);
   if (url.pathname === '/get' && /^\\/get\\?uri=https?:/.test(path)) { url.search = ''; url.searchParams.set('uri', path.slice('/get?uri='.length).replace(/&expand$/, '')); url.searchParams.set('expand', ''); }
-  url.searchParams.set('format', 'json');
   const shown = location.origin + path;
   req.hidden = false;
   setText(reqPath, shown);

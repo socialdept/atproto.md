@@ -1,6 +1,6 @@
 import { esc, ICON_COPY } from '../kit';
 import { COPY_SCRIPT, DESCRIPTION, footer, head, TABLE_SCRIPT, TITLE, topBar } from '../chrome';
-import { EXAMPLES, paramTable, ROUTES } from './routes';
+import { EXAMPLES, paramTable, ROUTES, XRPC_ROUTES } from './routes';
 import { INTRO_SCRIPT, INTRO_STYLES } from './intro';
 import { HOME_STYLES } from './styles';
 import { DEMO_SCRIPT, FIT_SCRIPT, LINE_SCRIPT } from './scripts';
@@ -41,14 +41,14 @@ export function htmlIndexPage(origin: string): string {
 <meta name="twitter:description" content="${DESCRIPTION}">
 <meta name="twitter:image" content="${ogImage}">`;
 
-	const groups = ROUTES.map(
+	const trays = (list: typeof ROUTES, openFirst: boolean) => list.map(
 		([title, note, endpoints], g) => `<div class="tray">
       <div class="tray__head"><h3>${title}</h3><p>${esc(note)}</p></div>
       <div class="card eps">${endpoints
 				.map(
 					(e, i) => `
-        <details class="ep"${g === 0 && i === 0 ? ' open' : ''}>
-          <summary><span class="verb">GET</span><code class="path">${esc(e.path)}</code><span class="desc">${esc(e.desc)}</span><span class="chips">${e.params
+        <details class="ep"${openFirst && g === 0 && i === 0 ? ' open' : ''}>
+          <summary><span class="verb">GET</span><code class="path">${esc(e.path).replace(/([/.])(?=[\w{*])/g, '$1<wbr>')}</code><span class="desc">${esc(e.desc)}</span><span class="chips">${e.params
 						.filter((p) => p.in === 'query')
 						.map((p) => `<i>${esc(p.name)}</i>`)
 						.join('')}</span>${CHEVRON}</summary>
@@ -70,6 +70,8 @@ export function htmlIndexPage(origin: string): string {
       </div>
     </div>`,
 	).join('\n    ');
+	const groups = trays(ROUTES, true);
+	const xrpcGroups = trays(XRPC_ROUTES, false);
 
 	const command = (text: string, label: string) =>
 		`<div class="cmd"><code>${esc(text)}</code><button class="iconbtn" type="button" data-copy="${esc(text)}" aria-label="${esc(label)}">${ICON_COPY}<span>Copy</span></button></div>`;
@@ -136,6 +138,20 @@ ${EXAMPLES.map(([label, value]) => `          <button class="chip" type="button"
     </div>
     <div class="groups">
     ${groups}
+    </div>
+  </section>
+
+  <section class="block" aria-labelledby="xrpc">
+    <h2 id="xrpc">XRPC</h2>
+    <p class="sub">Set your SDK’s service URL to atproto.md and read any account without resolving it first. Each call goes to the server that answers it. Public reads only.</p>
+    <div class="agents">
+      <div class="tray agents__wide">
+        <div class="tray__head"><h3>Service URL</h3><p>For any SDK or XRPC client</p></div>
+        <div class="card agent">${command(origin, 'Copy the service URL')}</div>
+      </div>
+    </div>
+    <div class="groups">
+    ${xrpcGroups}
     </div>
   </section>
 

@@ -80,7 +80,8 @@ export const HOME_STYLES = `
 .ep summary::-webkit-details-marker { display: none; }
 .ep summary:hover { background: #fafbfc; }
 .verb { grid-area: verb; font: 600 11px var(--mono); color: #13855c; background: #e8f7f0; border-radius: 5px; padding: 2px 6px; }
-.path { grid-area: path; font-size: 14px; overflow-wrap: anywhere; }
+/* A path breaks only after a slash or a dot, never inside a word. */
+.path { grid-area: path; font-size: 14px; overflow-wrap: normal; }
 .desc { grid-area: desc; color: var(--muted); font-size: 14px; }
 .chips { grid-area: chips; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .chips i { font: 500 11px var(--mono); font-style: normal; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
@@ -124,6 +125,7 @@ export const HOME_STYLES = `
 
 .agents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .agents__wide { grid-column: 1 / -1; }
+.agents + .groups { margin-top: 16px; }
 .agent { padding: 6px; }
 .cmd { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; }
 .cmd code { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }

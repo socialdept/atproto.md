@@ -187,6 +187,55 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 	],
 ];
 
+const METHOD_PARAMS: Param = { name: 'params', in: 'query', type: 'per method', desc: 'The method’s own parameters, exactly as its lexicon defines them.' };
+
+// The XRPC endpoint, one entry per kind of method, since each kind goes to a different server.
+export const XRPC_ROUTES: [string, string, Endpoint[]][] = [
+	[
+		'XRPC',
+		'Standard XRPC queries, each sent to the server that answers it. Calls with an Authorization header and procedures are refused.',
+		[
+			{
+				path: '/xrpc/com.atproto.repo.*',
+				desc: 'Sent to the account’s PDS. repo takes a handle or a DID.',
+				params: [
+					{ name: 'repo', in: 'query', type: 'handle or DID', desc: 'The account. A handle is resolved, and the PDS gets the DID.' },
+					METHOD_PARAMS,
+				],
+				returns: 'The PDS’s response, unchanged',
+				note: 'getRecord, listRecords and describeRepo. The X-Upstream-Host header names the PDS that answered.',
+				example: '/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self',
+			},
+			{
+				path: '/xrpc/com.atproto.sync.*',
+				desc: 'With did, sent to the account’s PDS. Without, to the relay.',
+				params: [
+					{ name: 'did', in: 'query', type: 'handle or DID', desc: 'The account. A handle is resolved, and the PDS gets the DID.' },
+					METHOD_PARAMS,
+				],
+				returns: 'The response, unchanged: JSON, a blob or a repo CAR file',
+				note: 'Blobs are cached for a day and served with a sandbox policy, so an uploaded file never runs as a page.',
+				example: '/xrpc/com.atproto.sync.getLatestCommit?did=bsky.app',
+			},
+			{
+				path: '/xrpc/com.atproto.identity.*',
+				desc: 'Answered by atproto.md: resolveHandle, resolveDid and resolveIdentity.',
+				params: [METHOD_PARAMS],
+				returns: '{ did }, { didDoc } or { did, handle, didDoc }',
+				note: 'resolveIdentity returns handle.invalid when the handle does not point back at the DID.',
+				example: '/xrpc/com.atproto.identity.resolveHandle?handle=bsky.app',
+			},
+			{
+				path: '/xrpc/app.bsky.*',
+				desc: 'Sent to Bluesky’s public app view.',
+				params: [METHOD_PARAMS],
+				returns: 'The app view’s response, unchanged',
+				example: '/xrpc/app.bsky.actor.getProfile?actor=bsky.app',
+			},
+		],
+	],
+];
+
 export const EXAMPLES: [string, string][] = [
 	['Profile', 'at://bsky.app/app.bsky.actor.profile/self'],
 	['Reply, expanded', 'https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d'],
