@@ -135,7 +135,7 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				path: '/did/trace/{actor}',
 				desc: 'Every step of resolving the account, with what each one returned.',
 				params: [ACTOR],
-				returns: '{ did, handle, handleVerified, pds, ok, steps: [{ step, request, ok, ms, status, result, error }] }',
+				returns: '{ did, handle, handleVerified, pds, entryway, ok, steps: [{ step, request, ok, ms, status, result, error }] }',
 				note: 'Runs the DNS and HTTPS handle lookups, the DID document fetch and a PDS check itself. A handle needs only one of the two lookups to work.',
 				example: '/did/trace/bsky.app',
 			},

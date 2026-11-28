@@ -18,7 +18,7 @@ The DID document exactly as it is published: from [plc.directory](https://plc.di
 
 ## `GET /did/trace/{handle-or-did}`
 
-Every step of resolving the account, for working out why one does not resolve. atproto.md runs each step itself, without going through `bsky.social`, and returns `{did, handle, handleVerified, pds, ok, steps}`. Each step is `{step, request, ok, ms, status, result, error}`, with what was asked, what came back and how long it took:
+Every step of resolving the account, for working out why one does not resolve. atproto.md runs each step itself, without going through `bsky.social`, and returns `{did, handle, handleVerified, pds, entryway, ok, steps}`. Each step is `{step, request, ok, ms, status, result, error}`, with what was asked, what came back and how long it took:
 
 | Step              | What it checks                                                                                     |
 | ----------------- | -------------------------------------------------------------------------------------------------- |
@@ -29,7 +29,7 @@ Every step of resolving the account, for working out why one does not resolve. a
 | `handle-document` | Present only when the DID document names a different handle, or none                               |
 | `pds`             | The PDS's `getRepoStatus` for the DID, which fails when the PDS does not host the repo or it is not active |
 
-A handle needs only one of the two lookups to work, so a failed `handle-http` beside a working `handle-dns` is normal. `handleVerified` is `true` when the handle resolves to the DID and the DID document names the handle back. `ok` is `true` when the handle is verified, the DID document loads and the PDS has the repo active. For a DID, the document is fetched first, then the handle it names is checked back.
+A handle needs only one of the two lookups to work, so a failed `handle-http` beside a working `handle-dns` is normal. `entryway` is the account's entryway, as `/resolve` gives it. `handleVerified` is `true` when the handle resolves to the DID and the DID document names the handle back. `ok` is `true` when the handle is verified, the DID document loads and the PDS has the repo active. For a DID, the document is fetched first, then the handle it names is checked back.
 
 ## `GET /plc/audit/{handle-or-did}`
 

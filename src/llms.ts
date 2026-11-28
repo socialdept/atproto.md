@@ -5,7 +5,7 @@ export function llmsTxt(origin: string): string {
 
 ## Records
 
-- [Repo](${origin}/at://{actor}): DID, handle, PDS, account status, when it moved to its PDS, DID document and every collection
+- [Repo](${origin}/at://{actor}): DID, handle, PDS, entryway, account status, when it moved to its PDS, DID document and every collection
 - [List records](${origin}/at://{actor}/{collection}): records newest first. Params: limit (25, at most 100), cursor, reverse, expand
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): one record with blob URLs. Param: expand
 - [Get many](${origin}/get?uri={address}&uri={address}): up to 25 records by at:// URI or web link in one call. Param: expand
@@ -50,7 +50,7 @@ expand also returns the records the results reference (reply parent and root, qu
 export function skillMd(origin: string): string {
 	return `---
 name: atproto-md
-description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read a did:plc identity's PLC history, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
+description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS, entryway and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read a did:plc identity's PLC history, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
 ---
 
 # atproto-md
@@ -64,7 +64,7 @@ Every Atmosphere record, one address. Read-only, no auth. Base URL: ${origin}
 - Read a post together with its parent, root and quoted post
 - Find who liked, reposted, replied to, quoted or follows something
 - Find every repo using a lexicon, or fetch a lexicon's schema
-- Resolve a handle or DID to its PDS, or date a PDS migration or handle change from the PLC log
+- Resolve a handle or DID to its PDS and entryway, or date a PDS migration or handle change from the PLC log
 - Find out why an account does not resolve or its records are missing: /did/trace shows each step, and /at://{actor} says whether the account is active
 - Write code against an AT Protocol SDK that reads any account: set the service URL to ${origin}
 
@@ -79,7 +79,7 @@ Errors are \`{"error": "...", "status": 404}\`.
 Use the fewest calls: batch addresses into one /get, add \`expand\` for referenced records, and add \`hydrate\` to backlinks.
 
 \`\`\`bash
-# Identity, PDS and collections
+# Identity, PDS, entryway and collections
 curl ${origin}/resolve/bsky.app
 curl ${origin}/at://bsky.app
 
@@ -106,7 +106,7 @@ GET ${origin}/at://{actor}/{collection}/{rkey}              {uri, cid, value, bl
 GET ${origin}/get?uri={address}&uri=...                     {records, errors, expanded}, up to 25
 GET ${origin}/resolve/{actor}                               same as /at://{actor}
 GET ${origin}/did/doc/{actor}                               the DID document
-GET ${origin}/did/trace/{actor}                             {did, handle, handleVerified, pds, ok, steps}
+GET ${origin}/did/trace/{actor}                             {did, handle, handleVerified, pds, entryway, ok, steps}
 GET ${origin}/repo/car/{actor}                              the whole repo as a CAR file
 GET ${origin}/plc/data/{actor}                              current PLC state
 GET ${origin}/plc/audit/{actor}                             {did, operations}

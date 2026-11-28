@@ -168,7 +168,7 @@ Add \`?pretty\` to indent the JSON.
 ## Records
 
 \`\`\`
-GET ${origin}/at://{actor}                                  DID, handle, PDS, account status, DID document, collections
+GET ${origin}/at://{actor}                                  DID, handle, PDS, entryway, account status, DID document, collections
 GET ${origin}/at://{actor}/{collection}                     records, newest first
 GET ${origin}/at://{actor}/{collection}/{rkey}              one record
 GET ${origin}/get?uri={address}&uri={address}               up to 25 records in one call

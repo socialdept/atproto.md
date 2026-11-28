@@ -58,7 +58,7 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 
 	server.tool(
 		'resolve',
-		'Resolve an Atmosphere account (handle, DID, at:// URI, or a profile link or page from an Atmosphere app) to its DID, handle, PDS, DID document and the collections in its repo. The response says whether the account is active and when it moved to its PDS. Pass plc to get plc.directory data instead: "data" for current state with rotation keys, "audit" for the full dated operation log (migrations, handle changes, key rotations), "last" for the latest operation. Pass did for "doc", the raw DID document, or "trace", every resolution step (DNS, HTTPS, DID document, PDS) with its response, for working out why an account does not resolve.',
+		'Resolve an Atmosphere account (handle, DID, at:// URI, or a profile link or page from an Atmosphere app) to its DID, handle, PDS, entryway, DID document and the collections in its repo. The response says whether the account is active and when it moved to its PDS. Pass plc to get plc.directory data instead: "data" for current state with rotation keys, "audit" for the full dated operation log (migrations, handle changes, key rotations), "last" for the latest operation. Pass did for "doc", the raw DID document, or "trace", every resolution step (DNS, HTTPS, DID document, PDS) with its response, for working out why an account does not resolve.',
 		{
 			actor: z.string().describe('Handle, DID, at:// URI, or a profile link or page from an Atmosphere app'),
 			plc: z.enum(['data', 'audit', 'last']).optional().describe('Return plc.directory data for a did:plc instead of the identity'),

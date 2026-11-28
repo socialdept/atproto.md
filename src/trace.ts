@@ -1,4 +1,4 @@
-import { pdsFromDidDoc } from './identity';
+import { entryway as entrywayOf, pdsFromDidDoc } from './identity';
 import type { DidDocument } from './types';
 
 // Every step of resolving an account, run here rather than through bsky.social, each with what it asked, what came
@@ -125,7 +125,7 @@ export async function trace(input: string) {
 		did = found[0];
 	}
 
-	if (!did) return { input, did: null, handle: handle ?? null, handleVerified: false, pds: null, ok: false, steps };
+	if (!did) return { input, did: null, handle: handle ?? null, handleVerified: false, pds: null, entryway: null, ok: false, steps };
 
 	const { step, doc } = await didDocStep(did);
 	steps.push(step);
@@ -144,14 +144,17 @@ export async function trace(input: string) {
 	}
 
 	let pds: string | null = null;
+	let entryway: string | null = null;
 	if (doc) {
 		try {
 			pds = pdsFromDidDoc(doc);
-			steps.push(await pdsStep(pds, did));
+			const [step, server] = await Promise.all([pdsStep(pds, did), entrywayOf(pds)]);
+			steps.push(step);
+			entryway = server;
 		} catch (e) {
 			steps.push({ step: 'pds', request: did, ok: false, ms: 0, error: (e as { message?: string }).message ?? 'No PDS in the DID document.' });
 		}
 	}
 
-	return { input, did, handle: handle ?? null, handleVerified, pds, ok: handleVerified && steps.every((s) => s.ok || s.step.startsWith('handle-')), steps };
+	return { input, did, handle: handle ?? null, handleVerified, pds, entryway, ok: handleVerified && steps.every((s) => s.ok || s.step.startsWith('handle-')), steps };
 }
