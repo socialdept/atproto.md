@@ -18,14 +18,17 @@ export const HOME_STYLES = `
 .wire-cut { position: absolute; left: 0; top: 0; overflow: clip; pointer-events: none; }
 .wire-cut__grey, .wire-cut__head { position: sticky; top: var(--cut, 55vh); height: 0; }
 .wire-cut__grey { mix-blend-mode: lighten; }
-.wire-cut__grey::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 400vh; background: ${C.line}; }
+/* One screen tall: the band only has to reach from the cut to the bottom of the screen. */
+.wire-cut__grey::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 100vh; background: ${C.line}; }
 .wire-cut__head i { position: absolute; top: -4.5px; left: calc(var(--hx, 0px) - 4.5px); width: 9px; height: 9px; border-radius: 50%;
   background: radial-gradient(circle, #ffffff 0 1.8px, #5b9be6 2.2px); filter: drop-shadow(0 0 5px rgba(42,120,214,.75)); transition: opacity .2s; }
 .wire .base { fill: none; stroke: var(--line); stroke-width: 1.5; }
 .wire .done { fill: none; stroke: var(--ink); stroke-width: 1.5; }
 /* The scroll trail: a tail of short segments that fade out behind the head, which lives in .wire-cut. The glow is on
    the group, so it is drawn once for the whole trail. */
-.wire .trail { filter: drop-shadow(0 0 5px rgba(42,120,214,.75)); transition: opacity .2s; }
+/* No opacity transition: the script fades the trail in as the page scrolls, and a transition would make the whole
+   line's height a GPU layer. */
+.wire .trail { filter: drop-shadow(0 0 5px rgba(42,120,214,.75)); }
 .wire .trail path { fill: none; stroke: #2a78d6; stroke-linecap: round; }
 .wire .ring-base { fill: none; stroke: var(--line); stroke-width: 1.5; }
 .wire .ring { fill: none; stroke: #2a78d6; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 0 9999; opacity: 0; filter: drop-shadow(0 0 5px rgba(42,120,214,.6)); }
@@ -157,6 +160,8 @@ export const HOME_STYLES = `
 @keyframes tilt-b { 0%, 100% { rotate: 2deg; } 50% { rotate: -2deg; } }
 @keyframes tilt-c { 0%, 100% { rotate: -1.5deg; } 50% { rotate: 2.5deg; } }
 @media (prefers-reduced-motion: reduce) { .hosts li, .cursor { animation: none !important; } }
+/* Off screen, the footer's tilting badges and blinking cursor pause. */
+.landing-foot.asleep .hosts li, .landing-foot.asleep .cursor { animation-play-state: paused; }
 
 /* The pixel look. Trays, cards, the address field, chips and badges get stepped pixel corners that match the hub and
    the host badges. Small labels are JetBrains Mono. */

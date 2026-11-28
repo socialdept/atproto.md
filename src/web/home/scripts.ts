@@ -156,6 +156,31 @@ export const LINE_SCRIPT = `
     return d + ' L' + z[0] + ',' + z[1];
   };
   const rel = (el) => { const r = el.getBoundingClientRect(), p = page.getBoundingClientRect(); return { x: r.left - p.left, y: r.top - p.top, w: r.width, h: r.height }; };
+  // Samples the line every STEP px of its length with plain arithmetic: straight segments and cubic curves, each curve
+  // walked in 512 steps and measured, then read off at even lengths. Asking the browser for each point
+  // (getPointAtLength) cost a third of a second per build, on every resize. Returns the line's length.
+  function sample(segs) {
+    const px = [segs[0][1][0]], py = [segs[0][1][1]];
+    for (const [kind, a, b, c, e] of segs) {
+      if (kind === 'L') { px.push(b[0]); py.push(b[1]); continue; }
+      for (let k = 1; k <= 512; k++) {
+        const t = k / 512, u = 1 - t, w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
+        px.push(w0 * a[0] + w1 * b[0] + w2 * c[0] + w3 * e[0]);
+        py.push(w0 * a[1] + w1 * b[1] + w2 * c[1] + w3 * e[1]);
+      }
+    }
+    const cum = new Float64Array(px.length);
+    for (let i = 1; i < px.length; i++) cum[i] = cum[i - 1] + Math.hypot(px[i] - px[i - 1], py[i] - py[i - 1]);
+    const len = cum[cum.length - 1];
+    xs = new Float32Array(Math.ceil(len / STEP) + 1); ys = new Float32Array(xs.length);
+    for (let i = 0, j = 0; i < xs.length; i++) {
+      const at = Math.min(len, i * STEP);
+      while (j < cum.length - 2 && cum[j + 1] < at) j++;
+      const span = cum[j + 1] - cum[j], f = span > 0 ? (at - cum[j]) / span : 0;
+      xs[i] = px[j] + (px[j + 1] - px[j]) * f; ys[i] = py[j] + (py[j + 1] - py[j]) * f;
+    }
+    return len;
+  }
 
   function build() {
     const start = rel(document.getElementById('try'));
@@ -176,6 +201,13 @@ export const LINE_SCRIPT = `
     const blocks = page.querySelectorAll('.block'); const last = rel(blocks[blocks.length - 1]);
     const turn = last.y + last.h + 32, span = cy - turn;
     d += ' L' + rail + ',' + turn + ' C' + rail + ',' + (turn + span * 0.65) + ' ' + cx + ',' + (cy - span * 0.65) + ' ' + cx + ',' + cy;
+    // The same line as segments, for sampling.
+    const segs = [
+      ['L', [sx, sy], [sx, sy + 24]],
+      ['C', [sx, sy + 24], [sx, sy + 110], [rail, sy + 40], [rail, firstY - 40]],
+      ['L', [rail, firstY - 40], [rail, turn]],
+      ['C', [rail, turn], [rail, turn + span * 0.65], [cx, cy - span * 0.65], [cx, cy]],
+    ];
     const hosts = page.querySelector('.hosts'); hostEls = [...hosts.children];
     const narrow = page.clientWidth < 640;
     let fanD = '';
@@ -246,9 +278,7 @@ export const LINE_SCRIPT = `
       fanD + nodes.map((y) => '<rect class="node" x="' + (rail - 5) + '" y="' + (y - 5) + '" width="10" height="10" rx="1.5"/>').join('');
     path = svg.querySelector('.base'); done = svg.querySelector('.done'); trail = svg.querySelector('.trail'); tails = [...trail.querySelectorAll('path')];
     ring = [...svg.querySelectorAll('.ring')]; ringLen = ring[0].getTotalLength();
-    fans = [...svg.querySelectorAll('.fan')]; total = path.getTotalLength();
-    xs = new Float32Array(Math.ceil(total / STEP) + 1); ys = new Float32Array(xs.length);
-    for (let i = 0; i < xs.length; i++) { const q = path.getPointAtLength(Math.min(total, i * STEP)); xs[i] = q.x; ys[i] = q.y; }
+    fans = [...svg.querySelectorAll('.fan')]; total = sample(segs);
     const box = page.getBoundingClientRect();
     pageTop = box.top + scrollY;
     // The grey band's box spans the line from its start to its end, wide enough for the rail, and only reaches outside
@@ -263,7 +293,7 @@ export const LINE_SCRIPT = `
     maxScroll = Math.max(1, document.documentElement.scrollHeight - innerHeight);
     nodeEls = [...svg.querySelectorAll('.node')];
     float(performance.now());
-    if (!floating && !still && bases.length) { floating = true; requestAnimationFrame(loop); }
+    if (awake() && !floating && !still && bases.length) { floating = true; requestAnimationFrame(loop); }
     tick();
   }
 
@@ -281,8 +311,19 @@ export const LINE_SCRIPT = `
       fans[i].setAttribute('d', 'M' + fanFrom.x + ',' + t + ' C' + fanFrom.x + ',' + (t + 40) + ' ' + x + ',' + (t + 10) + ' ' + x + ',' + y);
     });
   }
+  // The badges only float, tilt and change names while the footer is on screen and the tab is visible, so the page does
+  // no work while it sits still anywhere else.
+  const foot = page.querySelector('.landing-foot');
+  let footSeen = false;
+  const awake = () => footSeen && !document.hidden;
+  function wake() {
+    foot.classList.toggle('asleep', !awake());
+    if (awake() && !floating && !still && bases.length) { floating = true; requestAnimationFrame(loop); }
+  }
+  new IntersectionObserver((entries) => { footSeen = entries[0].isIntersecting; wake(); }).observe(foot);
+  document.addEventListener('visibilitychange', wake);
   function loop(now) {
-    if (!bases.length) { floating = false; return; }
+    if (!bases.length || !awake()) { floating = false; return; }
     float(now);
     requestAnimationFrame(loop);
   }
@@ -365,7 +406,7 @@ export const LINE_SCRIPT = `
   let room = null;
   let turn = 0;
   function rotate() {
-    if (!bases.length || document.hidden || !window.TextMorph) return;
+    if (!bases.length || !awake() || !window.TextMorph) return;
     if (!room) room = names.map((name, i) => textWidth(name, i) + 0.5);
     const slots = [...hostEls.keys()].filter((i) => !fixed.includes(i));
     const i = slots[turn++ % slots.length];
@@ -381,12 +422,16 @@ export const LINE_SCRIPT = `
   }
   if (!still) setInterval(rotate, 2200);
 
+  // Every change that moves the line asks for a rebuild, and it runs once in the next frame however many arrive. A
+  // resize fires both the resize event and the demo's observer, and a drag fires dozens a second.
+  let pending = 0;
+  const rebuild = () => { if (!pending) pending = requestAnimationFrame(() => { pending = 0; build(); }); };
   addEventListener('scroll', schedule, { passive: true });
-  addEventListener('resize', build);
+  addEventListener('resize', rebuild);
   // Opening an endpoint, or a response arriving, changes the page height, so the line is rebuilt.
-  document.addEventListener('toggle', build, true);
-  new ResizeObserver(() => build()).observe(document.getElementById('try'));
-  document.fonts.ready.then(build);
+  document.addEventListener('toggle', rebuild, true);
+  new ResizeObserver(rebuild).observe(document.getElementById('try'));
+  document.fonts.ready.then(rebuild);
   build();
 })();`;
 
