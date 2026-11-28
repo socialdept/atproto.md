@@ -132,7 +132,7 @@ export function labelLookups(stats: LabelStats | undefined): string {
 	const accounts = stats.kinds.find((k) => k.key === 'account')?.count ?? 0;
 	const records = stats.kinds.filter((k) => k.key !== 'account').reduce((n, k) => n + k.count, 0);
 	return `<div class="lookups">
-      <div><p class="hero-num">${esc(percent(stats.labeled, stats.subjects))}</p><p class="k-sub">${fmtNum(stats.labeled)} of ${fmtNum(stats.subjects)} lookups found a label</p></div>
+      <div><p class="hero-num">${figure(percent(stats.labeled, stats.subjects))}</p><p class="k-sub">${fmtNum(stats.labeled)} of ${fmtNum(stats.subjects)} lookups found a label</p></div>
       ${splitBar(
 				[
 					{ label: 'Accounts', count: accounts, color: VIZ.http },
