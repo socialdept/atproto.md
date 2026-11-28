@@ -40,77 +40,84 @@ import { createMcpServer } from './mcp';
 import { classifyHttp, getStats, recordSession, recordVisit, resetStats } from './stats';
 import { formatStats, indexPage } from './views';
 
+import { scope } from './scope';
+
 export { StatsDO } from './stats';
 
 export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
-
-		const url = new URL(request.url);
-		// Behind a local TLS proxy (Herd in development) the worker sees http, so links follow the proxy's scheme.
-		if (url.protocol === 'http:' && request.headers.get('X-Forwarded-Proto') === 'https') url.protocol = 'https:';
-		const origin = url.origin;
-
-		// MCP endpoint, POST and GET per the Streamable HTTP spec. Tool calls are counted inside the tool handlers.
-		// A session is counted here, from the initialize request, with the client's self-reported name and nothing
-		// else. Each HTTP request gets a new server, so the server that sees the handshake finish has never seen the name.
-		if (url.pathname === '/mcp') {
-			if (request.method === 'POST') {
-				const client = await initializingClient(request);
-				if (client !== null) recordSession(env, ctx, client);
-			}
-			return createMcpHandler(createMcpServer(origin, env, ctx))(request, env, ctx);
-		}
-
-		// Operator-only stats wipe: POST /stats/reset with `Authorization: Bearer <token>`, where
-		// the token is the STATS_RESET_TOKEN secret (set via `wrangler secret put`, never in source).
-		// Any failure (wrong method, no/unset token, mismatch) returns 404 so the endpoint isn't
-		// advertised. This keeps wipes operator-controlled — not triggerable from the public repo.
-		if (url.pathname === '/stats/reset') {
-			const token = env.STATS_RESET_TOKEN;
-			const provided = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
-			if (request.method !== 'POST' || !token || provided !== token) return errMd('Not found.', 404);
-			await resetStats(env);
-			return mdResponse('# Stats reset\n\nAll counters cleared.\n');
-		}
-
-		// All other routes are GET-only. /xrpc refuses other methods in XRPC's own error shape.
-		if (request.method !== 'GET' && !url.pathname.startsWith('/xrpc/')) return errorResponse(url, 'Only GET requests are supported.', 405);
-
-		const start = Date.now();
-		const response = await handleGet(request, url, origin, env);
-		const latencyMs = Date.now() - start;
-
-		// Anonymous usage counter, fire-and-forget. Counts only the API: JSON responses, plus llms.txt and skill.md.
-		// The home page and /stats are never counted, for browsers or agents, since they would drown the API signal.
-		const stat = classifyHttp(url);
-		const type = response.headers.get('Content-Type') ?? '';
-		// Data responses are counted, and so are redirects: /blob, /repo/car and the XRPC blob and repo calls answer with one.
-		const redirect = response.status >= 300 && response.status < 400;
-		if (stat && (redirect || type.startsWith('text/markdown') || type.startsWith('application/json'))) {
-			const isError = response.status >= 400;
-			const country = typeof request.cf?.country === 'string' ? request.cf.country : undefined;
-			const contentLength = response.headers.get('Content-Length');
-			recordVisit(env, ctx, {
-				channel: 'http',
-				key: stat.key,
-				collection: stat.collection,
-				idType: stat.idType,
-				selector: stat.selector,
-				xrpcNamespace: stat.xrpcNamespace,
-				xrpcTo: response.headers.get('X-Upstream-Kind') ?? undefined,
-				flags: stat.flags,
-				isError,
-				status: response.status,
-				upstream: isError ? (response.headers.get('X-Upstream') ?? undefined) : undefined,
-				country,
-				bytes: contentLength ? Number(contentLength) : undefined,
-				latencyMs,
-			});
-		}
-		return response;
+	// Each request runs in a scope that holds its env and ctx, so a label lookup deep in a route can count itself.
+	fetch(request, env, ctx): Promise<Response> {
+		return scope.run({ env, ctx }, () => handle(request, env, ctx));
 	},
 } satisfies ExportedHandler<Env>;
+
+async function handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+	if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
+
+	const url = new URL(request.url);
+	// Behind a local TLS proxy (Herd in development) the worker sees http, so links follow the proxy's scheme.
+	if (url.protocol === 'http:' && request.headers.get('X-Forwarded-Proto') === 'https') url.protocol = 'https:';
+	const origin = url.origin;
+
+	// MCP endpoint, POST and GET per the Streamable HTTP spec. Tool calls are counted inside the tool handlers.
+	// A session is counted here, from the initialize request, with the client's self-reported name and nothing
+	// else. Each HTTP request gets a new server, so the server that sees the handshake finish has never seen the name.
+	if (url.pathname === '/mcp') {
+		if (request.method === 'POST') {
+			const client = await initializingClient(request);
+			if (client !== null) recordSession(env, ctx, client);
+		}
+		return createMcpHandler(createMcpServer(origin, env, ctx))(request, env, ctx);
+	}
+
+	// Operator-only stats wipe: POST /stats/reset with `Authorization: Bearer <token>`, where
+	// the token is the STATS_RESET_TOKEN secret (set via `wrangler secret put`, never in source).
+	// Any failure (wrong method, no/unset token, mismatch) returns 404 so the endpoint isn't
+	// advertised. This keeps wipes operator-controlled — not triggerable from the public repo.
+	if (url.pathname === '/stats/reset') {
+		const token = env.STATS_RESET_TOKEN;
+		const provided = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+		if (request.method !== 'POST' || !token || provided !== token) return errMd('Not found.', 404);
+		await resetStats(env);
+		return mdResponse('# Stats reset\n\nAll counters cleared.\n');
+	}
+
+	// All other routes are GET-only. /xrpc refuses other methods in XRPC's own error shape.
+	if (request.method !== 'GET' && !url.pathname.startsWith('/xrpc/')) return errorResponse(url, 'Only GET requests are supported.', 405);
+
+	const start = Date.now();
+	const response = await handleGet(request, url, origin, env);
+	const latencyMs = Date.now() - start;
+
+	// Anonymous usage counter, fire-and-forget. Counts only the API: JSON responses, plus llms.txt and skill.md.
+	// The home page and /stats are never counted, for browsers or agents, since they would drown the API signal.
+	const stat = classifyHttp(url);
+	const type = response.headers.get('Content-Type') ?? '';
+	// Data responses are counted, and so are redirects: /blob, /repo/car and the XRPC blob and repo calls answer with one.
+	const redirect = response.status >= 300 && response.status < 400;
+	if (stat && (redirect || type.startsWith('text/markdown') || type.startsWith('application/json'))) {
+		const isError = response.status >= 400;
+		const country = typeof request.cf?.country === 'string' ? request.cf.country : undefined;
+		const contentLength = response.headers.get('Content-Length');
+		recordVisit(env, ctx, {
+			channel: 'http',
+			key: stat.key,
+			collection: stat.collection,
+			idType: stat.idType,
+			selector: stat.selector,
+			xrpcNamespace: stat.xrpcNamespace,
+			xrpcTo: response.headers.get('X-Upstream-Kind') ?? undefined,
+			flags: stat.flags,
+			isError,
+			status: response.status,
+			upstream: isError ? (response.headers.get('X-Upstream') ?? undefined) : undefined,
+			country,
+			bytes: contentLength ? Number(contentLength) : undefined,
+			latencyMs,
+		});
+	}
+	return response;
+}
 
 // The client name an MCP initialize request carries, or null when the request is something else. A message may arrive
 // alone or in a batch. The body is read from a copy, so the MCP handler still gets it.

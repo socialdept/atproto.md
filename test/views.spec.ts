@@ -63,6 +63,23 @@ describe('formatStats', () => {
 			{ day: '2026-06-10', count: 100 },
 			{ day: '2026-06-11', count: 400 },
 		],
+		labels: {
+			subjects: 40,
+			labeled: 4,
+			kinds: [
+				{ key: 'account', count: 10 },
+				{ key: 'app.bsky.feed.post', count: 30 },
+			],
+			values: [
+				{ key: 'spam', count: 12 },
+				{ key: 'rare-one', count: 1 },
+			],
+			sources: [
+				{ key: 'did:plc:ar7c4by46qjdydhdevvrndac', count: 12 },
+				{ key: 'other', count: 1 },
+			],
+			labelers: [{ key: 'did:plc:ar7c4by46qjdydhdevvrndac', queries: 20, failures: 1, avgMs: 240 }],
+		},
 		latency: {
 			count: 1200,
 			avgMs: 180,
@@ -101,6 +118,12 @@ describe('formatStats', () => {
 		expect(md).toContain('## Latency');
 		expect(md).toContain('**p95:** < 1000ms');
 		expect(md).toContain('| `200` | 1,200 |'); // status codes
+		expect(md).toContain('**Found a label:** 4 of 40 lookups (10.0%)');
+		expect(md).toContain('| `spam` | 12 |');
+		expect(md).not.toContain('rare-one');
+		expect(md).toContain('| `moderation.bsky.app` | 12 |');
+		expect(md).toContain('| `Other labelers` | 1 |');
+		expect(md).toContain('| `moderation.bsky.app` | 20 | 1 | 240 ms |');
 		expect(md).toContain('## XRPC namespaces');
 		expect(md).toContain('| `app.bsky` | 30 |');
 		expect(md).not.toContain('rare.ns');
@@ -148,6 +171,7 @@ describe('formatStats', () => {
 			countries: [],
 			collections: [],
 			daily: [],
+			labels: { subjects: 0, labeled: 0, kinds: [], values: [], sources: [], labelers: [] },
 			latency: { count: 0, avgMs: 0, p50: '—', p95: '—', buckets: [] },
 		};
 		expect(formatStats(ORIGIN, zero)).toContain('*No requests recorded yet.*');

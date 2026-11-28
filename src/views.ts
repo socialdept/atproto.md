@@ -1,3 +1,4 @@
+import { LABELERS } from './labelers';
 import type { StatsSnapshot } from './stats';
 
 // --- Usage stats -----------------------------------------------------------
@@ -104,6 +105,38 @@ function countTable(
 	return lines;
 }
 
+const LABELER_HANDLES = new Map(LABELERS.map((l) => [l.did, l.handle]));
+/** A labeler's handle when it is on the curated list, or "Other labelers" for the rest together. */
+export const labelerName = (key: string): string => (key === 'other' ? 'Other labelers' : (LABELER_HANDLES.get(key) ?? key));
+
+// Label lookups: how many found a label, what was looked up, the labels found, and how each labeler answered.
+function labelTables(stats: StatsSnapshot): string[] {
+	const l = stats.labels;
+	if (!l?.subjects) return [];
+	const lines = [
+		'## Label lookups',
+		'',
+		`**Found a label:** ${fmtNum(l.labeled)} of ${fmtNum(l.subjects)} lookups (${((l.labeled / l.subjects) * 100).toFixed(1)}%)`,
+		'',
+	];
+	lines.push(...countTable('Looked up', 'Kind', l.kinds, (k) => (k === 'account' ? 'account' : k)));
+	lines.push(
+		...countTable(
+			'Labels found',
+			'Label',
+			l.values.filter((c) => c.count >= NAMESPACE_THRESHOLD),
+		),
+	);
+	lines.push(...countTable('Labels found by labeler', 'Labeler', l.sources, labelerName));
+	if (l.labelers.length) {
+		lines.push('## Labeler health', '', '| Labeler | Lookups | Failed | Average |', '| --- | --- | --- | --- |');
+		for (const h of l.labelers)
+			lines.push(`| \`${labelerName(h.key)}\` | ${fmtNum(h.queries)} | ${fmtNum(h.failures)} | ${fmtNum(h.avgMs)} ms |`);
+		lines.push('');
+	}
+	return lines;
+}
+
 export function formatStats(origin: string, stats: StatsSnapshot | null): string {
 	const footer =
 		'*Only anonymous route names, MCP tool names, lexicon NSIDs, status codes, coarse country, and aggregate timing are counted — never IPs, handles, DIDs, or record keys. Country & client rows below a small threshold are hidden.*';
@@ -150,6 +183,7 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 		),
 	);
 	lines.push(...countTable('XRPC destinations', 'Destination', stats.xrpcDestinations, (k) => XRPC_DESTINATIONS[k] ?? k));
+	lines.push(...labelTables(stats));
 	lines.push(...countTable('Pagination & params', 'Param', stats.params));
 	lines.push(
 		...countTable(

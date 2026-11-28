@@ -57,6 +57,8 @@ export const STATS_STYLES = `
 .panel > .card { flex: 1; }
 .panel > .card:has(> .empty-state:only-child) { display: flex; align-items: center; justify-content: center; }
 .panel .card { padding: 18px 20px; }
+/* Label lookups read like the Requests card: the hero figure, then the split of what was looked up. */
+.lookups { display: flex; flex-direction: column; gap: 20px; height: 100%; }
 .panel .card:has(> .meters) { padding: 8px 20px; }
 .panel .tray__head { align-items: center; padding-inline: 21px; } /* lines up with the card's 20px padding inside its 1px frame */
 
@@ -225,6 +227,9 @@ html.motion .tray.in .map__layer { animation: shade .4s ease-out calc(var(--i, 0
   .meters li::before { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--share); background: var(--tray); border-radius: 6px; }
   .meters .m__label, .meters .m__num { position: relative; }
   .meters .ticks, .meters .m__pct { display: none; }
+  /* Labeler health keeps its failure rate on a phone, beside the time. */
+  .meters--health li { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .meters--health .m__pct { display: block; position: relative; }
   /* Figures: the comparator and unit drop to a small secondary size, so values fit across a phone. */
   .hist__figures .tile__num { font-size: 22px; }
   .fig__op, .fig__unit { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }

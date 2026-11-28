@@ -1,8 +1,10 @@
 import type { StatsSnapshot } from '../../stats';
-import { COUNTRY_THRESHOLD, fmtNum, NAMESPACE_THRESHOLD, routeLabel, STATS_THRESHOLD, XRPC_DESTINATIONS } from '../../views';
+import { COUNTRY_THRESHOLD, fmtNum, NAMESPACE_THRESHOLD, routeLabel, STATS_THRESHOLD, XRPC_DESTINATIONS, labelerName } from '../../views';
 import { COUNTRY_NAMES } from '../../world-grid';
 import { COPY_SCRIPT, footer, head, topBar } from '../chrome';
 import {
+	labelerHealth,
+	labelLookups,
 	chips,
 	emptyState,
 	figure,
@@ -71,6 +73,26 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
     </div>
   </section>`;
 
+	const lbl = stats?.labels;
+	const labelValues = (lbl?.values ?? []).filter((c) => c.count >= NAMESPACE_THRESHOLD);
+	const labels = `<section class="sgroup" aria-labelledby="labels">
+    <div class="sgroup__head"><h2 id="labels">Labels</h2><p>Label lookups on accounts and records, the labels found, and how each labeler answered. Labels under ${NAMESPACE_THRESHOLD} finds are hidden.</p></div>
+    <div class="grid">
+      ${panel('Lookups', 'Accounts and records looked up', labelLookups(lbl))}
+      ${panel('Labels found', 'Labels in force, by value', chips(labelValues, `No label found ${NAMESPACE_THRESHOLD} or more times yet.`))}
+      ${panel('Record collections', 'Records looked up, by collection', meterList(items((lbl?.kinds ?? []).filter((k) => k.key !== 'account')), { empty: 'No records looked up yet.' }), 'wide')}
+      ${panel('Labelers', 'Labels found, by labeler', meterList(items(lbl?.sources ?? [], labelerName, undefined, false), { tone: 'blue', half: true, empty: 'No labels found yet.' }))}
+      ${panel(
+				'Labeler health',
+				'Average time and failure rate',
+				labelerHealth(
+					(lbl?.labelers ?? []).map((l) => ({ ...l, label: labelerName(l.key) })).sort((a, b) => b.avgMs - a.avgMs),
+					'No labelers asked yet.',
+				),
+			)}
+    </div>
+  </section>`;
+
 	const reads = `<section class="sgroup" aria-labelledby="reads">
     <div class="sgroup__head"><h2 id="reads">Reads</h2><p>The collections and namespaces requested, and the options used with them.</p></div>
     <div class="grid">
@@ -131,6 +153,7 @@ ${topBar(origin, 'stats')}
   ${requestsChart(stats)}
   ${calls}
   ${xrpc}
+  ${labels}
   ${reads}
   ${health}
   ${who}

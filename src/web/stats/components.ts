@@ -1,4 +1,4 @@
-import type { StatsSnapshot } from '../../stats';
+import type { LabelStats, StatsSnapshot } from '../../stats';
 import { abbrevNum, bytesHuman, fmtNum, STATUS_THRESHOLD } from '../../views';
 import { COUNTRY_NAMES, WORLD_COLS, WORLD_LAND, WORLD_PATHS, WORLD_ROWS } from '../../world-grid';
 import { esc } from '../kit';
@@ -83,6 +83,9 @@ function meter(share: number, tone = 'ink', stacked = false, steps = TICKS): str
 	const ticks = Array.from({ length: count }, (_, k) => (k < on ? '<i class="on"></i>' : '<i></i>')).join('');
 	return `<span class="ticks ticks--${tone}" aria-hidden="true">${ticks}</span>`;
 }
+// A handle or domain breaks only after a dot, so a long one wraps at a segment and never mid-word.
+const handleBreaks = (label: string): string => (/^[\w.-]+\.[a-z]+$/i.test(label) ? esc(label).replace(/\./g, '.<wbr>') : esc(label));
+
 export function meterList(list: Item[], opts: { tone?: string; all?: boolean; stacked?: boolean; half?: boolean; empty: string }): string {
 	if (!list.length) return emptyState(opts.empty);
 	const total = list.reduce((n, i) => n + i.count, 0);
@@ -95,7 +98,7 @@ export function meterList(list: Item[], opts: { tone?: string; all?: boolean; st
 				? esc(i.label)
 						.replace(/\/(?!\/)/g, '/<wbr>')
 						.replace(/([._])(?=\w)/g, '$1<wbr>')
-				: esc(i.label);
+				: handleBreaks(i.label);
 			const label = i.href ? `<a href="${esc(i.href)}">${text}</a>` : text;
 			return `<li style="--share:${((i.count / max) * 100).toFixed(1)}%"><span class="m__label${i.mono ? ' mono' : ''}"${i.title ? ` title="${esc(i.title)}"` : ''}>${label}</span>${meter(i.count / total, opts.tone, opts.stacked, opts.half ? TICKS / 2 : TICKS)}<span class="m__pct">${percent(i.count, total)}</span><span class="m__num" title="${fmtNum(i.count)}">${esc(abbrevNum(i.count))}</span></li>`;
 		})
@@ -121,6 +124,36 @@ export function splitBar(parts: { label: string; count: number; color: string }[
 		)
 		.join('');
 	return `<div class="split${opts.tall ? ' split--tall' : ''}" role="img" aria-label="${esc(shown.map((p) => `${p.label} ${percent(p.count, total)}`).join(', '))}">${bar}</div><ul class="legend">${legend}</ul>`;
+}
+
+/** Label lookups as a hero figure, the share of subjects that carried a label, over the split of accounts and records. */
+export function labelLookups(stats: LabelStats | undefined): string {
+	if (!stats?.subjects) return emptyState('No label lookups yet.');
+	const accounts = stats.kinds.find((k) => k.key === 'account')?.count ?? 0;
+	const records = stats.kinds.filter((k) => k.key !== 'account').reduce((n, k) => n + k.count, 0);
+	return `<div class="lookups">
+      <div><p class="hero-num">${esc(percent(stats.labeled, stats.subjects))}</p><p class="k-sub">${fmtNum(stats.labeled)} of ${fmtNum(stats.subjects)} lookups found a label</p></div>
+      ${splitBar(
+				[
+					{ label: 'Accounts', count: accounts, color: VIZ.http },
+					{ label: 'Records', count: records, color: VIZ.mcp },
+				],
+				{ empty: '' },
+			)}
+    </div>`;
+}
+
+/** Each labeler's average answer time as a meter against the slowest, with the share of its lookups that failed. */
+export function labelerHealth(list: { label: string; queries: number; failures: number; avgMs: number }[], empty: string): string {
+	if (!list.length) return emptyState(empty);
+	const slowest = Math.max(1, ...list.map((l) => l.avgMs));
+	const rows = list
+		.map(
+			(l) =>
+				`<li style="--share:${((l.avgMs / slowest) * 100).toFixed(1)}%"><span class="m__label">${handleBreaks(l.label)}</span>${meter(l.avgMs / slowest, l.failures / l.queries >= 0.1 ? 'error' : 'ink', false, TICKS / 2)}<span class="m__pct" title="${fmtNum(l.failures)} of ${fmtNum(l.queries)} lookups failed">${percent(l.failures, l.queries)}</span><span class="m__num" title="${fmtNum(l.queries)} lookups">${fmtNum(l.avgMs)} ms</span></li>`,
+		)
+		.join('');
+	return `<ol class="meters meters--scroll meters--health">${rows}</ol>`;
 }
 
 // A large count to one decimal, 152.8M, short enough for a tile's one-line help text.
