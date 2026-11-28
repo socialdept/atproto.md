@@ -6,7 +6,7 @@
 - **One service URL:** point any AT Protocol SDK or XRPC client at `https://atproto.md`, and each [XRPC](endpoints/xrpc.md) call goes to the server that answers it, with handles resolved on the way.
 - **Raw records:** every record is the exact JSON the PDS stores, with direct blob URLs.
 - **Fewer calls:** fetch up to 25 records by URI or web link in one call, and add `expand` to get the records they reference in the same response.
-- **Identity:** resolve a handle or DID to its DID document, PDS and entryway, and read a `did:plc` identity's history and current state from [plc.directory](https://plc.directory).
+- **Identity:** resolve a handle or DID to its DID document, PDS, entryway and account status, trace every resolution step when one fails, and read a `did:plc` identity's history from [plc.directory](https://plc.directory).
 - **Network-wide:** discover every repo using a lexicon, explore the backlinks pointing at any record, identity or URL, and resolve a lexicon schema by its NSID through DNS.
 - **For agents first:** an MCP server, an [llms.txt](https://llmstxt.org/) summary and a skill sheet for Claude Code, all backed by the same code as the URLs.
 

@@ -14,7 +14,7 @@ It exposes six tools, each backed by the same code as an HTTP endpoint. Every re
 
 | Tool           | What it does                                                                                     | Endpoint                                                        |
 | -------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `resolve`      | Identity, PDS, DID document and collections. `plc` returns the PLC data, audit log or last op     | [`/resolve`, `/plc/*`](../endpoints/identity.md)                |
+| `resolve`      | Identity, account status, PDS, DID document and collections. `plc` returns the PLC data, audit log or last op, and `did` the DID document or a resolution trace | [`/resolve`, `/did/*`, `/plc/*`](../endpoints/identity.md) |
 | `get`          | Up to 25 records by `at://` URI or web link, with `expand` for referenced records                | [`/get`](../endpoints/records.md)                               |
 | `list_records` | Records in a collection, paginated, with `expand`                                                | [`/at://{actor}/{collection}`](../endpoints/records.md)         |
 | `backlinks`    | Link sources and counts, or with `source` the linking records, hydrated on request               | [`/backlinks/{target}`](../endpoints/network.md)                |

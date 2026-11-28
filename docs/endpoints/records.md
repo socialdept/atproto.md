@@ -1,6 +1,6 @@
 # Repos and records
 
-The `at://` URL structure, the resolution chain, repos, collections, single records and batches.
+The `at://` URL structure, the resolution chain, repos, collections, single records, batches and CAR exports.
 
 ## URL structure
 
@@ -29,7 +29,7 @@ Records are then fetched from the user's PDS with `com.atproto.repo.describeRepo
 
 ## `GET /at://{actor}`
 
-The actor's identity and repo in one response: `did`, `handle`, `pds`, `entryway`, `collections` and `didDoc`. The same as [`/resolve/{actor}`](identity.md).
+The actor's identity and repo in one response: `did`, `handle`, `pds`, `entryway`, `active`, `status`, `pdsSince`, `collections` and `didDoc`. The same as [`/resolve/{actor}`](identity.md#get-resolvehandle-or-did), which explains each field.
 
 ## `GET /at://{actor}/{collection}`
 
@@ -55,6 +55,14 @@ curl "https://atproto.md/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb
 ```
 
 Each actor is resolved once per call. An address that fails goes into `errors` as `{address, error}`, and the other records still come back. Takes `expand`.
+
+## `GET /repo/car/{actor}`
+
+The account's whole repo as a CAR file, streamed from its PDS through `com.atproto.sync.getRepo`, as a download named after the DID. Use it for backups and indexing. The PDS's own rate limits apply, and a large repo takes a while.
+
+```bash
+curl -o repo.car https://atproto.md/repo/car/bsky.app
+```
 
 ## Links
 
