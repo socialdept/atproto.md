@@ -173,7 +173,7 @@ export const HOME_STYLES = `
 @media (max-width: 720px) { .ask .field { flex: none; } .field .prefix { display: none; } .ask .field input, .ask .field input:focus { padding-left: 19px; } }
 /* Too narrow for an arc: the hosts wrap in centered rows under the pill, with room above and between the rows for
    the lines. */
-.hosts.list { position: static; height: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 8px; margin-top: 48px; }
+.hosts.list { position: static; height: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 8px; margin-top: 72px; }
 .hosts.list li { position: static; transform: none; text-align: center; }
 /* Home page headlines are set in Beast. */
 .hero h1, .block h2, .landing-foot h2 { font-family: var(--beast); font-weight: 400; letter-spacing: -0.04em; }
