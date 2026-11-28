@@ -69,10 +69,15 @@ async function run(value) {
   const started = performance.now();
   try {
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    const text = await res.text();
+    // A file (a repo CAR or a blob) is described, since its bytes mean nothing as text.
+    const type = (res.headers.get('Content-Type') || '').split(';')[0];
+    const binary = type && !/json|^text\\//.test(type);
+    const bytes = binary ? new Uint8Array(await res.arrayBuffer()) : null;
+    const text = binary ? '' : await res.text();
     let body;
-    try { body = JSON.stringify(JSON.parse(text), null, 2); } catch { body = text; }
-    const kb = (new Blob([text]).size / 1024).toFixed(1);
+    if (binary) body = 'File: ' + type + ', ' + bytes.length.toLocaleString() + ' bytes. Open the address to download it.';
+    else try { body = JSON.stringify(JSON.parse(text), null, 2); } catch { body = text; }
+    const kb = ((binary ? bytes.length : new Blob([text]).size) / 1024).toFixed(1);
     setText(reqMeta, res.status + ', ' + kb + ' KB, ' + Math.round(performance.now() - started) + ' ms');
     out.innerHTML = highlight(body);
     out.classList.toggle('err', !res.ok);

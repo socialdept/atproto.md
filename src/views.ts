@@ -168,10 +168,11 @@ Add \`?pretty\` to indent the JSON.
 ## Records
 
 \`\`\`
-GET ${origin}/at://{actor}                                  DID, handle, PDS, DID document, collections
+GET ${origin}/at://{actor}                                  DID, handle, PDS, account status, DID document, collections
 GET ${origin}/at://{actor}/{collection}                     records, newest first
 GET ${origin}/at://{actor}/{collection}/{rkey}              one record
 GET ${origin}/get?uri={address}&uri={address}               up to 25 records in one call
+GET ${origin}/repo/car/{actor}                              the whole repo as a CAR file
 \`\`\`
 
 - \`{actor}\` is a handle or DID. A \`{address}\` is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
@@ -183,6 +184,8 @@ GET ${origin}/get?uri={address}&uri={address}               up to 25 records in 
 
 \`\`\`
 GET ${origin}/resolve/{actor}                               same as /at://{actor}
+GET ${origin}/did/doc/{actor}                               the DID document
+GET ${origin}/did/trace/{actor}                             every resolution step, with its response
 GET ${origin}/plc/data/{actor}                              current PLC state, with rotation keys
 GET ${origin}/plc/audit/{actor}                             full PLC operation log
 GET ${origin}/plc/last/{actor}                              latest PLC operation

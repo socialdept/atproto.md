@@ -5,16 +5,19 @@ export function llmsTxt(origin: string): string {
 
 ## Records
 
-- [Repo](${origin}/at://{actor}): DID, handle, PDS, DID document and every collection
+- [Repo](${origin}/at://{actor}): DID, handle, PDS, account status, when it moved to its PDS, DID document and every collection
 - [List records](${origin}/at://{actor}/{collection}): records newest first. Params: limit (25, at most 100), cursor, reverse, expand
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): one record with blob URLs. Param: expand
 - [Get many](${origin}/get?uri={address}&uri={address}): up to 25 records by at:// URI or web link in one call. Param: expand
+- [Repo CAR](${origin}/repo/car/{actor}): the whole repo as a CAR file download
 
 expand also returns the records the results reference (reply parent and root, quoted post, like or repost subject), one level deep, under expanded.
 
 ## Identity
 
 - [Resolve](${origin}/resolve/{handle-or-did}): the same as /at://{actor}
+- [DID document](${origin}/did/doc/{handle-or-did}): the DID document as published
+- [Trace](${origin}/did/trace/{handle-or-did}): every resolution step (DNS, HTTPS, DID document, PDS) with its response, for working out why an account does not resolve
 - [PLC data](${origin}/plc/data/{handle-or-did}): current PLC state, with rotation keys
 - [PLC audit log](${origin}/plc/audit/{handle-or-did}): every PLC operation, dated
 - [PLC last op](${origin}/plc/last/{handle-or-did}): the latest PLC operation
@@ -62,6 +65,7 @@ Every Atmosphere record, one address. Read-only, no auth. Base URL: ${origin}
 - Find who liked, reposted, replied to, quoted or follows something
 - Find every repo using a lexicon, or fetch a lexicon's schema
 - Resolve a handle or DID to its PDS, or date a PDS migration or handle change from the PLC log
+- Find out why an account does not resolve or its records are missing: /did/trace shows each step, and /at://{actor} says whether the account is active
 - Write code against an AT Protocol SDK that reads any account: set the service URL to ${origin}
 
 For Bluesky threads, timelines, feeds and search, use the Bluesky AppView or bsky.md. atproto.md reads records from each account's own PDS.
@@ -96,11 +100,14 @@ curl "${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.po
 ## Endpoint reference
 
 \`\`\`
-GET ${origin}/at://{actor}                                  {did, handle, pds, entryway, collections, didDoc}
+GET ${origin}/at://{actor}                                  {did, handle, pds, entryway, active, status, pdsSince, collections, didDoc}
 GET ${origin}/at://{actor}/{collection}                     {did, handle, pds, entryway, collection, cursor, records}
 GET ${origin}/at://{actor}/{collection}/{rkey}              {uri, cid, value, blobs}
 GET ${origin}/get?uri={address}&uri=...                     {records, errors, expanded}, up to 25
 GET ${origin}/resolve/{actor}                               same as /at://{actor}
+GET ${origin}/did/doc/{actor}                               the DID document
+GET ${origin}/did/trace/{actor}                             {did, handle, handleVerified, pds, ok, steps}
+GET ${origin}/repo/car/{actor}                              the whole repo as a CAR file
 GET ${origin}/plc/data/{actor}                              current PLC state
 GET ${origin}/plc/audit/{actor}                             {did, operations}
 GET ${origin}/plc/last/{actor}                              {did, operation}

@@ -55,8 +55,8 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				path: '/at://{actor}',
 				desc: 'The account’s identity and repo in one response.',
 				params: [ACTOR],
-				returns: '{ did, handle, pds, entryway, collections, didDoc }',
-				note: 'collections is null when the PDS does not answer describeRepo.',
+				returns: '{ did, handle, pds, entryway, active, status, pdsSince, collections, didDoc }',
+				note: 'active and status come from the PDS: status says deactivated, takendown or suspended when active is false. pdsSince is when the account moved to its PDS. collections is null when the PDS does not answer describeRepo.',
 				example: '/at://bsky.app',
 			},
 			{
@@ -88,6 +88,14 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				example: '/at://bsky.app/app.bsky.actor.profile/self',
 			},
 			{
+				path: '/repo/car/{actor}',
+				desc: 'The whole repo as a CAR file, streamed from the account’s PDS.',
+				params: [ACTOR],
+				returns: 'A CAR file download, application/vnd.ipld.car',
+				note: 'The PDS’s own rate limits apply. Large repos take a while.',
+				example: '/repo/car/pds.rip',
+			},
+			{
 				path: '/get',
 				desc: 'Up to 25 records in one call, fetched in parallel.',
 				params: [
@@ -113,8 +121,23 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				path: '/resolve/{actor}',
 				desc: 'The same response as /at://{actor}.',
 				params: [ACTOR],
-				returns: '{ did, handle, pds, entryway, collections, didDoc }',
+				returns: '{ did, handle, pds, entryway, active, status, pdsSince, collections, didDoc }',
 				example: '/resolve/bsky.app',
+			},
+			{
+				path: '/did/doc/{actor}',
+				desc: 'The DID document, as plc.directory or the did:web domain serves it.',
+				params: [ACTOR],
+				returns: '{ id, alsoKnownAs, verificationMethod, service }',
+				example: '/did/doc/bsky.app',
+			},
+			{
+				path: '/did/trace/{actor}',
+				desc: 'Every step of resolving the account, with what each one returned.',
+				params: [ACTOR],
+				returns: '{ did, handle, handleVerified, pds, ok, steps: [{ step, request, ok, ms, status, result, error }] }',
+				note: 'Runs the DNS and HTTPS handle lookups, the DID document fetch and a PDS check itself. A handle needs only one of the two lookups to work.',
+				example: '/did/trace/bsky.app',
 			},
 			{
 				path: '/plc/data/{actor}',
