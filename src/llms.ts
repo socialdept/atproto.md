@@ -54,7 +54,7 @@ labels on a record route attaches each record's labels, author its account's, an
 export function skillMd(origin: string): string {
 	return `---
 name: atproto-md
-description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS, entryway and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read a did:plc identity's PLC history, trace why an account does not resolve, export a repo as a CAR file, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
+description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS, entryway and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read the labels on a post or account from any labeler, read a did:plc identity's PLC history, trace why an account does not resolve, export a repo as a CAR file, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
 ---
 
 # atproto-md
@@ -122,6 +122,9 @@ curl ${origin}/did/trace/bsky.app
 # Any XRPC query, routed to the account's PDS
 curl "${origin}/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self"
 
+# The labels on an account, from every known labeler
+curl "${origin}/labels/bsky.app?labelers=all"
+
 # Who replied to a post, as records
 curl "${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3n2opitxdyc2j?source=app.bsky.feed.post:reply.parent.uri&hydrate"
 \`\`\`
@@ -151,6 +154,7 @@ GET ${origin}/xrpc/com.atproto.repo.*?repo={actor}&...      sent to the account'
 GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS, blobs and repos as redirects
 GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
 GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
+GET ${origin}/xrpc/com.atproto.label.queryLabels           sent to the labeler in sources, Bluesky's by default
 GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view
 GET ${origin}/xrpc/{nsid}                                   other apps: sent to the app view on the app's domain
 POST ${origin}/xrpc/{nsid}                                  other apps' procedures that need no sign-in
@@ -162,7 +166,7 @@ any method with atproto-proxy: did#service_id               sent to that service
 - labels works on every record route: labels attaches each record's labels, author its account's too, and labelers is all or handles and DIDs (Bluesky's moderation labeler by default).
 - expand works on every record route. hydrate works on backlinks with source, 25 records at most.
 - A batch reports a failed address in errors and still returns the rest.
-- /xrpc passes each server's response on unchanged, and X-Upstream-Service names the service that answered. Its errors are {"error", "message"}. Calls with an Authorization header and com.atproto procedures are refused: send those to the account's own PDS. When no app view is found, the 501 names the domains tried: send an atproto-proxy header.
+- /xrpc passes each server's response on unchanged. X-Upstream-Host names the server that answered, X-Upstream-Kind its kind (pds, relay, appview, labeler, proxy, discovered or local), and X-Upstream-Service the did#service_id when there is one. Its errors are {"error", "message"}. Calls with an Authorization header and com.atproto procedures are refused: send those to the account's own PDS. When no app view is found, the 501 names the domains tried: send an atproto-proxy header.
 
 ## Install as a Claude Code command
 
