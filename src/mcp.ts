@@ -7,9 +7,17 @@ import { version } from '../package.json';
 type TextResult = { content: { type: 'text'; text: string }[]; isError?: boolean };
 
 export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext): McpServer {
+	// The icons let a client show the ATMD mark without fetching a favicon for the domain.
 	const server = new McpServer({
 		name: 'atproto-md',
+		title: 'atproto.md',
 		version,
+		websiteUrl: origin,
+		icons: [
+			{ src: `${origin}/favicon.svg`, mimeType: 'image/svg+xml', sizes: ['any'] },
+			{ src: `${origin}/icon-192.png`, mimeType: 'image/png', sizes: ['192x192'] },
+			{ src: `${origin}/icon-512.png`, mimeType: 'image/png', sizes: ['512x512'] },
+		],
 	});
 
 	// Anonymous meta derived from a tool's arguments: the targeted collection/lexicon, the
