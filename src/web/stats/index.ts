@@ -19,7 +19,7 @@ import {
 	VIZ,
 	worldMap,
 } from './components';
-import { CHART_SCRIPT } from './script';
+import { CHART_SCRIPT, MOTION_HEAD, MOTION_SCRIPT } from './script';
 import { STATS_STYLES } from './styles';
 
 // --- Stats page ------------------------------------------------------------------------------------------------
@@ -101,7 +101,7 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
     </div>
   </section>`;
 
-	return `${head(origin, 'Public stats | ATMD', `<meta name="robots" content="noindex">\n<link rel="canonical" href="${origin}/stats">`)}${STATS_STYLES}</style>
+	return `${head(origin, 'Public stats | ATMD', `<meta name="robots" content="noindex">\n<link rel="canonical" href="${origin}/stats">\n<script>${MOTION_HEAD}</script>`)}${STATS_STYLES}</style>
 </head>
 <body>
 ${topBar(origin, 'stats')}
@@ -119,7 +119,7 @@ ${topBar(origin, 'stats')}
   <p class="note">Visits to this page and the home page are not counted.</p>
 </main>
 ${footer(origin)}
-<script>${COPY_SCRIPT}${CHART_SCRIPT}</script>
+<script>${COPY_SCRIPT}${CHART_SCRIPT}${MOTION_SCRIPT}</script>
 </body>
 </html>
 `;

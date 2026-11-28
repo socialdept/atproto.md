@@ -39,3 +39,54 @@ export const CHART_SCRIPT = `
     });
   });
 })();`;
+
+
+// Sets html.motion before the page paints, so marks start hidden only when they will animate.
+export const MOTION_HEAD = `if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion');`;
+
+// Plays each panel's entrance as it comes into view: numbers the marks for the stagger, counts the figures up from
+// zero in their own format (commas and decimals kept), and marks the panel so the CSS animations run.
+export const MOTION_SCRIPT = `
+(() => {
+  const root = document.documentElement;
+  if (!root.classList.contains('motion')) return;
+  const number = (groups) => groups.forEach((g) => [...g].forEach((el, i) => el.style.setProperty('--i', i)));
+  number([...document.querySelectorAll('.strip')].map((s) => s.children));
+  number([...document.querySelectorAll('.cols')].map((c) => c.children));
+  number([...document.querySelectorAll('.hist')].map((h) => h.querySelectorAll('.hist__col span')));
+  number([...document.querySelectorAll('.meters')].map((m) => m.children));
+  number([...document.querySelectorAll('.meters')].map((m) => m.querySelectorAll('.ticks')));
+  number([...document.querySelectorAll('.map')].map((m) => m.querySelectorAll('.map__layer')));
+
+  const ease = (t) => 1 - Math.pow(1 - t, 4);
+  function count(el) {
+    const nodes = [];
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    while (walk.nextNode()) if (/\\d/.test(walk.currentNode.nodeValue)) nodes.push(walk.currentNode);
+    nodes.forEach((node) => {
+      const text = node.nodeValue;
+      const m = text.match(/\\d[\\d,]*(\\.\\d+)?/);
+      if (!m) return;
+      const target = parseFloat(m[0].replace(/,/g, ''));
+      const decimals = m[1] ? m[1].length - 1 : 0;
+      const commas = m[0].includes(',');
+      const fmt = (v) => { const s = v.toFixed(decimals); return commas ? Number(s).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : s; };
+      const start = performance.now(), dur = 700;
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / dur);
+        node.nodeValue = text.slice(0, m.index) + fmt(target * ease(t)) + text.slice(m.index + m[0].length);
+        if (t < 1) requestAnimationFrame(step);
+      };
+      node.nodeValue = text.slice(0, m.index) + fmt(0) + text.slice(m.index + m[0].length);
+      requestAnimationFrame(step);
+    });
+  }
+
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (!e.isIntersecting) return;
+    io.unobserve(e.target);
+    e.target.querySelectorAll('.hero-num, .tile__num').forEach(count);
+    e.target.classList.add('in');
+  }), { threshold: 0.15 });
+  document.querySelectorAll('main .tray').forEach((t) => io.observe(t));
+})();`;
