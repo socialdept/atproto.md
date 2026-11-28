@@ -314,6 +314,10 @@ export const LINE_SCRIPT = `
 
   function tick() {
     if (!path) return;
+    // Measured every frame: the header compacts once the page scrolls, which moves the whole page up, so a top or a
+    // height taken when the line was built goes stale and puts the head beside the line on the curves.
+    pageTop = page.getBoundingClientRect().top + scrollY;
+    maxScroll = Math.max(1, document.documentElement.scrollHeight - innerHeight);
     const eye = eyeTarget();
     // The edge sits 55% down the screen and slides to the bottom over the last stretch. It is set only while it moves.
     const cutTop = eye - (scrollY - pageTop);
