@@ -84,6 +84,10 @@ export const HOME_STYLES = `
 .path { grid-area: path; font-size: 14px; overflow-wrap: normal; }
 .desc { grid-area: desc; color: var(--muted); font-size: 14px; }
 .chips { grid-area: chips; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+/* A long path beside its chips would wrap, so that row puts the chips on a line of their own under the description,
+   the way phones lay out every row. The script sets ep--stack only on rows that need it. */
+.ep--stack summary { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "verb path chev" ". desc ." ". chips ."; }
+.ep--stack .chips { justify-content: flex-start; margin-top: 6px; }
 .chips i { font: 500 11px var(--mono); font-style: normal; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
 .chev { grid-area: chev; width: 16px; height: 16px; fill: none; stroke: var(--faint); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
 .ep[open] .chev { transform: rotate(180deg); }

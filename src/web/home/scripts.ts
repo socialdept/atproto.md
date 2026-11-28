@@ -389,3 +389,26 @@ export const LINE_SCRIPT = `
   document.fonts.ready.then(build);
   build();
 })();`;
+
+// Each endpoint row keeps its chips beside the path while the path fits on one line and the chips on one row. When
+// either would wrap, the row stacks the chips under the description. Measured after fonts load and on every resize,
+// ahead of the line script's own resize handler.
+export const ROWS_SCRIPT = `
+(() => {
+  const rows = [...document.querySelectorAll('details.ep')];
+  const lines = (el) => el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight || '20');
+  function fit() {
+    rows.forEach((row) => {
+      const chips = row.querySelector('.chips');
+      if (!chips || !chips.children.length) return;
+      row.classList.remove('ep--stack');
+      const path = row.querySelector('.path');
+      const chipRow = chips.children[0].getBoundingClientRect().height;
+      if (lines(path) > 1.5 || chips.getBoundingClientRect().height > chipRow * 1.5) row.classList.add('ep--stack');
+    });
+  }
+  // Runs before the line script, so the line is drawn around rows that have already settled.
+  fit();
+  document.fonts.ready.then(fit);
+  addEventListener('resize', fit);
+})();`;

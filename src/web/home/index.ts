@@ -4,7 +4,7 @@ import { COPY_SCRIPT, DESCRIPTION, footer, head, TABLE_SCRIPT, TITLE, topBar } f
 import { EXAMPLES, paramTable, ROUTES, XRPC_ROUTES } from './routes';
 import { INTRO_SCRIPT, INTRO_STYLES } from './intro';
 import { HOME_STYLES } from './styles';
-import { DEMO_SCRIPT, FIT_SCRIPT, LINE_SCRIPT } from './scripts';
+import { DEMO_SCRIPT, FIT_SCRIPT, LINE_SCRIPT, ROWS_SCRIPT } from './scripts';
 
 // --- Home page -------------------------------------------------------------------------------------------------
 // One line runs the length of the page: from the wordmark into the hero, from the request box down a rail past each
@@ -170,7 +170,7 @@ ${EXAMPLES.map(([label, value]) => `          <button class="chip" type="button"
   </div>
   ${footer(origin, false)}
 </main>
-<script>${FIT_SCRIPT}${TABLE_SCRIPT}${COPY_SCRIPT}${DEMO_SCRIPT}${LINE_SCRIPT}</script>
+<script>${FIT_SCRIPT}${TABLE_SCRIPT}${COPY_SCRIPT}${DEMO_SCRIPT}${ROWS_SCRIPT}${LINE_SCRIPT}</script>
 </body>
 </html>
 `;
