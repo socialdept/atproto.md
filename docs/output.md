@@ -32,7 +32,7 @@ Errors use the same format, with the HTTP status repeated in the body:
 
 ## Files and XRPC responses
 
-[`/repo/car`](endpoints/records.md#get-repocaractor) and [`/blob`](endpoints/records.md#get-blobactorcid) return files in place of JSON. [`/xrpc`](endpoints/xrpc.md) is the other exception: it passes each server's response on unchanged, in that server's own format, and its errors use the XRPC shape `{"error", "message"}`.
+[`/repo/car`](endpoints/records.md#get-repocaractor) and [`/blob`](endpoints/records.md#get-blobactorcid) redirect to the file in place of returning JSON. [`/xrpc`](endpoints/xrpc.md) is the other exception: it passes each server's response on unchanged, in that server's own format, and its errors use the XRPC shape `{"error", "message"}`.
 
 ## Pages for reading
 

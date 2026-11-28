@@ -34,8 +34,6 @@ beforeEach(() => {
 		if (url.origin === PDS && url.pathname === '/.well-known/oauth-protected-resource')
 			return json({ authorization_servers: ['https://entryway.example'] });
 		if (url.origin === PDS && url.pathname.endsWith('getRepoStatus')) return json({ did: DID, active: true });
-		if (url.pathname.endsWith('getBlob')) return new Response('img', { headers: { 'Content-Type': 'image/png' } });
-		if (url.pathname.endsWith('getRepo')) return new Response('car-bytes', { headers: { 'Content-Type': 'application/vnd.ipld.car' } });
 		if (url.pathname.endsWith('resolveHandle')) return json({ did: DID });
 		return json({ message: `unexpected ${url}` }, 500);
 	});
@@ -96,17 +94,16 @@ describe('did, repo and blob routes', () => {
 		expect(await (await get('/did/trace/alice.test')).json()).toMatchObject({ did: DID, handleVerified: true });
 	});
 
-	it('serves the repo as a CAR download at /repo/car', async () => {
+	it('redirects /repo/car to the PDS, which streams the repo', async () => {
 		const res = await get('/repo/car/alice.test');
-		expect(res.headers.get('Content-Type')).toBe('application/vnd.ipld.car');
-		expect(res.headers.get('Content-Disposition')).toBe('attachment; filename="did_plc_alice.car"');
-		expect(await res.text()).toBe('car-bytes');
+		expect(res.status).toBe(302);
+		expect(res.headers.get('Location')).toBe(`${PDS}/xrpc/com.atproto.sync.getRepo?did=did%3Aplc%3Aalice`);
 	});
 
-	it('serves a blob sandboxed, and redirects to the image CDN with transform options', async () => {
+	it('redirects a blob to the PDS, and to the image CDN with transform options', async () => {
 		const res = await get('/blob/alice.test/bafyimg');
-		expect(res.headers.get('Content-Type')).toBe('image/png');
-		expect(res.headers.get('Content-Security-Policy')).toBe("default-src 'none'; sandbox");
+		expect(res.status).toBe(302);
+		expect(res.headers.get('Location')).toBe(`${PDS}/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Aalice&cid=bafyimg`);
 		const cdn = await get('/blob/alice.test/bafyimg/p=avatar,f=webp');
 		expect(cdn.status).toBe(302);
 		expect(cdn.headers.get('Location')).toBe('https://img.infra.coop/blob/did%3Aplc%3Aalice/bafyimg/p=avatar,f=webp');

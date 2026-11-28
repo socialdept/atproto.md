@@ -34,10 +34,11 @@ Any other method answers `501` with `MethodNotImplemented`.
 
 ## Responses
 
-The upstream response is passed on unchanged: its status, its body and its `Content-Type`, whether that is JSON, a blob or a repo CAR file. An `X-Upstream-Host` header names the server that answered. Cookies and other upstream headers are left behind.
+The upstream response is passed on unchanged: its status, its body and its `Content-Type`. An `X-Upstream-Host` header names the server that answered. Cookies and other upstream headers are left behind.
 
-- **Caching:** blobs are addressed by their CID and never change, so `getBlob` is cached for a day. Everything else is cached for 60 seconds. Errors are not cached.
-- **Blobs are sandboxed:** every response carries `Content-Security-Policy: default-src 'none'; sandbox` and `X-Content-Type-Options: nosniff`, so a file an account uploaded never runs as a page on atproto.md.
+- **Blobs and repos redirect:** `com.atproto.sync.getBlob` and `com.atproto.sync.getRepo` answer with a redirect to the account's PDS, which is built to stream files and whole repos. Clients that follow redirects, as SDKs and `curl -L` do, get the file from the PDS.
+- **Caching:** responses are cached for 60 seconds, and redirects for 5 minutes. Errors are not cached.
+- **Nothing runs as a page:** every response carries `Content-Security-Policy: default-src 'none'; sandbox` and `X-Content-Type-Options: nosniff`.
 - **CORS:** every response allows any origin, so browser apps can call it directly.
 
 Errors from atproto.md itself use the XRPC error shape, `{"error": "...", "message": "..."}`:

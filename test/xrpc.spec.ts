@@ -25,7 +25,6 @@ beforeEach(() => {
 				service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }],
 			});
 		}
-		if (url.pathname.endsWith('getBlob')) return new Response('bytes', { headers: { 'Content-Type': 'text/html', 'Set-Cookie': 'a=b' } });
 		return json({ from: url.host, repo: url.searchParams.get('repo'), did: url.searchParams.get('did') });
 	});
 });
@@ -63,12 +62,13 @@ describe('xrpc', () => {
 		expect(calls.some((c) => c.startsWith(PDS))).toBe(false);
 	});
 
-	it("serves a blob sandboxed, cached for a day, without the upstream's cookies", async () => {
-		const res = await call('com.atproto.sync.getBlob?did=alice.test&cid=bafy');
-		expect(res.headers.get('Content-Security-Policy')).toBe("default-src 'none'; sandbox");
-		expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
-		expect(res.headers.get('Cache-Control')).toBe('public, max-age=86400');
-		expect(res.headers.get('Set-Cookie')).toBeNull();
+	it('redirects blobs and whole repos to the PDS without fetching them', async () => {
+		const blob = await call('com.atproto.sync.getBlob?did=alice.test&cid=bafy');
+		expect(blob.status).toBe(302);
+		expect(blob.headers.get('Location')).toBe(`${PDS}/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Aalice&cid=bafy`);
+		const repo = await call('com.atproto.sync.getRepo?did=alice.test');
+		expect(repo.headers.get('Location')).toBe(`${PDS}/xrpc/com.atproto.sync.getRepo?did=did%3Aplc%3Aalice`);
+		expect(calls.some((c) => c.startsWith(PDS))).toBe(false);
 	});
 
 	it('refuses a signed-in call without forwarding it', async () => {

@@ -9,8 +9,8 @@ export function llmsTxt(origin: string): string {
 - [List records](${origin}/at://{actor}/{collection}): records newest first. Params: limit (25, at most 100), cursor, reverse, expand
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): one record with blob URLs. Param: expand
 - [Get many](${origin}/get?uri={address}&uri={address}): up to 25 records by at:// URI or web link in one call. Param: expand
-- [Blob](${origin}/blob/{actor}/{cid}): a blob as uploaded. Add transform options such as /p=avatar or /w=400,f=webp to redirect to a resized copy from the co/infra image CDN (https://github.com/co-infra/co-infra-img)
-- [Repo CAR](${origin}/repo/car/{actor}): the whole repo as a CAR file download
+- [Blob](${origin}/blob/{actor}/{cid}): redirects to the blob on its PDS. Add transform options such as /p=avatar or /w=400,f=webp to redirect to a resized copy from the co/infra image CDN (https://github.com/co-infra/co-infra-img)
+- [Repo CAR](${origin}/repo/car/{actor}): redirects to the whole repo as a CAR file on its PDS
 
 labels on a record route attaches each record's labels, author its account's, and labelers chooses who to ask. expand also returns the records the results reference (reply parent and root, quoted post, like or repost subject), one level deep, under expanded.
 
@@ -136,8 +136,8 @@ GET ${origin}/get?uri={address}&uri=...                     {records, errors, ex
 GET ${origin}/resolve/{actor}                               same as /at://{actor}
 GET ${origin}/did/doc/{actor}                               the DID document
 GET ${origin}/did/trace/{actor}                             {did, handle, handleVerified, pds, entryway, ok, steps}
-GET ${origin}/blob/{actor}/{cid}[/{params}]                 a blob, or a redirect to a resized copy
-GET ${origin}/repo/car/{actor}                              the whole repo as a CAR file
+GET ${origin}/blob/{actor}/{cid}[/{params}]                 redirect to the blob, or to a resized copy
+GET ${origin}/repo/car/{actor}                              redirect to the repo CAR file
 GET ${origin}/plc/data/{actor}                              current PLC state
 GET ${origin}/plc/audit/{actor}                             {did, operations}
 GET ${origin}/plc/last/{actor}                              {did, operation}
@@ -148,7 +148,7 @@ GET ${origin}/lexicon/{nsid}                                {nsid, authority, di
 GET ${origin}/backlinks/{target}                            {target, total, sources}
 GET ${origin}/backlinks/{target}?source={collection:path}   {target, source, total, cursor, records}
 GET ${origin}/xrpc/com.atproto.repo.*?repo={actor}&...      sent to the account's PDS
-GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS: blobs, repo CAR files
+GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS, blobs and repos as redirects
 GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
 GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
 GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view

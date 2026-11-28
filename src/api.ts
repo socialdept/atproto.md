@@ -195,15 +195,10 @@ export async function traceActor(input: string) {
 	return trace(await actorOf(input));
 }
 
-/** The account's whole repo as a CAR file, streamed from its PDS. */
-export async function repoCar(input: string): Promise<{ did: string; body: ReadableStream | null; status: number; type: string }> {
+/** Where the account's PDS serves its whole repo as a CAR file. */
+export async function repoCarUrl(input: string): Promise<string> {
 	const actor = await resolveActor(await actorOf(input));
-	const res = await fetch(`${actor.pds}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(actor.did)}`);
-	if (!res.ok) {
-		const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-		throw { status: res.status, message: (err.message as string) || `The PDS answered ${res.status}.`, upstream: 'pds' };
-	}
-	return { did: actor.did, body: res.body, status: res.status, type: res.headers.get('Content-Type') ?? 'application/vnd.ipld.car' };
+	return `${actor.pds}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(actor.did)}`;
 }
 
 export type PlcView = 'data' | 'audit' | 'last';

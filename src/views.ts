@@ -175,8 +175,8 @@ GET ${origin}/at://{actor}                                  DID, handle, PDS, en
 GET ${origin}/at://{actor}/{collection}                     records, newest first
 GET ${origin}/at://{actor}/{collection}/{rkey}              one record
 GET ${origin}/get?uri={address}&uri={address}               up to 25 records in one call
-GET ${origin}/blob/{actor}/{cid}[/{params}]                 a blob, or with params a resized copy from the co/infra image CDN
-GET ${origin}/repo/car/{actor}                              the whole repo as a CAR file
+GET ${origin}/blob/{actor}/{cid}[/{params}]                 redirect to the blob, or with params to a resized copy
+GET ${origin}/repo/car/{actor}                              redirect to the repo CAR file
 \`\`\`
 
 - \`{actor}\` is a handle or DID. A \`{address}\` is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
@@ -218,7 +218,7 @@ Set \`${origin}\` as the service URL of any AT Protocol SDK. Each query goes to 
 
 \`\`\`
 GET ${origin}/xrpc/com.atproto.repo.*?repo={actor}&...      sent to the account's PDS
-GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS: blobs, repo CAR files
+GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS, blobs and repos as redirects
 GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
 GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
 GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view

@@ -59,22 +59,22 @@ Each actor is resolved once per call. An address that fails goes into `errors` a
 
 ## `GET /blob/{actor}/{cid}`
 
-A blob (an image, video or other file) as its account uploaded it, with its own `Content-Type`. It is served the way [`/xrpc`](xrpc.md) serves `com.atproto.sync.getBlob`: cached for a day, since a CID never changes, and sandboxed, so a file never runs as a page on atproto.md. Errors use the XRPC shape.
+A blob (an image, video or other file) as its account uploaded it. The response is a redirect to the account's PDS, which serves the file through `com.atproto.sync.getBlob`, so the file never passes through atproto.md. Errors use the XRPC shape.
 
-Add transform options after the CID and the response is a redirect to the [co/infra image CDN](https://github.com/co-infra/co-infra-img), which resizes, crops and reformats the image and caches the result. The options are the CDN's own, comma separated, including presets such as `p=avatar`, `p=thumb` and `p=card`:
+Add transform options after the CID and the redirect goes to the [co/infra image CDN](https://github.com/co-infra/co-infra-img), which resizes, crops and reformats the image and caches the result. The options are the CDN's own, comma separated, including presets such as `p=avatar`, `p=thumb` and `p=card`:
 
 ```bash
 curl -L https://atproto.md/blob/bsky.app/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka/p=avatar
 ```
 
-The handle is resolved to its DID before the redirect, so the CDN address works on its own afterwards.
+The handle is resolved to its DID before either redirect, so the address it points to works on its own afterwards.
 
 ## `GET /repo/car/{actor}`
 
-The account's whole repo as a CAR file, streamed from its PDS through `com.atproto.sync.getRepo`, as a download named after the DID. Use it for backups and indexing. The PDS's own rate limits apply, and a large repo takes a while.
+The account's whole repo as a CAR file, for backups and indexing. The response is a redirect to the account's PDS, which streams the repo through `com.atproto.sync.getRepo`. The PDS's own rate limits apply, and a large repo takes a while.
 
 ```bash
-curl -o repo.car https://atproto.md/repo/car/bsky.app
+curl -L -o repo.car https://atproto.md/repo/car/bsky.app
 ```
 
 ## Links

@@ -25,9 +25,13 @@ const PASS = [
 // Blobs are whatever the account uploaded, so nothing proxied may run as a page on this origin.
 const SAFE = { 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff' };
 
-// A blob is addressed by its CID and never changes, so it can be cached for long. Everything else for a minute.
-const BLOB_TTL = 86400;
+// Responses are cached for a minute.
 const TTL = 60;
+
+// Blobs and whole repos are sent on to the PDS with a redirect, since the PDS is built to stream them.
+const REDIRECTS = new Set(['com.atproto.sync.getBlob', 'com.atproto.sync.getRepo']);
+// Where a redirect points stays the same until the account moves, so a client may keep it for five minutes.
+const REDIRECT_TTL = 300;
 
 const xrpcError = (status: number, error: string, message: string): Response =>
 	new Response(JSON.stringify({ error, message }), {
@@ -123,24 +127,30 @@ export async function xrpc(request: Request, url: URL): Promise<Response> {
 
 		const upstream = new URL(`${target.base}/xrpc/${method}`);
 		upstream.search = target.params.toString();
-		const ttl = method === 'com.atproto.sync.getBlob' ? BLOB_TTL : TTL;
+		const host = new URL(target.base).host;
+		if (REDIRECTS.has(method)) {
+			return new Response(null, {
+				status: 302,
+				headers: { ...CORS, Location: upstream.toString(), 'X-Upstream-Host': host, 'Cache-Control': `public, max-age=${REDIRECT_TTL}` },
+			});
+		}
 		let res: Response;
 		try {
 			res = await fetch(upstream.toString(), {
 				method: request.method,
 				headers: { Accept: request.headers.get('Accept') ?? '*/*' },
-				cf: { cacheTtl: ttl, cacheEverything: true },
+				cf: { cacheTtl: TTL, cacheEverything: true },
 			} as RequestInit);
 		} catch {
-			return xrpcError(502, 'UpstreamFailure', `Could not reach ${new URL(target.base).host}.`);
+			return xrpcError(502, 'UpstreamFailure', `Could not reach ${host}.`);
 		}
 
-		const headers = new Headers({ ...CORS, ...SAFE, 'X-Upstream-Host': new URL(target.base).host });
+		const headers = new Headers({ ...CORS, ...SAFE, 'X-Upstream-Host': host });
 		for (const h of PASS) {
 			const v = res.headers.get(h);
 			if (v) headers.set(h, v);
 		}
-		headers.set('Cache-Control', res.ok ? `public, max-age=${ttl}` : 'no-store');
+		headers.set('Cache-Control', res.ok ? `public, max-age=${TTL}` : 'no-store');
 		return new Response(res.body, { status: res.status, headers });
 	} catch (err: unknown) {
 		const error = err as { status?: number; message?: string };

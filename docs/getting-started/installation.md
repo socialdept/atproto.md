@@ -33,4 +33,4 @@ Run `npm run cf-typegen` (`wrangler types`) after changing bindings in `wrangler
 npm run deploy   # wrangler deploy
 ```
 
-Responses are cached for 60 seconds, and blobs passed through `/xrpc` for a day. Errors are not cached. The Worker has no rate limiting of its own, so the upstream PDS, relay and index limits apply. If you expect significant traffic, add rate limiting per IP, for example backed by Cloudflare KV.
+Responses are cached for 60 seconds, and redirects for 5 minutes. Errors are not cached. Blobs and whole repos are redirected to the account's PDS, so they never stream through the Worker. The Worker has no rate limiting of its own, so the upstream PDS, relay and index limits apply. If you expect significant traffic, add rate limiting per IP, for example backed by Cloudflare KV.

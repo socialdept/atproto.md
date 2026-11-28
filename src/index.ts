@@ -11,7 +11,7 @@ import {
 	listRecords,
 	MAX_BATCH,
 	plc,
-	repoCar,
+	repoCarUrl,
 	resolve,
 	traceActor,
 } from './api';
@@ -178,8 +178,9 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 			return data(view === 'doc' ? await didDocument(input) : await traceActor(input));
 		}
 
-		// A blob: /blob/{actor}/{cid} is the original file, served the way /xrpc serves getBlob. With transform options
-		// after it, /blob/{actor}/{cid}/{params} redirects to the co/infra image CDN, which resizes and reformats it.
+		// A blob: /blob/{actor}/{cid} redirects to the original file on the account's PDS, the way /xrpc does for getBlob.
+		// With transform options after it, /blob/{actor}/{cid}/{params} redirects to the co/infra image CDN, which resizes
+		// and reformats it.
 		if (segments[0] === 'blob') {
 			const [, actor, cid, params] = segments.map(decodeURIComponent);
 			if (!actor || !cid || !/^[A-Za-z0-9]+$/.test(cid))
@@ -200,21 +201,15 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 			return xrpc(new Request(blob, { headers: request.headers }), blob);
 		}
 
-		// The repo namespace: /repo/car/{actor} is the whole repo as a CAR file.
+		// The repo namespace: /repo/car/{actor} redirects to the PDS, which streams the whole repo as a CAR file.
 		if (segments[0] === 'repo') {
 			const view = segments[1];
 			const input = decodeURIComponent(segments.slice(2).join('/')).replace(/\.car$/, '');
 			if (view !== 'car') return usage('Usage: /repo/car/{handle-or-did}');
 			if (!input) return usage('Usage: /repo/car/{handle-or-did}, for example /repo/car/bsky.app');
-			const car = await repoCar(input);
-			return new Response(car.body, {
-				status: car.status,
-				headers: {
-					...CORS,
-					'Content-Type': car.type,
-					'Content-Disposition': `attachment; filename="${car.did.replace(/[^A-Za-z0-9._-]/g, '_')}.car"`,
-					'Cache-Control': 'public, max-age=60',
-				},
+			return new Response(null, {
+				status: 302,
+				headers: { ...CORS, Location: await repoCarUrl(input), 'Cache-Control': 'public, max-age=300' },
 			});
 		}
 
