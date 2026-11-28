@@ -1,5 +1,5 @@
 import { createMcpHandler } from 'agents/mcp';
-import { backlinks, didDocument, discover, getRecord, getRecords, lexicon, listRecords, MAX_BATCH, plc, repoCar, resolve, traceActor } from './api';
+import { backlinks, didDocument, knownLabelers, labels, discover, getRecord, getRecords, lexicon, listRecords, MAX_BATCH, plc, repoCar, resolve, traceActor } from './api';
 import {
 	faviconSvg,
 	htmlIndexPage,
@@ -94,6 +94,9 @@ const flag = (url: URL, name: string): boolean => {
 	return v !== null && v !== 'false' && v !== '0';
 };
 
+// The label options every record route takes.
+const labelOpts = (url: URL) => ({ labels: flag(url, 'labels'), author: flag(url, 'author'), labelers: url.searchParams.get('labelers') ?? undefined });
+
 const int = (url: URL, name: string): number | undefined => {
 	const v = url.searchParams.get(name);
 	const n = v === null ? NaN : parseInt(v, 10);
@@ -138,6 +141,14 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 			if (!input) return usage('Usage: /resolve/{handle-or-did}');
 			return data(await resolve(input));
 		}
+
+		// Labels on a record or an account, from Bluesky's moderation labeler or the labelers named.
+		if (segments[0] === 'labels') {
+			const target = decodeURIComponent(url.pathname.slice('/labels/'.length));
+			if (!target) return usage('Usage: /labels/{at-uri-or-handle-or-did-or-link}');
+			return data(await labels(target, { author: flag(url, 'author'), labelers: url.searchParams.get('labelers') ?? undefined }));
+		}
+		if (segments[0] === 'labelers' && segments.length === 1) return data(knownLabelers());
 
 		// The DID namespace: /did/doc/{actor} is the DID document, /did/trace/{actor} every step of resolving it.
 		if (segments[0] === 'did') {
@@ -218,7 +229,7 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 		if (segments[0] === 'get') {
 			const uris = url.searchParams.getAll('uri').flatMap((u) => u.split(/\s+/)).filter(Boolean);
 			if (!uris.length) return usage(`Usage: /get?uri={at-uri}&uri={at-uri}, up to ${MAX_BATCH} records`);
-			return data(await getRecords(uris, { expand: flag(url, 'expand') }));
+			return data(await getRecords(uris, { expand: flag(url, 'expand'), ...labelOpts(url) }));
 		}
 
 		// All remaining routes are AT URIs, /at://{actor}[/{collection}[/{rkey}]], or a web link in their place,
@@ -239,10 +250,11 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 					cursor: url.searchParams.get('cursor') ?? undefined,
 					reverse: flag(url, 'reverse'),
 					expand: flag(url, 'expand'),
+					...labelOpts(url),
 				}),
 			);
 		}
-		return data(await getRecord(atUri, { expand: flag(url, 'expand') }));
+		return data(await getRecord(atUri, { expand: flag(url, 'expand'), ...labelOpts(url) }));
 	} catch (err: unknown) {
 		const error = err as { status?: number; message?: string; upstream?: string };
 		const status = error?.status ?? 502;

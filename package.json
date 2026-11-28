@@ -10,7 +10,8 @@
     "og": "node scripts/gen-og.mjs",
     "cf-typegen": "wrangler types",
     "og:glyphs": "node scripts/og-glyphs.mjs",
-    "world:grid": "node scripts/world-grid.mjs"
+    "world:grid": "node scripts/world-grid.mjs",
+    "labelers": "node scripts/labelers.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",

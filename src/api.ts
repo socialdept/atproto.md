@@ -9,6 +9,8 @@ import { blobUrl, collectBlobCids, collectRecordUris, parseTarget } from './refs
 import { toAddress } from './links';
 import { listReposByCollection } from './relay';
 import { trace } from './trace';
+import { pickLabelers, queryLabels, type Label, type LabelerResult } from './labels';
+import { DEFAULT_LABELER, LABELERS } from './labelers';
 import type { Actor, AtpRecord, PlcLogEntry } from './types';
 
 // The account an address names, from an at:// URI, a handle, a DID or a web link.
@@ -22,6 +24,34 @@ export interface RecordOut {
 	cid?: string;
 	value: Record<string, unknown>;
 	blobs?: string[];
+	labels?: Label[];
+	authorLabels?: Label[];
+}
+
+export interface LabelOptions {
+	/** Attach each record's labels. */
+	labels?: boolean;
+	/** Which labelers to ask: Bluesky's moderation labeler by default, "all", or handles and DIDs. */
+	labelers?: string;
+	/** Also attach the labels on each record's account. Implies labels. */
+	author?: boolean;
+}
+
+const didOfUri = (uri: string): string => uri.slice('at://'.length).split('/')[0];
+
+// Labels on a set of records, asked once per labeler for the whole set. Returns how each labeler answered, or nothing
+// when labels were not asked for.
+async function attachLabels(records: RecordOut[], options: LabelOptions): Promise<{ labelers?: LabelerResult[] }> {
+	if (!(options.labels || options.author) || !records.length) return {};
+	const labelers = await pickLabelers(options.labelers);
+	const subjects = new Set(records.map((r) => r.uri));
+	if (options.author) for (const r of records) subjects.add(didOfUri(r.uri));
+	const found = await queryLabels([...subjects], labelers);
+	for (const r of records) {
+		r.labels = found.bySubject.get(r.uri) ?? [];
+		if (options.author) r.authorLabels = found.bySubject.get(didOfUri(r.uri)) ?? [];
+	}
+	return { labelers: found.labelers };
 }
 
 /** Resolves each actor once per request, so a batch of records from one repo costs one resolution. */
@@ -131,6 +161,26 @@ export function pdsSinceOf(log: PlcLogEntry[]): string | null {
 	return since;
 }
 
+/** The labels on a record or an account. With author, a record's account labels come too. */
+export async function labels(input: string, options: Omit<LabelOptions, 'labels'> = {}) {
+	const { actor, collection, rkey } = parseTarget(await toAddress(input));
+	const did = await resolveToDid(actor);
+	const target = collection && rkey ? `at://${did}/${collection}/${rkey}` : did;
+	const withAuthor = !!options.author && target !== did;
+	const found = await queryLabels(withAuthor ? [target, did] : [target], await pickLabelers(options.labelers));
+	return {
+		target,
+		labels: found.bySubject.get(target) ?? [],
+		...(withAuthor ? { authorLabels: found.bySubject.get(did) ?? [] } : {}),
+		labelers: found.labelers,
+	};
+}
+
+/** The known labelers that "all" asks, and the default one. */
+export function knownLabelers() {
+	return { default: DEFAULT_LABELER, labelers: LABELERS };
+}
+
 /** The account's DID document, exactly as plc.directory or the did:web domain serves it. */
 export async function didDocument(input: string) {
 	return (await resolveActor(await actorOf(input))).doc;
@@ -163,7 +213,7 @@ export async function plc(input: string, view: PlcView) {
 
 // --- Records --------------------------------------------------------------------------------------------------
 
-export interface ListOptions {
+export interface ListOptions extends LabelOptions {
 	limit?: number;
 	cursor?: string;
 	reverse?: boolean;
@@ -184,6 +234,7 @@ export async function listRecords(actorInput: string, collection: string, option
 		entrywayOf(actor.pds),
 	]);
 	const records = ((data.records as AtpRecord[]) ?? []).map((r) => recordOut(actor, r));
+	const labelled = await attachLabels(records, options);
 	return {
 		did: actor.did,
 		handle: actor.handle,
@@ -192,19 +243,21 @@ export async function listRecords(actorInput: string, collection: string, option
 		collection,
 		cursor: (data.cursor as string | undefined) ?? null,
 		records,
+		...labelled,
 		...(options.expand ? { expanded: await expandRefs(resolver, records) } : {}),
 	};
 }
 
 /** One record, as served at /at://{actor}/{collection}/{rkey}. */
-export async function getRecord(input: string, options: { expand?: boolean } = {}) {
+export async function getRecord(input: string, options: { expand?: boolean } & LabelOptions = {}) {
 	const resolver = new Resolver();
 	const record = await fetchRecord(resolver, input);
-	return options.expand ? { ...record, expanded: await expandRefs(resolver, [record]) } : record;
+	const labelled = await attachLabels([record], options);
+	return { ...record, ...labelled, ...(options.expand ? { expanded: await expandRefs(resolver, [record]) } : {}) };
 }
 
 /** Up to MAX_BATCH records by address, fetched in parallel. A failed address goes to `errors`, never the whole call. */
-export async function getRecords(inputs: string[], options: { expand?: boolean } = {}) {
+export async function getRecords(inputs: string[], options: { expand?: boolean } & LabelOptions = {}) {
 	if (!inputs.length) throw { status: 400, message: 'Pass at least one record address.' };
 	if (inputs.length > MAX_BATCH) throw { status: 400, message: `At most ${MAX_BATCH} records per call. ${inputs.length} were passed.` };
 
@@ -220,9 +273,11 @@ export async function getRecords(inputs: string[], options: { expand?: boolean }
 	);
 	const records = settled.flatMap((s) => (s.record ? [s.record] : []));
 	const errors = settled.flatMap((s) => (s.error ? [s.error] : []));
+	const labelled = await attachLabels(records, options);
 	return {
 		records,
 		...(errors.length ? { errors } : {}),
+		...labelled,
 		...(options.expand ? { expanded: await expandRefs(resolver, records) } : {}),
 	};
 }

@@ -324,7 +324,7 @@ const idTypeOf = (s?: string): string | undefined =>
 	s?.startsWith('did:plc:') ? 'plc' : s?.startsWith('did:web:') ? 'web' : s ? 'handle' : undefined;
 
 const paramFlags = (url: URL): string[] =>
-	['cursor', 'reverse', 'limit', 'source', 'expand', 'hydrate', 'format'].filter((p) => url.searchParams.has(p)).map((p) => `param:${p}`);
+	['cursor', 'reverse', 'limit', 'source', 'expand', 'hydrate', 'labels', 'labelers', 'author', 'format'].filter((p) => url.searchParams.has(p)).map((p) => `param:${p}`);
 
 export interface HttpClass {
 	key: string;
@@ -365,6 +365,8 @@ export function classifyHttp(url: URL): HttpClass | null {
 	if (head === 'backlinks') {
 		return { key: 'route:backlinks', selector: url.searchParams.get('source') ?? undefined, flags };
 	}
+	if (head === 'labels') return { key: 'route:labels', flags };
+	if (head === 'labelers') return { key: 'route:labelers' };
 	if (head === 'blob') return { key: 'route:blob', idType: idTypeOf(segments[1]) };
 	if (head === 'did' || head === 'repo') return { key: `route:${head}/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
 	if (head === 'xrpc') {

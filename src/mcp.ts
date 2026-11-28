@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { backlinks, didDocument, discover, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve, traceActor } from './api';
+import { backlinks, didDocument, labels, discover, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve, traceActor } from './api';
 import { recordSession, recordVisit } from './stats';
 import { version } from '../package.json';
 
@@ -30,6 +30,8 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 		if (args.source) flags.push('param:source');
 		if (args.expand) flags.push('param:expand');
 		if (args.hydrate) flags.push('param:hydrate');
+		if (args.labels) flags.push('param:labels');
+		if (args.author) flags.push('param:author');
 		return { collection, idType, selector: args.source as string | undefined, flags };
 	};
 
@@ -75,8 +77,11 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 		{
 			uris: z.array(z.string()).min(1).max(MAX_BATCH).describe('Record addresses: at://{actor}/{collection}/{rkey} or a link to the record from an Atmosphere app or page'),
 			expand: z.boolean().default(false).describe('Also fetch the records these reference, under expanded'),
+			labels: z.boolean().default(false).describe('Attach each record\'s labels, from Bluesky\'s moderation labeler unless labelers says otherwise'),
+			labelers: z.string().optional().describe('"all", or labeler handles and DIDs separated by commas'),
+			author: z.boolean().default(false).describe('Also attach the labels on each record\'s account'),
 		},
-		tracked('get', async ({ uris, expand }) => json(await getRecords(uris, { expand }))),
+		tracked('get', async ({ uris, expand, labels, labelers, author }) => json(await getRecords(uris, { expand, labels, labelers, author }))),
 	);
 
 	server.tool(
@@ -89,9 +94,12 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 			cursor: z.string().optional().describe('cursor from the previous page'),
 			reverse: z.boolean().default(false).describe('Oldest first'),
 			expand: z.boolean().default(false).describe(`Also fetch up to ${MAX_BATCH} records these reference, under expanded`),
+			labels: z.boolean().default(false).describe('Attach each record\'s labels, from Bluesky\'s moderation labeler unless labelers says otherwise'),
+			labelers: z.string().optional().describe('"all", or labeler handles and DIDs separated by commas'),
+			author: z.boolean().default(false).describe('Also attach the labels on each record\'s account'),
 		},
-		tracked('list_records', async ({ actor, collection, limit, cursor, reverse, expand }) =>
-			json(await listRecords(actor, collection, { limit, cursor, reverse, expand })),
+		tracked('list_records', async ({ actor, collection, limit, cursor, reverse, expand, labels, labelers, author }) =>
+			json(await listRecords(actor, collection, { limit, cursor, reverse, expand, labels, labelers, author })),
 		),
 	);
 
@@ -117,6 +125,17 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 			cursor: z.string().optional(),
 		},
 		tracked('discover', async ({ collection, limit, cursor }) => json(await discover(collection, limit, cursor))),
+	);
+
+	server.tool(
+		'labels',
+		'The labels on a record or an account, from Bluesky\'s moderation labeler by default. Pass labelers as "all" for every known labeler (the list is at /labelers), or as handles and DIDs separated by commas. Negated and expired labels are left out. author also returns the labels on a record\'s account.',
+		{
+			target: z.string().describe('An at:// record URI, a handle, a DID, or a link to a post or profile'),
+			labelers: z.string().optional().describe('"all", or handles and DIDs separated by commas. Bluesky\'s moderation labeler when left out'),
+			author: z.boolean().default(false).describe('For a record, also return the labels on its account'),
+		},
+		tracked('labels', async ({ target, labelers, author }) => json(await labels(target, { labelers, author }))),
 	);
 
 	server.tool(

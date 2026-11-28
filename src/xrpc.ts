@@ -1,6 +1,8 @@
 import { CORS } from './http';
 import { resolveActor, resolveDidDoc, resolveToDid } from './identity';
 import { RELAY } from './relay';
+import { DEFAULT_LABELER } from './labelers';
+import { labelerEndpoint } from './labels';
 
 // One XRPC endpoint for the whole network: /xrpc/{method} with the same query an atproto server takes. Identity
 // methods are answered here. Repo and sync methods that name an account go to that account's PDS, a handle in
@@ -77,6 +79,15 @@ async function route(method: string, params: URLSearchParams): Promise<{ base: s
 		const out = new URLSearchParams(params);
 		out.set(name, actor.did);
 		return { base: actor.pds, params: out };
+	}
+	// Labels are asked of the labeler named in sources, Bluesky's moderation labeler when none is. /labels asks several.
+	if (method === 'com.atproto.label.queryLabels') {
+		const sources = params.getAll('sources');
+		if (sources.length > 1) throw { status: 400, message: 'Name one labeler in sources. /labels/{target}?labelers= asks several at once.' };
+		const did = sources[0] ? await resolveToDid(sources[0]) : DEFAULT_LABELER;
+		const out = new URLSearchParams(params);
+		out.set('sources', did);
+		return { base: await labelerEndpoint(did), params: out };
 	}
 	if (method.startsWith('com.atproto.sync.')) return { base: RELAY, params };
 	if (method.startsWith('app.bsky.')) return { base: APPVIEW, params };

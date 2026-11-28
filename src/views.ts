@@ -35,6 +35,8 @@ const ROUTE_LABELS: Record<string, string> = {
 	'did/trace': '/did/trace/{actor}',
 	'repo/car': '/repo/car/{actor}',
 	blob: '/blob/{actor}/{cid}',
+	labels: '/labels/{target}',
+	labelers: '/labelers',
 	xrpc: '/xrpc/{method}',
 	'plc/audit': '/plc/audit/{actor}',
 	'plc/data': '/plc/data/{actor}',
