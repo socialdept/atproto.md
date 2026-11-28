@@ -1,63 +1,78 @@
 // The brand art: the Open Graph card and the ATMD mark, as SVG strings (rasterizers do not read CSS variables).
-import { OG_GLYPHS } from '../og-glyphs';
+import { FIGURES, OG_GLYPHS, TOOLS } from '../og-glyphs';
 import { C, pixelBox } from './kit';
 
-// 1200x630 social card: the footer drawing. The line comes in from the top to the stepped hub ("atproto.md/" and the
-// cursor) and its ring, then fans out to real PDS hosts on notched badges, over "Every PDS. One address.". All text
-// is outlined in src/og-glyphs.ts, so it renders the same without web fonts. scripts/gen-og.mjs rasterizes it to
-// public/og.png.
+// 1200x630 social card: the MCP server answering a question about a post. The hub ("atproto.md/mcp" and its cursor)
+// fans out to the seven tools on notched badges, with backlinks lit, over the question and the four counts it returned
+// for a real bsky.app post, on a white to tray grey gradient. All text is outlined in src/og-glyphs.ts, so it renders
+// the same without web fonts. scripts/gen-og.mjs rasterizes it to public/og.png.
 export function ogImageSvg(): string {
 	const BLUE = '#2a78d6';
-	const text = (key: string, x: number, baseline: number, size: number, fill: string, anchor: 'start' | 'middle' = 'start') => {
-		const g = OG_GLYPHS[key];
-		const s = size / g.upm;
-		const left = anchor === 'middle' ? x - (g.width * s) / 2 : x;
-		return `<path transform="translate(${+left.toFixed(2)} ${baseline}) scale(${+s.toFixed(5)})" d="${g.d}" fill="${fill}"/>`;
+	const g = (key: string) => OG_GLYPHS[key];
+	const widthOf = (key: string, size: number) => (g(key).width * size) / g(key).upm;
+	// A run placed in a CSS line box: the baseline sits where a browser puts it for that line height.
+	const text = (key: string, x: number, lineTop: number, lineHeight: number, size: number, fill: string) => {
+		const run = g(key);
+		const s = size / run.upm;
+		const baseline = lineTop + (lineHeight - (run.asc - run.desc) * s) / 2 + run.asc * s;
+		return `<path transform="translate(${+x.toFixed(2)} ${+baseline.toFixed(2)}) scale(${+s.toFixed(5)})" d="${run.d}" fill="${fill}"/>`;
 	};
 	const box = (x: number, y: number, w: number, h: number, p: number, ins: number[], stroke: string, fill: string, sw: number) =>
 		`<path d="${pixelBox(x, y, w, h, p, ins)}" fill="${stroke}"/><path d="${pixelBox(x + sw, y + sw, w - sw * 2, h - sw * 2, p, ins)}" fill="${fill}"/>`;
 
-	// The fan: six hosts on an arc, each badge tilted a little, each line meeting the middle of its top edge.
-	const cx = 600,
-		hubY = 64,
-		hubH = 68,
-		fanTop = hubY + hubH + 8;
-	const hosts = ['bsky.network', 'eurosky.social', 'pds.rip', 'selfhosted.social', 'tngl.sh', 'blacksky.app'];
-	const xs = [130, 318, 506, 694, 882, 1070],
-		ys = [300, 345, 372, 372, 345, 300],
-		tilt = [-3, 2, -1.5, 2, -2, 3];
-	const lines = xs
-		.map(
-			(x, i) =>
-				`<path d="M${cx} ${fanTop}C${cx} ${fanTop + 80} ${x} ${ys[i] - 110} ${x} ${ys[i] - 16}" fill="none" stroke="${BLUE}" stroke-width="2.5"/>`,
-		)
-		.join('');
-	const badges = hosts
-		.map((h, i) => {
-			const w = (OG_GLYPHS[h].width * 18) / OG_GLYPHS[h].upm + 34;
-			return `<g transform="rotate(${tilt[i]} ${xs[i]} ${ys[i] - 18})">${box(xs[i] - w / 2, ys[i] - 18, w, 36, 3, [1], BLUE, '#ffffff', 1.5)}${text(h, xs[i], ys[i] + 6, 18, BLUE, 'middle')}</g>`;
-		})
-		.join('');
-
-	// The hub and its ring, with "atproto.md/" and the cursor centered as one group.
-	const hubW = 300,
-		hubX = cx - hubW / 2;
-	const label = OG_GLYPHS.hub,
-		labelW = (label.width * 28) / label.upm,
-		group = labelW + 6 + 15,
-		gx = cx - group / 2;
+	// The hub, centered: 34px in on the left, 30px on the right, the cursor 6px after the text.
+	const hubText = widthOf('hub', 30),
+		hubW = 2 + 34 + hubText + 6 + 15 + 30,
+		hubX = 600 - hubW / 2,
+		hubY = 52;
 	const hub =
-		box(hubX - 7, hubY - 7, hubW + 14, hubH + 14, 4, [3, 1, 1], BLUE, C.bg, 2.5) +
-		box(hubX, hubY, hubW, hubH, 4, [3, 1, 1], C.ink, C.ink, 1.5) +
-		text('hub', gx, hubY + 44, 28, '#ffffff') +
-		`<rect x="${(gx + labelW + 6).toFixed(2)}" y="${hubY + 22}" width="15" height="24" rx="1" fill="#5b9be6"/>`;
+		box(hubX, hubY, hubW, 83, 3, [3, 1, 1], C.ink, C.ink, 1) +
+		text('hub', hubX + 35, hubY + 19, 45, 30, '#ffffff') +
+		`<rect x="${(hubX + 35 + hubText + 6).toFixed(2)}" y="${hubY + 29.8}" width="15" height="23.4" rx="1.05" fill="#5b9be6"/>`;
+
+	// The tools sit on an arc with even gaps between them, each tilted a little. Each badge is its text plus 15px a
+	// side, drawn with the badge frame at twice its size, and its line meets the middle of its top edge.
+	const tilts = [-3, 2, -1.5, 0, 2, -2, 3];
+	const widths = TOOLS.map((t) => widthOf(t, 27) + 30);
+	const gap = (1144 - 56 - widths.reduce((a, w) => a + w, 0)) / (TOOLS.length - 1);
+	let left = 56,
+		lines = '',
+		badges = '';
+	TOOLS.forEach((t, i) => {
+		const w = widths[i],
+			cx = left + w / 2,
+			y = 232 + Math.sin((Math.PI * i) / (TOOLS.length - 1)) * 62;
+		const lit = t === 'backlinks';
+		lines += `<path d="M600 136C600 206 ${+cx.toFixed(2)} ${+(y - 70).toFixed(2)} ${+cx.toFixed(2)} ${+(y + 3).toFixed(2)}" fill="none" stroke="${lit ? BLUE : C.line}" stroke-width="2.5"/>`;
+		badges +=
+			`<g transform="rotate(${tilts[i]} ${+cx.toFixed(2)} ${+(y + 21).toFixed(2)})">` +
+			box(cx - w / 2, y, w, 42, 6, [1], lit ? BLUE : C.line, '#ffffff', 2) +
+			text(t, cx - widthOf(t, 27) / 2, y + 6, 30, 27, lit ? BLUE : C.muted) +
+			'</g>';
+		left += w + gap;
+	});
+
+	// The question, centered, then the counts in a card of four cells.
+	const question = text('question', 600 - widthOf('question', 24) / 2, 386, 36, 24, C.muted);
+	const cardY = 630 - 52 - 120.68,
+		cell = (900 - 2) / 4;
+	let cells = '';
+	FIGURES.forEach(([n, l], i) => {
+		const x = 151 + cell * i;
+		if (i < 3) cells += `<rect x="${+(x + cell - 1).toFixed(2)}" y="${+(cardY + 1).toFixed(2)}" width="1" height="118.68" fill="${C.line}"/>`;
+		cells += text(n, x + 22, cardY + 21, 49.68, 46, C.ink) + text(l, x + 22, cardY + 76.68, 23, 18, C.muted);
+	});
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <title>atproto.md. Every PDS. One address.</title>
-  <rect width="1200" height="630" fill="${C.bg}"/>
-  <path d="M${cx} 0V${hubY - 7}" stroke="${C.ink}" stroke-width="2.5"/>
+  <title>atproto.md MCP. Who replied to this post, and how many liked it?</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="${C.tray}"/></linearGradient>
+    <filter id="lift" x="-5%" y="-20%" width="110%" height="150%"><feDropShadow dx="0" dy="1" stdDeviation="0.5" flood-color="#000" flood-opacity="0.03"/><feDropShadow dx="0" dy="3" stdDeviation="1.5" flood-color="#000" flood-opacity="0.04"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
   ${lines}${badges}${hub}
-  ${text('headline', cx, 540, 64, C.ink, 'middle')}
+  ${question}
+  <g filter="url(#lift)">${box(150, cardY, 900, 120.68, 3, [3, 1, 1], C.line, '#ffffff', 1)}</g>${cells}
 </svg>
 `;
 }
