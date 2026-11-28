@@ -1,3 +1,4 @@
+import { USER_AGENT } from './http';
 import { entryway as entrywayOf, pdsFromDidDoc } from './identity';
 import type { DidDocument } from './types';
 
@@ -59,7 +60,7 @@ function httpStep(handle: string): Promise<TraceStep> {
 	return timed('handle-http', `GET ${url}`, async () => {
 		let res: Response;
 		try {
-			res = await fetch(url, { redirect: 'manual', signal: signal() });
+			res = await fetch(url, { redirect: 'manual', signal: signal(), headers: USER_AGENT });
 		} catch (e) {
 			if ((e as Error).name === 'TimeoutError') throw e;
 			// The runtime reports a host with no address, or a refused connection, as an internal error.
@@ -84,7 +85,7 @@ function didDocStep(did: string): Promise<{ step: TraceStep; doc?: DidDocument }
 	}
 	let doc: DidDocument | undefined;
 	return timed('did-document', `GET ${url}`, async () => {
-		const res = await fetch(url, { signal: signal() });
+		const res = await fetch(url, { signal: signal(), headers: USER_AGENT });
 		const body = await res.text();
 		if (!res.ok)
 			return { ok: false, status: res.status, result: { body: body.slice(0, BODY_LIMIT) }, error: `${url} answered ${res.status}.` };

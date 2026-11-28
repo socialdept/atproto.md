@@ -1,3 +1,4 @@
+import { USER_AGENT } from './http';
 import type { Actor, DidDocument, PlcData, PlcLogEntry, PlcOperation } from './types';
 
 const PLC_DIRECTORY = 'https://plc.directory';
@@ -24,7 +25,7 @@ export async function resolveDidDoc(did: string): Promise<DidDocument> {
 
 	if (method === 'web') {
 		const domain = did.replace('did:web:', '');
-		const res = await fetch(`https://${domain}/.well-known/did.json`);
+		const res = await fetch(`https://${decodeURIComponent(domain)}/.well-known/did.json`, { headers: USER_AGENT });
 		if (!res.ok) throw { status: 404, message: `DID not found: ${did}`, upstream: 'did:web' };
 		return res.json() as Promise<DidDocument>;
 	}

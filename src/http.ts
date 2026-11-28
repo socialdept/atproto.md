@@ -1,6 +1,11 @@
+// Sent on requests to other people's servers. Some sites refuse a request that names no client.
+export const USER_AGENT = { 'User-Agent': 'atproto.md (+https://atproto.md)' };
+
 export const CORS: Record<string, string> = {
 	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Methods': 'GET, OPTIONS',
+	'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+	// XRPC clients send these: which service to reach, which labelers to apply, and a procedure's body type.
+	'Access-Control-Allow-Headers': 'atproto-proxy, atproto-accept-labelers, content-type',
 };
 
 const bytesOf = (body: string): string => String(new TextEncoder().encode(body).length);

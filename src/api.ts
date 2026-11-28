@@ -2,7 +2,15 @@
 // application/json and the MCP layer returns as text.
 
 import { getBacklinks, getLinkSources } from './constellation';
-import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid, entryway as entrywayOf } from './identity';
+import {
+	resolveActor,
+	resolveDidDoc,
+	resolvePlcAuditLog,
+	resolvePlcData,
+	resolvePlcLastOp,
+	resolveToDid,
+	entryway as entrywayOf,
+} from './identity';
 import { resolveLexiconDid } from './lexicon';
 import { pdsGet } from './pds';
 import { blobUrl, collectBlobCids, collectRecordUris, parseTarget } from './refs';
@@ -187,7 +195,8 @@ export function knownLabelers() {
 
 /** The account's DID document, exactly as plc.directory or the did:web domain serves it. */
 export async function didDocument(input: string) {
-	return (await resolveActor(await actorOf(input))).doc;
+	// Straight from the DID, so a service DID with no PDS, such as an app view's did:web, resolves too.
+	return resolveDidDoc(await resolveToDid(await actorOf(input)));
 }
 
 /** Every step of resolving the account, with what each one returned. */
