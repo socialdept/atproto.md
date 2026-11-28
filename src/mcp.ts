@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { backlinks, didDocument, labels, discover, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve, traceActor } from './api';
-import { recordSession, recordVisit } from './stats';
+import { recordVisit } from './stats';
 import { version } from '../package.json';
 
 type TextResult = { content: { type: 'text'; text: string }[]; isError?: boolean };
@@ -11,12 +11,6 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 		name: 'atproto-md',
 		version,
 	});
-
-	// Count a distinct MCP session per `initialize` handshake — the closest privacy-safe proxy
-	// for "installs". Records only the client's self-reported app name, nothing identifying.
-	server.server.oninitialized = () => {
-		recordSession(env, ctx, server.server.getClientVersion()?.name);
-	};
 
 	// Anonymous meta derived from a tool's arguments: the targeted collection/lexicon, the
 	// identifier type (handle vs raw did), a backlink selector, and pagination flags.

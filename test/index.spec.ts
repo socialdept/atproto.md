@@ -1,6 +1,6 @@
 import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import worker from '../src/index';
+import worker, { initializingClient } from '../src/index';
 import { classifyHttp } from '../src/stats';
 import { OG_VERSION } from '../src/og-version';
 
@@ -387,5 +387,33 @@ describe('integration (via SELF)', () => {
 		const res = await SELF.fetch('https://example.com/llms.txt');
 		expect(res.status).toBe(200);
 		expect(await res.text()).toContain('# atproto.md');
+	});
+});
+
+describe('MCP sessions', () => {
+	const post = (body: unknown) => new Request('http://example.com/mcp', { method: 'POST', body: JSON.stringify(body) });
+	const init = (name?: string) => ({
+		jsonrpc: '2.0',
+		id: 1,
+		method: 'initialize',
+		params: { clientInfo: name === undefined ? {} : { name } },
+	});
+
+	it('reads the client name from an initialize request, alone or in a batch', async () => {
+		expect(await initializingClient(post(init('claude-code')))).toBe('claude-code');
+		expect(await initializingClient(post([{ jsonrpc: '2.0', method: 'notifications/initialized' }, init('cursor')]))).toBe('cursor');
+	});
+
+	it('counts an initialize with no name as a session without one, and nothing else as a session', async () => {
+		expect(await initializingClient(post(init()))).toBeUndefined();
+		expect(await initializingClient(post({ jsonrpc: '2.0', method: 'notifications/initialized' }))).toBeNull();
+		expect(await initializingClient(post({ jsonrpc: '2.0', id: 2, method: 'tools/list' }))).toBeNull();
+		expect(await initializingClient(new Request('http://example.com/mcp', { method: 'POST', body: 'not json' }))).toBeNull();
+	});
+
+	it('leaves the body for the MCP handler to read', async () => {
+		const req = post(init('claude-code'));
+		await initializingClient(req);
+		expect(((await req.json()) as { method: string }).method).toBe('initialize');
 	});
 });

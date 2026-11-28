@@ -37,7 +37,7 @@ import { resolveToDid } from './identity';
 const IMG_CDN = 'https://img.infra.coop';
 import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
-import { classifyHttp, getStats, recordVisit, resetStats } from './stats';
+import { classifyHttp, getStats, recordSession, recordVisit, resetStats } from './stats';
 import { formatStats, indexPage } from './views';
 
 export { StatsDO } from './stats';
@@ -51,10 +51,14 @@ export default {
 		if (url.protocol === 'http:' && request.headers.get('X-Forwarded-Proto') === 'https') url.protocol = 'https:';
 		const origin = url.origin;
 
-		// MCP endpoint — accepts POST and GET per Streamable HTTP spec. Tool calls are
-		// counted inside the tool handlers (the `mcp` channel), so protocol-level POSTs
-		// like initialize/tools.list aren't double-counted here.
+		// MCP endpoint, POST and GET per the Streamable HTTP spec. Tool calls are counted inside the tool handlers.
+		// A session is counted here, from the initialize request, with the client's self-reported name and nothing
+		// else. Each HTTP request gets a new server, so the server that sees the handshake finish has never seen the name.
 		if (url.pathname === '/mcp') {
+			if (request.method === 'POST') {
+				const client = await initializingClient(request);
+				if (client !== null) recordSession(env, ctx, client);
+			}
 			return createMcpHandler(createMcpServer(origin, env, ctx))(request, env, ctx);
 		}
 
@@ -103,6 +107,20 @@ export default {
 		return response;
 	},
 } satisfies ExportedHandler<Env>;
+
+// The client name an MCP initialize request carries, or null when the request is something else. A message may arrive
+// alone or in a batch. The body is read from a copy, so the MCP handler still gets it.
+export async function initializingClient(request: Request): Promise<string | undefined | null> {
+	const body = (await request
+		.clone()
+		.json()
+		.catch(() => null)) as unknown;
+	const messages = (Array.isArray(body) ? body : [body]) as { method?: string; params?: { clientInfo?: { name?: unknown } } }[];
+	const init = messages.find((m) => m?.method === 'initialize');
+	if (!init) return null;
+	const name = init.params?.clientInfo?.name;
+	return typeof name === 'string' && name.trim() ? name.trim() : undefined;
+}
 
 const flag = (url: URL, name: string): boolean => {
 	const v = url.searchParams.get(name);
