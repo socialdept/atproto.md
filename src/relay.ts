@@ -2,7 +2,7 @@
 // Unlike PDS calls (scoped to one repo), the relay can answer
 // "which repos have records in collection X" across the whole network.
 
-const RELAY = 'https://relay1.us-west.bsky.network';
+export const RELAY = 'https://relay1.us-west.bsky.network';
 
 export interface ReposByCollection {
 	repos: { did: string }[];

@@ -365,6 +365,10 @@ export function classifyHttp(url: URL): HttpClass | null {
 	if (head === 'backlinks') {
 		return { key: 'route:backlinks', selector: url.searchParams.get('source') ?? undefined, flags };
 	}
+	if (head === 'xrpc') {
+		const repo = url.searchParams.get('repo') ?? url.searchParams.get('did') ?? url.searchParams.get('identifier') ?? url.searchParams.get('handle') ?? undefined;
+		return { key: 'route:xrpc', idType: repo ? idTypeOf(repo) : undefined };
+	}
 	if (head === 'plc') return { key: `route:plc/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
 
 	// Assets (favicon/og/robots/sitemap) and unrecognized paths (bot probes, typos) aren't part

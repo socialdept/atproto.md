@@ -15,6 +15,7 @@ import { CORS, errMd, mdResponse } from './http';
 import { dataResponse, errorResponse } from './output';
 import { parseTarget } from './refs';
 import { toAddress } from './links';
+import { xrpc } from './xrpc';
 import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
 import { classifyHttp, getStats, recordVisit, resetStats } from './stats';
@@ -50,8 +51,8 @@ export default {
 			return mdResponse('# Stats reset\n\nAll counters cleared.\n');
 		}
 
-		// All other routes are GET-only
-		if (request.method !== 'GET') return errorResponse(url, 'Only GET requests are supported.', 405);
+		// All other routes are GET-only. /xrpc refuses other methods in XRPC's own error shape.
+		if (request.method !== 'GET' && !url.pathname.startsWith('/xrpc/')) return errorResponse(url, 'Only GET requests are supported.', 405);
 
 		const start = Date.now();
 		const response = await handleGet(request, url, origin, env);
@@ -99,6 +100,9 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 	const segments = url.pathname.replace(/^\//, '').split('/').filter(Boolean);
 	const data = (body: unknown) => dataResponse(url, body);
 	const usage = (message: string) => errorResponse(url, message, 400);
+
+	// Standard XRPC calls, routed to whichever server answers them.
+	if (url.pathname.startsWith('/xrpc/')) return xrpc(request, url);
 
 	try {
 		// Root: HTML (with SEO/OG meta) for browsers and link-card crawlers, markdown docs for agents.
