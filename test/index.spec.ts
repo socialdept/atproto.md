@@ -339,6 +339,12 @@ describe('/skill.md', () => {
 		expect(body).toContain('## Endpoint reference');
 	});
 
+	it('tells the agent to prefer the MCP tools when they are installed', async () => {
+		const body = await (await workerFetch('http://example.com/skill.md')).text();
+		expect(body).toContain('## Use the MCP server when it is installed');
+		expect(body).toContain('unless the user has said to use HTTP');
+	});
+
 	it('starts with YAML frontmatter (name + description) for Claude Code command discovery', async () => {
 		const body = await (await workerFetch('http://example.com/skill.md')).text();
 		expect(body.startsWith('---\n')).toBe(true);

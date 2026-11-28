@@ -71,6 +71,17 @@ Every Atmosphere record, one address. Read-only, no auth. Base URL: ${origin}
 
 For Bluesky threads, timelines, feeds and search, use the Bluesky AppView or bsky.md. atproto.md reads records from each account's own PDS.
 
+## Use the MCP server when it is installed
+
+If the atproto-md MCP server is connected (its tools are resolve, get, list_records, backlinks, discover and lexicon, shown in Claude Code as mcp__atproto-md__*), call those tools instead of curl, unless the user has said to use HTTP. Each tool returns the same JSON as the matching route:
+
+- resolve: /at://{actor} and /resolve, plus plc for /plc/* and did for /did/doc and /did/trace
+- get: /get and single records
+- list_records: /at://{actor}/{collection}
+- backlinks, discover and lexicon: the routes of the same name
+
+Use HTTP for what no tool covers: /xrpc and /repo/car. Without the MCP server, use HTTP for everything.
+
 ## How to call it
 
 Every data route returns one JSON object as application/json. Add \`?pretty\` to indent it.
@@ -137,7 +148,5 @@ GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's pu
 \`\`\`bash
 curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
 \`\`\`
-
-MCP server: \`claude mcp add --transport http atproto-md ${origin}/mcp\`, with the tools resolve, get, list_records, backlinks, discover and lexicon.
 `;
 }
