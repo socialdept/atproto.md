@@ -1,5 +1,5 @@
 import { createMcpHandler } from 'agents/mcp';
-import { backlinks, discover, getRecord, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve } from './api';
+import { backlinks, didDocument, discover, getRecord, getRecords, lexicon, listRecords, MAX_BATCH, plc, repoCar, resolve, traceActor } from './api';
 import {
 	faviconSvg,
 	htmlIndexPage,
@@ -133,6 +133,33 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 			const input = decodeURIComponent(url.pathname.slice('/resolve/'.length));
 			if (!input) return usage('Usage: /resolve/{handle-or-did}');
 			return data(await resolve(input));
+		}
+
+		// The DID namespace: /did/doc/{actor} is the DID document, /did/trace/{actor} every step of resolving it.
+		if (segments[0] === 'did') {
+			const view = segments[1];
+			const input = decodeURIComponent(segments.slice(2).join('/'));
+			if (view !== 'doc' && view !== 'trace') return usage('Usage: /did/{doc|trace}/{handle-or-did}');
+			if (!input) return usage(`Usage: /did/${view}/{handle-or-did}, for example /did/${view}/bsky.app`);
+			return data(view === 'doc' ? await didDocument(input) : await traceActor(input));
+		}
+
+		// The repo namespace: /repo/car/{actor} is the whole repo as a CAR file.
+		if (segments[0] === 'repo') {
+			const view = segments[1];
+			const input = decodeURIComponent(segments.slice(2).join('/')).replace(/\.car$/, '');
+			if (view !== 'car') return usage('Usage: /repo/car/{handle-or-did}');
+			if (!input) return usage('Usage: /repo/car/{handle-or-did}, for example /repo/car/bsky.app');
+			const car = await repoCar(input);
+			return new Response(car.body, {
+				status: car.status,
+				headers: {
+					...CORS,
+					'Content-Type': car.type,
+					'Content-Disposition': `attachment; filename="${car.did.replace(/[^A-Za-z0-9._-]/g, '_')}.car"`,
+					'Cache-Control': 'public, max-age=60',
+				},
+			});
 		}
 
 		// PLC operations: identity history and current state via plc.directory

@@ -8,7 +8,8 @@ import { pdsGet } from './pds';
 import { blobUrl, collectBlobCids, collectRecordUris, parseTarget } from './refs';
 import { toAddress } from './links';
 import { listReposByCollection } from './relay';
-import type { Actor, AtpRecord } from './types';
+import { trace } from './trace';
+import type { Actor, AtpRecord, PlcLogEntry } from './types';
 
 // The account an address names, from an at:// URI, a handle, a DID or a web link.
 const actorOf = async (input: string): Promise<string> => parseTarget(await toAddress(input)).actor;
@@ -91,18 +92,64 @@ export function errorMessage(e: unknown): string {
 
 export async function resolve(input: string, resolver = new Resolver()) {
 	const actor = await resolver.actor(await actorOf(input));
-	const [repo, entryway] = await Promise.all([
+	const [repo, entryway, status, pdsSince] = await Promise.all([
 		pdsGet(actor.pds, 'com.atproto.repo.describeRepo', { repo: actor.did }).catch(() => null),
 		entrywayOf(actor.pds),
+		pdsGet(actor.pds, 'com.atproto.sync.getRepoStatus', { did: actor.did }).catch(() => null),
+		actor.did.startsWith('did:plc:') ? resolvePlcAuditLog(actor.did).then(pdsSinceOf).catch(() => null) : null,
 	]);
 	return {
 		did: actor.did,
 		handle: actor.handle,
 		pds: actor.pds,
 		entryway,
+		active: typeof status?.active === 'boolean' ? status.active : null,
+		status: typeof status?.status === 'string' ? status.status : null,
+		pdsSince,
 		collections: (repo?.collections as string[] | undefined) ?? null,
 		didDoc: actor.doc,
 	};
+}
+
+// When the account moved to the PDS it is on now: the first operation of the latest run that names that PDS, or the
+// creation of the DID when it never moved. Nullified operations never took effect, so they are skipped.
+export function pdsSinceOf(log: PlcLogEntry[]): string | null {
+	const endpoint = (op: PlcLogEntry['operation']): string | undefined => {
+		const o = op as { services?: { atproto_pds?: { endpoint?: string } }; service?: string };
+		return (o.services?.atproto_pds?.endpoint ?? o.service)?.replace(/\/$/, '');
+	};
+	const ops = log.filter((e) => !e.nullified);
+	let since: string | null = null;
+	let current: string | undefined;
+	for (const e of ops) {
+		const pds = endpoint(e.operation);
+		if (pds && pds !== current) {
+			current = pds;
+			since = e.createdAt;
+		}
+	}
+	return since;
+}
+
+/** The account's DID document, exactly as plc.directory or the did:web domain serves it. */
+export async function didDocument(input: string) {
+	return (await resolveActor(await actorOf(input))).doc;
+}
+
+/** Every step of resolving the account, with what each one returned. */
+export async function traceActor(input: string) {
+	return trace(await actorOf(input));
+}
+
+/** The account's whole repo as a CAR file, streamed from its PDS. */
+export async function repoCar(input: string): Promise<{ did: string; body: ReadableStream | null; status: number; type: string }> {
+	const actor = await resolveActor(await actorOf(input));
+	const res = await fetch(`${actor.pds}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(actor.did)}`);
+	if (!res.ok) {
+		const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+		throw { status: res.status, message: (err.message as string) || `The PDS answered ${res.status}.`, upstream: 'pds' };
+	}
+	return { did: actor.did, body: res.body, status: res.status, type: res.headers.get('Content-Type') ?? 'application/vnd.ipld.car' };
 }
 
 export type PlcView = 'data' | 'audit' | 'last';

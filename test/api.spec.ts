@@ -32,6 +32,16 @@ function fakeNetwork(input: RequestInfo | URL): Response {
 	const q = url.searchParams;
 
 	if (url.pathname.endsWith('com.atproto.identity.resolveHandle')) return q.get('handle') === 'alice.test' ? json({ did: DID }) : json({ message: 'no' }, 400);
+	if (url.hostname === 'plc.directory' && url.pathname.endsWith('/log/audit')) {
+		const op = (endpoint: string) => ({ type: 'plc_operation', services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint } } });
+		return json([
+			{ did: DID, cid: 'c1', nullified: false, createdAt: '2024-01-01T00:00:00Z', operation: op(PDS) },
+			{ did: DID, cid: 'c2', nullified: false, createdAt: '2025-01-01T00:00:00Z', operation: op('https://old.example') },
+			{ did: DID, cid: 'c3', nullified: true, createdAt: '2025-06-01T00:00:00Z', operation: op('https://never.example') },
+			{ did: DID, cid: 'c4', nullified: false, createdAt: '2026-01-01T00:00:00Z', operation: op(`${PDS}/`) },
+			{ did: DID, cid: 'c5', nullified: false, createdAt: '2026-02-01T00:00:00Z', operation: op(PDS) },
+		]);
+	}
 	if (url.hostname === 'plc.directory') {
 		return json({ id: DID, alsoKnownAs: ['at://alice.test'], service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }] });
 	}
@@ -40,6 +50,7 @@ function fakeNetwork(input: RequestInfo | URL): Response {
 	}
 	if (url.origin === PDS) {
 		if (url.pathname === '/.well-known/oauth-protected-resource') return json({ resource: PDS, authorization_servers: [ENTRYWAY] });
+		if (url.pathname.endsWith('getRepoStatus')) return json({ did: DID, active: false, status: 'deactivated' });
 		if (url.pathname.endsWith('describeRepo')) return json({ collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'] });
 		if (url.pathname.endsWith('listRecords')) {
 			const records = Object.entries(RECORDS)
@@ -109,6 +120,21 @@ describe('records', () => {
 		const r = await resolve('alice.test');
 		expect(r).toMatchObject({ did: DID, handle: 'alice.test', pds: PDS, entryway: ENTRYWAY, collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'] });
 		expect(r.didDoc.id).toBe(DID);
+	});
+
+	it('says whether the account is active, and since when it has been on its PDS', async () => {
+		const r = await resolve('alice.test');
+		expect(r).toMatchObject({ active: false, status: 'deactivated', pdsSince: '2026-01-01T00:00:00Z' });
+	});
+
+	it('dates the move to the current PDS, skipping nullified operations and trailing slashes', async () => {
+		const { pdsSinceOf } = await import('../src/api');
+		const op = (endpoint: string) => ({ services: { atproto_pds: { endpoint } } }) as never;
+		const entry = (createdAt: string, endpoint: string, nullified = false) => ({ did: DID, cid: createdAt, nullified, createdAt, operation: op(endpoint) });
+		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://one/')])).toBe('a');
+		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://two', true)])).toBe('a');
+		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://two'), entry('c', 'https://two')])).toBe('b');
+		expect(pdsSinceOf([])).toBeNull();
 	});
 
 	it('leaves the entryway null when it is the PDS itself or unpublished', async () => {

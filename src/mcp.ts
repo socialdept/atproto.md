@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { backlinks, discover, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve } from './api';
+import { backlinks, didDocument, discover, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve, traceActor } from './api';
 import { recordSession, recordVisit } from './stats';
 import { version } from '../package.json';
 
@@ -58,12 +58,15 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 
 	server.tool(
 		'resolve',
-		'Resolve an Atmosphere account (handle, DID, at:// URI, or a profile link or page from an Atmosphere app) to its DID, handle, PDS, DID document and the collections in its repo. Pass plc to get plc.directory data instead: "data" for current state with rotation keys, "audit" for the full dated operation log (migrations, handle changes, key rotations), "last" for the latest operation.',
+		'Resolve an Atmosphere account (handle, DID, at:// URI, or a profile link or page from an Atmosphere app) to its DID, handle, PDS, DID document and the collections in its repo. The response says whether the account is active and when it moved to its PDS. Pass plc to get plc.directory data instead: "data" for current state with rotation keys, "audit" for the full dated operation log (migrations, handle changes, key rotations), "last" for the latest operation. Pass did for "doc", the raw DID document, or "trace", every resolution step (DNS, HTTPS, DID document, PDS) with its response, for working out why an account does not resolve.',
 		{
 			actor: z.string().describe('Handle, DID, at:// URI, or a profile link or page from an Atmosphere app'),
 			plc: z.enum(['data', 'audit', 'last']).optional().describe('Return plc.directory data for a did:plc instead of the identity'),
+			did: z.enum(['doc', 'trace']).optional().describe('Return the raw DID document, or every resolution step, instead of the identity'),
 		},
-		tracked('resolve', async ({ actor, plc: view }) => json(view ? await plc(actor, view) : await resolve(actor))),
+		tracked('resolve', async ({ actor, plc: view, did }) =>
+			json(view ? await plc(actor, view) : did === 'doc' ? await didDocument(actor) : did === 'trace' ? await traceActor(actor) : await resolve(actor)),
+		),
 	);
 
 	server.tool(
