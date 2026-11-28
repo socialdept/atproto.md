@@ -172,7 +172,8 @@ export const STATS_STYLES = `
 
 /* Motion. Each panel's marks play once as the panel comes into view, short and in order: bars rise from their
    baseline, meters fill a tick at a time, split bars wipe in from the left, the map shades from the fewest requests
-   up, and figures count up (in the script). html.motion is set only when reduced motion is off and the script runs,
+   up, and figures count up (in the script). Each animation ends on the element's own style, so it fills backwards
+   only: once it ends it lets go, and the marks drop out of the GPU layers an animation holds. html.motion is set only when reduced motion is off and the script runs,
    so without it every mark shows at once. --i is each mark's place in its row, set by the script. */
 @property --on { syntax: '<integer>'; inherits: true; initial-value: 0; }
 @property --share { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
@@ -181,13 +182,13 @@ html.motion .tray:not(.in) :is(.strip i, .cols .col, .hist__col span) { transfor
 html.motion .tray:not(.in) :is(.hero-num, .tile__num) { visibility: hidden; }
 html.motion .tray:not(.in) .split { clip-path: inset(0 100% 0 0); }
 html.motion .tray:not(.in) .map__layer, html.motion .tray:not(.in) .ticks { opacity: 0; }
-html.motion .tray.in .strip i { transform-origin: bottom; animation: rise .45s var(--ease) calc(var(--i, 0) * 10ms) both; }
-html.motion .tray.in .cols .col { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 12ms) both; }
-html.motion .tray.in .hist__col span { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 40ms) both; }
-html.motion .tray.in .ticks { animation: fill .55s var(--ease) calc(min(var(--i, 0), 8) * 35ms) both; }
-html.motion .tray.in .meters li { animation: share .55s var(--ease) calc(min(var(--i, 0), 8) * 35ms) both; }
-html.motion .tray.in .split { animation: wipe .6s var(--ease) both; }
-html.motion .tray.in .map__layer { animation: shade .4s ease-out calc(var(--i, 0) * 70ms) both; }
+html.motion .tray.in .strip i { transform-origin: bottom; animation: rise .45s var(--ease) calc(var(--i, 0) * 10ms) backwards; }
+html.motion .tray.in .cols .col { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 12ms) backwards; }
+html.motion .tray.in .hist__col span { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 40ms) backwards; }
+html.motion .tray.in .ticks { animation: fill .55s var(--ease) calc(min(var(--i, 0), 8) * 35ms) backwards; }
+html.motion .tray.in .meters li { animation: share .55s var(--ease) calc(min(var(--i, 0), 8) * 35ms) backwards; }
+html.motion .tray.in .split { animation: wipe .6s var(--ease) backwards; }
+html.motion .tray.in .map__layer { animation: shade .4s ease-out calc(var(--i, 0) * 70ms) backwards; }
 @keyframes rise { from { transform: scaleY(0); } }
 @keyframes fill { from { --on: 0; } }
 @keyframes share { from { --share: 0%; } }
