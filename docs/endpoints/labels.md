@@ -45,7 +45,7 @@ The response gains a `labelers` list. However many records a call returns, each 
 
 ## `GET /labelers`
 
-The known labelers that `all` asks, as `{default, labelers}`, each `{did, handle, name}`. The list is built by `npm run labelers` from every `app.bsky.labeler.service` record on the network, ranked by likes, and reviewed before it is committed.
+The known labelers that `all` asks, as `{default, labelers}`, each `{did, handle, name}`. The list is chosen by hand: moderation and safety services, AI media and screenshot labelers, and labelers that add context about an account. Badges people pick for themselves, games and labelers that do not answer are left out. `npm run labelers` prints candidates, every labeler on the network ranked by likes, with its description, label values and whether it answers. It never edits the list.
 
 ## Through XRPC
 
