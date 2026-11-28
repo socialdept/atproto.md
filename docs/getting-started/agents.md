@@ -10,15 +10,16 @@ The MCP server, the skill sheet for Claude Code, `llms.txt`, and using it as an 
 claude mcp add --transport http atproto-md https://atproto.md/mcp
 ```
 
-It exposes six tools, each backed by the same code as an HTTP endpoint. Every result is the same JSON object the endpoint returns, and a failed call returns `{"error", "status"}` flagged as an error.
+It exposes seven tools, each backed by the same code as an HTTP endpoint. Every result is the same JSON object the endpoint returns, and a failed call returns `{"error", "status"}` flagged as an error.
 
 | Tool           | What it does                                                                                     | Endpoint                                                        |
 | -------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
 | `resolve`      | Identity, account status, PDS, entryway, DID document and collections. `plc` returns the PLC data, audit log or last op, and `did` the DID document or a resolution trace | [`/resolve`, `/did/*`, `/plc/*`](../endpoints/identity.md) |
-| `get`          | Up to 25 records by `at://` URI or web link, with `expand` for referenced records                | [`/get`](../endpoints/records.md)                               |
+| `get`          | Up to 25 records by `at://` URI or web link, with `expand` for referenced records and `labels`  | [`/get`](../endpoints/records.md)                               |
 | `list_records` | Records in a collection, paginated, with `expand`                                                | [`/at://{actor}/{collection}`](../endpoints/records.md)         |
 | `backlinks`    | Link sources and counts, or with `source` the linking records, hydrated on request               | [`/backlinks/{target}`](../endpoints/network.md)                |
 | `discover`     | Every repo with records in a collection                                                          | [`/discover/{collection}`](../endpoints/network.md)             |
+| `labels`       | The labels on a record or account, from Bluesky's moderation labeler, `all`, or named labelers   | [`/labels/{target}`](../endpoints/labels.md)                    |
 | `lexicon`      | The published Lexicon schema for an NSID                                                         | [`/lexicon/{nsid}`](../endpoints/network.md)                    |
 
 ## Skill sheet

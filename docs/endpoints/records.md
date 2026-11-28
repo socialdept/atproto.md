@@ -41,10 +41,11 @@ The records in any collection, newest first, as `{did, handle, pds, entryway, co
 | `cursor`  |         |     | The `cursor` from the previous page. `null` on the last page |
 | `reverse` |         |     | Oldest first                                                 |
 | `expand`  |         |     | Also return the records these reference, under `expanded`   |
+| `labels`  |         |     | Attach each record's labels. See [Labels](labels.md#labels-on-records) for `author` and `labelers` |
 
 ## `GET /at://{actor}/{collection}/{rkey}`
 
-One record as `{uri, cid, value, blobs}`. Takes `expand`.
+One record as `{uri, cid, value, blobs}`. Takes `expand`, and `labels`, `author` and `labelers` as described in [Labels](labels.md#labels-on-records).
 
 ## `GET /get?uri={address}&uri={address}`
 
@@ -54,7 +55,7 @@ Up to 25 records in one call, fetched in parallel, as `{records, errors, expande
 curl "https://atproto.md/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&uri=at://bsky.app/app.bsky.actor.profile/self&expand"
 ```
 
-Each actor is resolved once per call. An address that fails goes into `errors` as `{address, error}`, and the other records still come back. Takes `expand`.
+Each actor is resolved once per call. An address that fails goes into `errors` as `{address, error}`, and the other records still come back. Takes `expand`, and the [label options](labels.md#labels-on-records).
 
 ## `GET /blob/{actor}/{cid}`
 

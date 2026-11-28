@@ -24,6 +24,7 @@ curl "https://atproto.md/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collectio
 | `com.atproto.identity.resolveHandle`, `resolveDid`, `resolveIdentity` | atproto.md itself, through the same [resolution chain](records.md#how-it-works) as every other route |
 | `com.atproto.repo.*` with `repo`                                  | The account's PDS                                                              |
 | `com.atproto.sync.*` with `did`                                   | The account's PDS                                                              |
+| `com.atproto.label.queryLabels`                                   | The labeler named in `sources`, or Bluesky's moderation labeler. See [Labels](labels.md#through-xrpc) |
 | Any other `com.atproto.sync.*`                                    | The public relay, `relay1.us-west.bsky.network`                                |
 | `app.bsky.*`                                                      | Bluesky's public app view, `public.api.bsky.app`                               |
 
