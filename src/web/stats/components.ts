@@ -1,5 +1,5 @@
-import type { StatsSnapshot } from '../../stats';
-import { abbrevNum, bytesHuman, fmtNum } from '../../views';
+import type { LabelStats, StatsSnapshot } from '../../stats';
+import { abbrevNum, bytesHuman, fmtNum, STATUS_THRESHOLD } from '../../views';
 import { COUNTRY_NAMES, WORLD_COLS, WORLD_LAND, WORLD_PATHS, WORLD_ROWS } from '../../world-grid';
 import { esc } from '../kit';
 
@@ -74,20 +74,33 @@ export const emptyState = (text: string) => `<p class="empty-state">${text}</p>`
  * when it has any. Ranked lists use it, largest first.
  */
 const TICKS = 24;
-function meter(share: number, tone = 'ink'): string {
-	const on = share > 0 ? Math.max(1, Math.round(share * TICKS)) : 0;
-	return `<span class="ticks ticks--${tone}" style="--on:${on}" aria-hidden="true"></span>`;
+// Each tick is its own box, so the browser snaps every one to whole pixels and they all come out the same width. A
+// half-width card uses half as many. A stacked meter spans its row with twice as many, two per step of the share.
+function meter(share: number, tone = 'ink', stacked = false, steps = TICKS): string {
+	const lit = share > 0 ? Math.max(1, Math.round(share * steps)) : 0;
+	const count = stacked ? steps * 2 : steps,
+		on = stacked ? lit * 2 : lit;
+	const ticks = Array.from({ length: count }, (_, k) => (k < on ? '<i class="on"></i>' : '<i></i>')).join('');
+	return `<span class="ticks ticks--${tone}" aria-hidden="true">${ticks}</span>`;
 }
-export function meterList(list: Item[], opts: { tone?: string; all?: boolean; stacked?: boolean; empty: string }): string {
+// A handle or domain breaks only after a dot, so a long one wraps at a segment and never mid-word.
+const handleBreaks = (label: string): string => (/^[\w.-]+\.[a-z]+$/i.test(label) ? esc(label).replace(/\./g, '.<wbr>') : esc(label));
+
+export function meterList(list: Item[], opts: { tone?: string; all?: boolean; stacked?: boolean; half?: boolean; empty: string }): string {
 	if (!list.length) return emptyState(opts.empty);
 	const total = list.reduce((n, i) => n + i.count, 0);
 	const max = Math.max(1, ...list.map((i) => i.count));
 	const rows = list
 		.map((i) => {
-			// Mono labels are routes and paths: a narrow row breaks them after a slash, never inside a segment.
-			const text = i.mono ? esc(i.label).replace(/\/(?!\/)/g, '/<wbr>') : esc(i.label);
+			// Mono labels are routes, NSIDs and tool names. A narrow row breaks them after a slash, a dot or an underscore,
+			// so a long one never runs under its meter or widens a phone screen.
+			const text = i.mono
+				? esc(i.label)
+						.replace(/\/(?!\/)/g, '/<wbr>')
+						.replace(/([._])(?=\w)/g, '$1<wbr>')
+				: handleBreaks(i.label);
 			const label = i.href ? `<a href="${esc(i.href)}">${text}</a>` : text;
-			return `<li style="--share:${((i.count / max) * 100).toFixed(1)}%"><span class="m__label${i.mono ? ' mono' : ''}"${i.title ? ` title="${esc(i.title)}"` : ''}>${label}</span>${meter(i.count / total, opts.tone)}<span class="m__pct">${percent(i.count, total)}</span><span class="m__num" title="${fmtNum(i.count)}">${esc(abbrevNum(i.count))}</span></li>`;
+			return `<li style="--share:${((i.count / max) * 100).toFixed(1)}%"><span class="m__label${i.mono ? ' mono' : ''}"${i.title ? ` title="${esc(i.title)}"` : ''}>${label}</span>${meter(i.count / total, opts.tone, opts.stacked, opts.half ? TICKS / 2 : TICKS)}<span class="m__pct">${percent(i.count, total)}</span><span class="m__num" title="${fmtNum(i.count)}">${esc(abbrevNum(i.count))}</span></li>`;
 		})
 		.join('');
 	return `<ol class="meters${opts.all ? '' : ' meters--scroll'}${opts.stacked ? ' meters--stacked' : ''}">${rows}</ol>`;
@@ -113,18 +126,52 @@ export function splitBar(parts: { label: string; count: number; color: string }[
 	return `<div class="split${opts.tall ? ' split--tall' : ''}" role="img" aria-label="${esc(shown.map((p) => `${p.label} ${percent(p.count, total)}`).join(', '))}">${bar}</div><ul class="legend">${legend}</ul>`;
 }
 
-/** The overview: the request total as the hero figure, a strip of the last 30 days, and the HTTP and MCP split. */
+/** Label lookups as a hero figure, the share of subjects that carried a label, over the split of accounts and records. */
+export function labelLookups(stats: LabelStats | undefined): string {
+	if (!stats?.subjects) return emptyState('No label lookups yet.');
+	const accounts = stats.kinds.find((k) => k.key === 'account')?.count ?? 0;
+	const records = stats.kinds.filter((k) => k.key !== 'account').reduce((n, k) => n + k.count, 0);
+	return `<div class="lookups">
+      <div><p class="hero-num">${figure(percent(stats.labeled, stats.subjects))}</p><p class="k-sub">${fmtNum(stats.labeled)} of ${fmtNum(stats.subjects)} lookups found a label</p></div>
+      ${splitBar(
+				[
+					{ label: 'Accounts', count: accounts, color: VIZ.http },
+					{ label: 'Records', count: records, color: VIZ.mcp },
+				],
+				{ empty: '' },
+			)}
+    </div>`;
+}
+
+/** Each labeler's average answer time as a meter against the slowest, with the share of its lookups that failed. */
+export function labelerHealth(list: { label: string; queries: number; failures: number; avgMs: number }[], empty: string): string {
+	if (!list.length) return emptyState(empty);
+	const slowest = Math.max(1, ...list.map((l) => l.avgMs));
+	const rows = list
+		.map(
+			(l) =>
+				`<li style="--share:${((l.avgMs / slowest) * 100).toFixed(1)}%"><span class="m__label">${handleBreaks(l.label)}</span>${meter(l.avgMs / slowest, l.failures / l.queries >= 0.1 ? 'error' : 'ink', false, TICKS / 2)}<span class="m__pct" title="${fmtNum(l.failures)} of ${fmtNum(l.queries)} lookups failed">${percent(l.failures, l.queries)}</span><span class="m__num" title="${fmtNum(l.queries)} lookups">${fmtNum(l.avgMs)} ms</span></li>`,
+		)
+		.join('');
+	return `<ol class="meters meters--scroll meters--health">${rows}</ol>`;
+}
+
+// A large count to one decimal, 152.8M, short enough for a tile's one-line help text.
+const roughly = (n: number): string => {
+	for (const [div, unit] of [
+		[1e9, 'B'],
+		[1e6, 'M'],
+		[1e3, 'K'],
+	] as const) {
+		if (n >= div) return `${(n / div).toFixed(1).replace(/\.0$/, '')}${unit}`;
+	}
+	return fmtNum(n);
+};
+
+/** The overview: the request total as the hero figure, and the HTTP and MCP split. */
 export function overview(stats: StatsSnapshot | null): string {
 	const total = stats?.total ?? 0;
 	const channel = (k: string): number => stats?.channels.find((c) => c.key === k)?.count ?? 0;
-	const days = lastDays(stats, 30);
-	const top = Math.max(1, ...days.map(dayTotal));
-	const strip = days
-		.map(
-			(d) =>
-				`<i${dayTotal(d) ? '' : ' class="z"'} style="height:${dayTotal(d) ? Math.max(12, (dayTotal(d) / top) * 100).toFixed(1) : 0}%" title="${esc(dayLabel(d.day))}: ${fmtNum(dayTotal(d))}"></i>`,
-		)
-		.join('');
 	const since = stats?.since ? `Since ${esc(dayLabel(stats.since.slice(0, 10)))}, ${esc(stats.since.slice(0, 4))}` : 'No requests yet';
 
 	const errors = stats?.errors ?? 0;
@@ -132,20 +179,15 @@ export function overview(stats: StatsSnapshot | null): string {
 	const tiles: [string, string, string][] = [
 		['MCP sessions', abbrevNum(stats?.sessions ?? 0), 'Clients that connected'],
 		['Error rate', total ? `${((errors / total) * 100).toFixed(1)}%` : '0%', `${fmtNum(errors)} failed requests`],
-		[
-			'Average latency',
-			lat?.count ? `${fmtNum(lat.avgMs)} ms` : 'None yet',
-			lat?.count ? `Median ${lat.p50}, p95 ${lat.p95}` : 'No timed requests',
-		],
-		['Served', bytesHuman(stats?.bytes ?? 0), `About ${abbrevNum(stats?.estTokens ?? 0)} tokens`],
-		['Collections', fmtNum(stats?.distinctCollections ?? 0), 'Distinct NSIDs requested'],
+		['Average latency', lat?.count ? `${fmtNum(lat.avgMs)} ms` : 'None yet', lat?.count ? `p95 ${lat.p95}` : 'No timed requests'],
+		['Served', bytesHuman(stats?.bytes ?? 0), `About ${roughly(stats?.estTokens ?? 0)} tokens`],
+		['Collections', fmtNum(stats?.distinctCollections ?? 0), 'Distinct collections'],
 		['Average response', bytesHuman(stats?.avgBytes ?? 0), 'Per request'],
 	];
 
 	return `<section class="overview">
     <div class="tray hero-tile"><div class="card">
-      <div class="hero-tile__top"><div><p class="k">Requests</p><p class="hero-num" title="${fmtNum(total)}">${esc(fmtNum(total))}</p><p class="k-sub">${since}</p></div>
-      <div class="strip" role="img" aria-label="Requests per day for the last 30 days">${strip}</div></div>
+      <div><p class="k">Requests</p><p class="hero-num" title="${fmtNum(total)}">${esc(fmtNum(total))}</p><p class="k-sub">${since}</p></div>
       ${splitBar(
 				[
 					{ label: 'HTTP', count: channel('http'), color: VIZ.http },
@@ -249,7 +291,9 @@ export function statusPanel(stats: StatsSnapshot | null): string {
 	const color = (k: string) =>
 		({ '2': STATUS.ok, '3': STATUS.redirect, '4': STATUS.client, '5': STATUS.server })[cls(k)] ?? STATUS.redirect;
 	const total = codes.reduce((n, c) => n + c.count, 0);
+	// Rare codes are left out of the list. The summary above still counts them in their class.
 	const list = codes
+		.filter((c) => c.count >= STATUS_THRESHOLD)
 		.map(
 			(c) =>
 				`<li><i style="background:${color(c.key)}"></i><span class="mono">${esc(c.key)}</span><b>${esc(fmtNum(c.count))}</b><em>${percent(c.count, total)}</em></li>`,

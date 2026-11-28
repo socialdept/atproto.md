@@ -42,9 +42,20 @@ const xrpcError = (status: number, error: string, message: string): Response =>
 		headers: { ...CORS, ...SAFE, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
 	});
 
+// Where a call went, sent as X-Upstream-Kind so the usage stats can count destinations: the account's PDS, the relay,
+// Bluesky's app view, a labeler, a service an atproto-proxy header named, an app view found from the app's domain, or
+// atproto.md itself.
+type Kind = 'pds' | 'relay' | 'appview' | 'labeler' | 'proxy' | 'discovered' | 'local';
+
 const json = (body: unknown): Response =>
 	new Response(JSON.stringify(body), {
-		headers: { ...CORS, ...SAFE, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': `public, max-age=${TTL}` },
+		headers: {
+			...CORS,
+			...SAFE,
+			'Content-Type': 'application/json; charset=utf-8',
+			'Cache-Control': `public, max-age=${TTL}`,
+			'X-Upstream-Kind': 'local',
+		},
 	});
 
 // The account a method is about, and the parameter that names it.
@@ -93,20 +104,22 @@ interface Target {
 	service?: string;
 	/** The method's kind from its lexicon, when one was looked up. */
 	kind?: 'query' | 'procedure' | null;
+	/** Which sort of server answers it. */
+	to: Kind;
 }
 
 // Where a method goes, with the query to send. Null when no server for it is known.
 async function route(method: string, params: URLSearchParams, proxy: string | null): Promise<Target | null> {
 	if (proxy) {
 		const svc = await proxyService(proxy);
-		return { base: svc.endpoint, params, service: svc.ref };
+		return { base: svc.endpoint, params, service: svc.ref, to: 'proxy' };
 	}
 	const name = accountParam(method, params);
 	if (name) {
 		const actor = await resolveActor(params.get(name)!);
 		const out = new URLSearchParams(params);
 		out.set(name, actor.did);
-		return { base: actor.pds, params: out };
+		return { base: actor.pds, params: out, to: 'pds' };
 	}
 	// Labels are asked of the labeler named in sources, Bluesky's moderation labeler when none is. /labels asks several.
 	if (method === 'com.atproto.label.queryLabels') {
@@ -115,10 +128,10 @@ async function route(method: string, params: URLSearchParams, proxy: string | nu
 		const did = sources[0] ? await resolveToDid(sources[0]) : DEFAULT_LABELER;
 		const out = new URLSearchParams(params);
 		out.set('sources', did);
-		return { base: await labelerEndpoint(did), params: out };
+		return { base: await labelerEndpoint(did), params: out, to: 'labeler' };
 	}
-	if (method.startsWith('com.atproto.sync.')) return { base: RELAY, params };
-	if (method.startsWith('app.bsky.')) return { base: APPVIEW, params };
+	if (method.startsWith('com.atproto.sync.')) return { base: RELAY, params, to: 'relay' };
+	if (method.startsWith('app.bsky.')) return { base: APPVIEW, params, to: 'appview' };
 	if (method.startsWith('com.atproto.')) return null;
 	const found = await discover(method);
 	if (!found.service) {
@@ -127,7 +140,7 @@ async function route(method: string, params: URLSearchParams, proxy: string | nu
 			message: `No app view found for ${method} at ${found.tried.join(', ')}. Send an atproto-proxy header naming the service, such as did:web:example.com#example_appview.`,
 		};
 	}
-	return { base: found.service.endpoint, params, service: found.service.ref, kind: found.kind };
+	return { base: found.service.endpoint, params, service: found.service.ref, kind: found.kind, to: 'discovered' };
 }
 
 // Request headers an app view may use, passed on as they came.
@@ -165,7 +178,13 @@ export async function xrpc(request: Request, url: URL): Promise<Response> {
 		if (REDIRECTS.has(method)) {
 			return new Response(null, {
 				status: 302,
-				headers: { ...CORS, Location: upstream.toString(), 'X-Upstream-Host': host, 'Cache-Control': `public, max-age=${REDIRECT_TTL}` },
+				headers: {
+					...CORS,
+					Location: upstream.toString(),
+					'X-Upstream-Host': host,
+					'X-Upstream-Kind': target.to,
+					'Cache-Control': `public, max-age=${REDIRECT_TTL}`,
+				},
 			});
 		}
 		let res: Response;
@@ -189,6 +208,7 @@ export async function xrpc(request: Request, url: URL): Promise<Response> {
 			...CORS,
 			...SAFE,
 			'X-Upstream-Host': host,
+			'X-Upstream-Kind': target.to,
 			...(target.service ? { 'X-Upstream-Service': target.service } : {}),
 		});
 		for (const h of PASS) {

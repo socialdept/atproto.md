@@ -1,3 +1,4 @@
+import { LABELERS } from './labelers';
 import type { StatsSnapshot } from './stats';
 
 // --- Usage stats -----------------------------------------------------------
@@ -52,9 +53,25 @@ export const routeLabel = (key: string): string => ROUTE_LABELS[key] ?? `/${key}
 export const CHANNEL_LABELS: Record<string, string> = { http: 'HTTP', mcp: 'MCP (tools)' };
 
 const ID_LABELS: Record<string, string> = { handle: 'handle', plc: 'did:plc', web: 'did:web' };
+/** Where an XRPC call went, as the stats name it. */
+export const XRPC_DESTINATIONS: Record<string, string> = {
+	pds: "The account's PDS",
+	relay: 'Relay',
+	appview: 'Bluesky app view',
+	labeler: 'Labeler',
+	proxy: 'Service named by atproto-proxy',
+	discovered: "App view found from the app's domain",
+	local: 'Answered by atproto.md',
+};
 // Country and client rows below this many requests are hidden, on the stats page and in its markdown, so a rare one
 // cannot identify anyone.
 export const STATS_THRESHOLD = 5;
+// Countries need more requests to be listed or shaded on the map, and a status code more responses to get its own row.
+// Status classes still count every response.
+export const COUNTRY_THRESHOLD = 20;
+export const STATUS_THRESHOLD = 15;
+// A lexicon namespace needs this many requests to be listed.
+export const NAMESPACE_THRESHOLD = 10;
 
 export function bytesHuman(n: number): string {
 	if (n < 1024) return `${n} B`;
@@ -85,6 +102,38 @@ function countTable(
 		lines.push(`| ${name} | ${fmtNum(i.count)} |`);
 	}
 	lines.push('');
+	return lines;
+}
+
+const LABELER_HANDLES = new Map(LABELERS.map((l) => [l.did, l.handle]));
+/** A labeler's handle when it is on the curated list, or "Other labelers" for the rest together. */
+export const labelerName = (key: string): string => (key === 'other' ? 'Other labelers' : (LABELER_HANDLES.get(key) ?? key));
+
+// Label lookups: how many found a label, what was looked up, the labels found, and how each labeler answered.
+function labelTables(stats: StatsSnapshot): string[] {
+	const l = stats.labels;
+	if (!l?.subjects) return [];
+	const lines = [
+		'## Label lookups',
+		'',
+		`**Found a label:** ${fmtNum(l.labeled)} of ${fmtNum(l.subjects)} lookups (${((l.labeled / l.subjects) * 100).toFixed(1)}%)`,
+		'',
+	];
+	lines.push(...countTable('Looked up', 'Kind', l.kinds, (k) => (k === 'account' ? 'account' : k)));
+	lines.push(
+		...countTable(
+			'Labels found',
+			'Label',
+			l.values.filter((c) => c.count >= STATS_THRESHOLD),
+		),
+	);
+	lines.push(...countTable('Labels found by labeler', 'Labeler', l.sources, labelerName));
+	if (l.labelers.length) {
+		lines.push('## Labeler health', '', '| Labeler | Lookups | Failed | Average |', '| --- | --- | --- | --- |');
+		for (const h of l.labelers)
+			lines.push(`| \`${labelerName(h.key)}\` | ${fmtNum(h.queries)} | ${fmtNum(h.failures)} | ${fmtNum(h.avgMs)} ms |`);
+		lines.push('');
+	}
 	return lines;
 }
 
@@ -126,12 +175,39 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 	lines.push(...countTable('HTTP routes', 'Route', stats.routes, routeLabel));
 	lines.push(...countTable('MCP tools', 'Tool', stats.tools));
 	lines.push(...countTable('Identifier type', 'Type', stats.idTypes, (k) => ID_LABELS[k] ?? k));
+	lines.push(
+		...countTable(
+			'XRPC namespaces',
+			'Namespace',
+			stats.xrpcNamespaces.filter((c) => c.count >= NAMESPACE_THRESHOLD),
+		),
+	);
+	lines.push(...countTable('XRPC destinations', 'Destination', stats.xrpcDestinations, (k) => XRPC_DESTINATIONS[k] ?? k));
+	lines.push(...labelTables(stats));
 	lines.push(...countTable('Pagination & params', 'Param', stats.params));
-	lines.push(...countTable('Backlink selectors', 'Selector', stats.selectors));
-	lines.push(...countTable('Status codes', 'Status', stats.statuses));
+	lines.push(
+		...countTable(
+			'Backlink selectors',
+			'Selector',
+			stats.selectors.filter((c) => c.count >= STATS_THRESHOLD),
+		),
+	);
+	lines.push(
+		...countTable(
+			'Status codes',
+			'Status',
+			stats.statuses.filter((c) => c.count >= STATUS_THRESHOLD),
+		),
+	);
 	lines.push(...countTable('Errors by route', 'Route', stats.errorRoutes));
 	lines.push(...countTable('Upstream failures', 'Upstream', stats.upstreams));
-	lines.push(...countTable('Top authorities', 'Authority', stats.authorities));
+	lines.push(
+		...countTable(
+			'Top authorities',
+			'Authority',
+			stats.authorities.filter((c) => c.count >= NAMESPACE_THRESHOLD),
+		),
+	);
 
 	if (stats.collections.length) {
 		lines.push('## Most queried collections', '', `*${fmtNum(stats.distinctCollections)} distinct collections queried.*`, '');
@@ -150,7 +226,7 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 		...countTable(
 			'Countries',
 			'Country',
-			stats.countries.filter((c) => c.count >= STATS_THRESHOLD),
+			stats.countries.filter((c) => c.count >= COUNTRY_THRESHOLD),
 		),
 	);
 	lines.push(...countTable('Latency distribution', 'Bucket', stats.latency.buckets));

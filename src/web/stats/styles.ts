@@ -21,13 +21,10 @@ export const STATS_STYLES = `
 /* Overview: the hero figure beside a grid of six tiles. */
 .overview { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; }
 .hero-tile .card { padding: 20px; height: 100%; display: flex; flex-direction: column; gap: 20px; }
-.hero-tile__top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.strip { display: flex; align-items: flex-end; gap: 3px; height: 56px; flex: 1; max-width: 220px; }
-/* One bar per day for 30 days. A quiet day is a short faint tick, so the strip always reads as 30 days. */
-.strip i { flex: 1; min-width: 3px; min-height: 4px; background: var(--ink); border-radius: 1px; }
-.strip i.z { background: var(--line); }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); height: 100%; }
 .tile { padding: 18px 20px; }
+/* On desktop each tile's help text stays on one line. */
+@media (min-width: 1024px) { .tile .k-sub { white-space: nowrap; } }
 .tile:not(:nth-child(3n+1)) { border-left: 1px solid var(--line); }
 .tile:nth-child(n+4) { border-top: 1px solid var(--line); }
 
@@ -44,6 +41,14 @@ export const STATS_STYLES = `
 .legend--inline { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; }
 .legend--inline li { display: flex; gap: 8px; }
 .codes { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+/* Status codes: the per-code list scrolls under the class summary. It takes no height of its own, so the card is as
+   tall as the latency card beside it and the list fills what is left, down to the card's bottom edge. Alone in its
+   row, on a phone, it shows about five codes. */
+.panel .card:has(> .codes) { display: flex; flex-direction: column; padding-bottom: 0; }
+/* It reaches out to the card's side edges and takes that room back as padding, so its scrollbar sits in the card's
+   padding, clear of the numbers. Its divider stays inset, the width of the rows. */
+.card > .codes { flex: 1 1 0; min-height: 150px; overflow: hidden auto; align-content: start; margin: 16px -20px 0; padding: 14px 20px 18px; border-top: 0;
+  background: linear-gradient(var(--line), var(--line)) 20px 0 / calc(100% - 40px) 1px no-repeat; }
 .codes .mono { font: 500 13px var(--accent); }
 
 /* Panels: a tray head with a title and a line, then the card. */
@@ -52,45 +57,45 @@ export const STATS_STYLES = `
 .panel > .card { flex: 1; }
 .panel > .card:has(> .empty-state:only-child) { display: flex; align-items: center; justify-content: center; }
 .panel .card { padding: 18px 20px; }
+/* Label lookups read like the Requests card: the hero figure, then the split of what was looked up. */
+.lookups { display: flex; flex-direction: column; gap: 20px; height: 100%; }
 .panel .card:has(> .meters) { padding: 8px 20px; }
 .panel .tray__head { align-items: center; padding-inline: 21px; } /* lines up with the card's 20px padding inside its 1px frame */
 
 /* Segmented meters for ranked lists. */
-.meters { list-style: none; margin: 0; padding: 0; }
-.meters li { display: grid; grid-template-columns: minmax(0, 1fr) auto 40px 48px; align-items: center; gap: 14px; min-height: 40px; padding: 6px 0; }
+/* The list holds the columns and every row takes them as a subgrid, so the meters and counts line up down the list,
+   with the count column as wide as its widest number. */
+.meters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto 40px minmax(48px, max-content); column-gap: 14px; }
+.meters li { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; min-height: 40px; padding: 6px 0; }
 .meters li + li { border-top: 1px solid var(--line); }
 /* Seven rows, then the rest scrolls. HTTP routes shows every row. */
 /* The scroll box reaches the card's top and bottom edges, with the card's 8px inside it, so rows clip at the frame. */
-.meters--scroll { max-height: calc(7 * 41px + 16px); overflow-y: auto; margin: -8px 0; padding: 8px 0; }
+/* A scrolling list reaches out to the card's edges and takes that room back as padding, so the scrollbar sits in the
+   card's padding, clear of the numbers. */
+.meters--scroll { max-height: calc(7 * 41px + 16px); overflow: hidden auto; margin: -8px -20px; padding: 8px 20px; }
 .m__label { min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
-.m__label.mono { font: 500 13px var(--accent); overflow-wrap: normal; }
+.m__label.mono { font: 500 13px var(--accent); overflow-wrap: anywhere; }
 .m__label a { text-decoration: none; }
 .m__label a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .m__pct { text-align: right; font: 500 12.5px var(--accent); color: var(--muted); }
 .m__num { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; font-size: 14px; }
-.ticks { --tick: 4px; --gap: 2px; position: relative; width: calc(24 * (var(--tick) + var(--gap)) - var(--gap)); height: 14px;
-  background: repeating-linear-gradient(90deg, var(--line) 0 var(--tick), transparent var(--tick) calc(var(--tick) + var(--gap))); }
-.ticks::before { content: ''; position: absolute; inset: 0 auto 0 0; width: calc(var(--on) * (var(--tick) + var(--gap)) - var(--gap));
-  background: repeating-linear-gradient(90deg, var(--ink) 0 var(--tick), transparent var(--tick) calc(var(--tick) + var(--gap))); }
-.ticks--error::before { background: repeating-linear-gradient(90deg, ${VIZ.errors} 0 var(--tick), transparent var(--tick) calc(var(--tick) + var(--gap))); }
-.ticks--blue::before { background: repeating-linear-gradient(90deg, ${VIZ.http} 0 var(--tick), transparent var(--tick) calc(var(--tick) + var(--gap))); }
+.ticks { display: flex; gap: 2px; height: 14px; --fill: var(--ink); }
+.ticks i { flex: none; width: 4px; background: var(--line); }
+.ticks i.on { background: var(--fill); }
+.ticks--error { --fill: ${VIZ.errors}; }
+.ticks--blue { --fill: ${VIZ.http}; }
 
 /* Stacked meters, for long labels in a half-width panel: the label and count on one line, then the meter across the
-   full width with its share beside it, so the label gets the whole row. 48 ticks divide the row's width (a mask cuts
-   the gaps), so they stay thin and line up at any width, and the fill moves two ticks per step of the 24-step share. */
-.meters--stacked li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label num" "bar pct"; row-gap: 8px; padding: 10px 0; }
+   full width with its share beside it, so the label gets the whole row. 48 ticks share the row's width, so they stay
+   thin at any width, and the fill moves two ticks per step of the 24-step share. */
+.meters--stacked li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label num" "bar pct"; gap: 8px 14px; padding: 10px 0; }
 .meters--stacked .m__label { grid-area: label; }
 .meters--stacked .m__num { grid-area: num; }
 .meters--stacked .m__pct { grid-area: pct; min-width: 36px; }
-.meters--stacked .ticks { grid-area: bar; width: 100%; height: 10px; --fill: ${VIZ.errors};
-  /* The fill edge sits 1px before the tick boundary, inside a gap, so rounding never cuts a tick in half. */
-  background: linear-gradient(90deg, var(--fill) calc(var(--on) * 100% / 24 - 1px), var(--line) 0);
-  -webkit-mask: repeating-linear-gradient(90deg, #000 0 calc(100% / 48 - 2px), transparent calc(100% / 48 - 2px) calc(100% / 48));
-  mask: repeating-linear-gradient(90deg, #000 0 calc(100% / 48 - 2px), transparent calc(100% / 48 - 2px) calc(100% / 48)); }
-.meters--stacked .ticks::before { display: none; }
-.meters--stacked .ticks--blue { --fill: ${VIZ.http}; }
-.meters--stacked .ticks--ink { --fill: var(--ink); }
-.meters--stacked.meters--scroll { max-height: calc(7 * 64px + 16px); }
+.meters--stacked .ticks { grid-area: bar; height: 10px; }
+.meters--stacked .ticks i { flex: 1 1 0; width: auto; }
+/* The same height as every other scrolling list, so cards side by side match and neither cuts a row off. */
+.meters--stacked.meters--scroll { max-height: calc(7 * 41px + 16px); }
 
 /* Requests per day: range tabs, headline figure, stacked bars. */
 .tabs { display: flex; gap: 4px; }
@@ -129,7 +134,8 @@ export const STATS_STYLES = `
 .hist__col:hover span { background: #1f5fae; }
 .hist__col:hover::after { content: attr(data-count); position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); font: 600 12px var(--accent); }
 .hist__labels { display: flex; gap: 6px; margin-top: 6px; }
-.hist__labels span { flex: 1; text-align: center; font: 500 11px var(--accent); color: var(--faint); white-space: nowrap; }
+/* A label stays on one line while it has room, and wraps on the narrowest phones in place of widening the page. */
+.hist__labels span { flex: 1; min-width: 0; text-align: center; font: 500 11px var(--accent); color: var(--faint); }
 .hist__unit { text-align: center; font-size: 12px; }
 .tile__num { white-space: nowrap; }
 .fig__op { margin-right: .2em; }
@@ -145,6 +151,9 @@ export const STATS_STYLES = `
 
 /* Parameter chips. */
 .chipset { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+/* A long chip list scrolls inside its card, on a phone too, from the card's top edge to its bottom edge. */
+.panel .card:has(> .chipset) { padding: 0; }
+.card > .chipset { max-height: 300px; overflow: hidden auto; padding: 18px 20px; align-content: flex-start; }
 /* A chip is one line tall until its name is wider than the card, then it wraps at the breaks the name allows. */
 .chipset li { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; max-width: 100%; box-sizing: border-box; padding: 4px 4px 4px 10px; ${px(C.line, C.card, NOTCH)} }
 .chipset code { min-width: 0; font: 500 13px var(--accent); }
@@ -161,7 +170,11 @@ export const STATS_STYLES = `
 .chart-panel { margin-top: 16px; }
 
 /* Countries: the pixel world map beside the ranked list. */
-.geo { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 28px; align-items: start; padding: 12px 0; }
+.geo { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 28px; align-items: start; }
+/* The country list scrolls from the card's top edge to its bottom edge, and the map keeps its own room. */
+.panel .card:has(> .geo) { padding: 0 20px; }
+.geo__map { padding: 30px 0; }
+.geo .meters--scroll { margin: 0 -20px 0 0; padding: 18px 20px 18px 0; max-height: calc(7 * 41px + 36px); }
 .map { display: block; width: 100%; height: auto; }
 .map__layer path { cursor: default; transition: fill .15s; }
 .map__layer path:hover { fill: var(--ink); }
@@ -174,30 +187,31 @@ export const STATS_STYLES = `
 /* Motion. Each panel's marks play once as the panel comes into view, short and in order: bars rise from their
    baseline, meters fill a tick at a time, split bars wipe in from the left, the map shades from the fewest requests
    up, and figures count up (in the script). Each animation ends on the element's own style, so it fills backwards
-   only: once it ends it lets go, and the marks drop out of the GPU layers an animation holds. html.motion is set only when reduced motion is off and the script runs,
-   so without it every mark shows at once. --i is each mark's place in its row, set by the script. */
-@property --on { syntax: '<integer>'; inherits: true; initial-value: 0; }
+   only: once it ends it lets go, and the marks drop out of the GPU layers an animation holds. html.motion is set only
+   when reduced motion is off and the script runs, so without it every mark shows at once. --i is each mark's place in its row, set by the script. */
 @property --share { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
 html.motion { --ease: cubic-bezier(.22, 1, .36, 1); }
-html.motion .tray:not(.in) :is(.strip i, .cols .col, .hist__col span) { transform: scaleY(0); }
+html.motion .tray:not(.in) :is(.cols .col, .hist__col span) { transform: scaleY(0); }
 html.motion .tray:not(.in) :is(.hero-num, .tile__num) { visibility: hidden; }
 html.motion .tray:not(.in) .split { clip-path: inset(0 100% 0 0); }
 html.motion .tray:not(.in) .map__layer, html.motion .tray:not(.in) .ticks { opacity: 0; }
-html.motion .tray.in .strip i { transform-origin: bottom; animation: rise .45s var(--ease) calc(var(--i, 0) * 10ms) backwards; }
 html.motion .tray.in .cols .col { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 12ms) backwards; }
 html.motion .tray.in .hist__col span { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 40ms) backwards; }
-html.motion .tray.in .ticks { animation: fill .55s var(--ease) calc(min(var(--i, 0), 8) * 35ms) backwards; }
+/* A meter fills a tick at a time: each lit tick switches on in turn, its row a little after the row above. */
+html.motion .tray.in .ticks i.on { animation: tick 1ms step-end calc(min(var(--i, 0), 8) * 35ms + var(--k, 0) * 20ms) backwards; }
+${Array.from({ length: 48 }, (_, k) => `.ticks i:nth-child(${k + 1}) { --k: ${k}; }`).join('\n')}
 html.motion .tray.in .meters li { animation: share .55s var(--ease) calc(min(var(--i, 0), 8) * 35ms) backwards; }
 html.motion .tray.in .split { animation: wipe .6s var(--ease) backwards; }
 html.motion .tray.in .map__layer { animation: shade .4s ease-out calc(var(--i, 0) * 70ms) backwards; }
 @keyframes rise { from { transform: scaleY(0); } }
-@keyframes fill { from { --on: 0; } }
+@keyframes tick { from { background: var(--line); } }
 @keyframes share { from { --share: 0%; } }
 @keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes shade { from { opacity: 0; } }
 
+/* Below 1024px the tiles beside the hero figure have no room for their help text, so the two cards stack. */
+@media (max-width: 1023px) { .overview { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
-  .overview { grid-template-columns: 1fr; }
   .geo { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
@@ -213,6 +227,9 @@ html.motion .tray.in .map__layer { animation: shade .4s ease-out calc(var(--i, 0
   .meters li::before { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--share); background: var(--tray); border-radius: 6px; }
   .meters .m__label, .meters .m__num { position: relative; }
   .meters .ticks, .meters .m__pct { display: none; }
+  /* Labeler health keeps its failure rate on a phone, beside the time. */
+  .meters--health li { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .meters--health .m__pct { display: block; position: relative; }
   /* Figures: the comparator and unit drop to a small secondary size, so values fit across a phone. */
   .hist__figures .tile__num { font-size: 22px; }
   .fig__op, .fig__unit { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }

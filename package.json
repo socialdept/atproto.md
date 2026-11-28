@@ -1,6 +1,6 @@
 {
   "name": "atproto-md",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
@@ -14,7 +14,8 @@
     "cf-typegen": "wrangler types",
     "og:glyphs": "node scripts/og-glyphs.mjs",
     "world:grid": "node scripts/world-grid.mjs",
-    "labelers": "node scripts/labelers.mjs"
+    "labelers": "node scripts/labelers.mjs",
+    "stats:seed": "node scripts/seed-stats.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",

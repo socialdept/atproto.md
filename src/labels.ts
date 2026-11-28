@@ -1,5 +1,6 @@
 import { resolveDidDoc, resolveToDid } from './identity';
 import { DEFAULT_LABELER, LABELERS } from './labelers';
+import { recordLabels } from './stats';
 
 // Labels from labelers, asked directly. Each labeler publishes its own service address in its DID document and answers
 // com.atproto.label.queryLabels for the subjects it has labelled. A lookup asks Bluesky's moderation labeler unless it
@@ -93,8 +94,10 @@ export async function queryLabels(
 	const answers = await Promise.all(
 		labelers.map(async (did) => {
 			const handle = known.get(did)?.handle ?? null;
+			const started = Date.now();
 			try {
-				return { result: { did, handle, ok: true } as LabelerResult, labels: current(await ask(did, subjects)) };
+				const labels = current(await ask(did, subjects));
+				return { result: { did, handle, ok: true } as LabelerResult, labels, ms: Date.now() - started };
 			} catch (e) {
 				const raw = e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e);
 				// The runtime reports a host it cannot reach as an internal error.
@@ -104,7 +107,7 @@ export async function queryLabels(
 						: raw.startsWith('internal error')
 							? 'Could not connect to the labeler.'
 							: raw;
-				return { result: { did, handle, ok: false, error } as LabelerResult, labels: [] };
+				return { result: { did, handle, ok: false, error } as LabelerResult, labels: [] as RawLabel[], ms: Date.now() - started };
 			}
 		}),
 	);
@@ -123,5 +126,10 @@ export async function queryLabels(
 			});
 		}
 	}
+	recordLabels({
+		subjects: [...bySubject].map(([uri, list]) => ({ uri, labeled: list.length > 0 })),
+		values: [...bySubject.values()].flat().map((l) => l.val),
+		labelers: answers.map((a) => ({ did: a.result.did, ok: a.result.ok, ms: a.ms, labels: a.labels.length })),
+	});
 	return { bySubject, labelers: answers.map((a) => a.result) };
 }

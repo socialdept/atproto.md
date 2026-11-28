@@ -39,6 +39,14 @@ describe('formatStats', () => {
 		],
 		params: [{ key: 'cursor', count: 90 }],
 		selectors: [{ key: 'app.bsky.feed.like:subject.uri', count: 45 }],
+		xrpcNamespaces: [
+			{ key: 'app.bsky', count: 30 },
+			{ key: 'rare.ns', count: 2 },
+		],
+		xrpcDestinations: [
+			{ key: 'appview', count: 30 },
+			{ key: 'pds', count: 12 },
+		],
 		clients: [
 			{ key: 'claude-code', count: 30 },
 			{ key: 'rare-client', count: 2 },
@@ -55,6 +63,24 @@ describe('formatStats', () => {
 			{ day: '2026-06-10', count: 100 },
 			{ day: '2026-06-11', count: 400 },
 		],
+		labels: {
+			subjects: 40,
+			labeled: 4,
+			kinds: [
+				{ key: 'account', count: 10 },
+				{ key: 'app.bsky.feed.post', count: 30 },
+			],
+			values: [
+				{ key: 'spam', count: 12 },
+				{ key: 'rare-one', count: 4 },
+				{ key: 'sometimes', count: 5 },
+			],
+			sources: [
+				{ key: 'did:plc:ar7c4by46qjdydhdevvrndac', count: 12 },
+				{ key: 'other', count: 1 },
+			],
+			labelers: [{ key: 'did:plc:ar7c4by46qjdydhdevvrndac', queries: 20, failures: 1, avgMs: 240 }],
+		},
 		latency: {
 			count: 1200,
 			avgMs: 180,
@@ -93,6 +119,17 @@ describe('formatStats', () => {
 		expect(md).toContain('## Latency');
 		expect(md).toContain('**p95:** < 1000ms');
 		expect(md).toContain('| `200` | 1,200 |'); // status codes
+		expect(md).toContain('**Found a label:** 4 of 40 lookups (10.0%)');
+		expect(md).toContain('| `spam` | 12 |');
+		expect(md).not.toContain('rare-one');
+		expect(md).toContain('| `sometimes` | 5 |');
+		expect(md).toContain('| `moderation.bsky.app` | 12 |');
+		expect(md).toContain('| `Other labelers` | 1 |');
+		expect(md).toContain('| `moderation.bsky.app` | 20 | 1 | 240 ms |');
+		expect(md).toContain('## XRPC namespaces');
+		expect(md).toContain('| `app.bsky` | 30 |');
+		expect(md).not.toContain('rare.ns');
+		expect(md).toContain('| `Bluesky app view` | 30 |');
 		expect(md).toContain('## Upstream failures');
 		expect(md).toContain('| `pds` | 7 |');
 		expect(md).toContain('| `app.bsky` | 600 |'); // authority
@@ -130,10 +167,13 @@ describe('formatStats', () => {
 			idTypes: [],
 			params: [],
 			selectors: [],
+			xrpcNamespaces: [],
+			xrpcDestinations: [],
 			clients: [],
 			countries: [],
 			collections: [],
 			daily: [],
+			labels: { subjects: 0, labeled: 0, kinds: [], values: [], sources: [], labelers: [] },
 			latency: { count: 0, avgMs: 0, p50: '—', p95: '—', buckets: [] },
 		};
 		expect(formatStats(ORIGIN, zero)).toContain('*No requests recorded yet.*');

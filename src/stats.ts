@@ -1,3 +1,5 @@
+import { LABELERS } from './labelers';
+import { scope } from './scope';
 import { DurableObject } from 'cloudflare:workers';
 
 export type Channel = 'http' | 'mcp';
@@ -11,6 +13,8 @@ export interface StatEvent {
 	upstream?: string; // failed dependency: pds, plc, relay, constellation, lexicon, …
 	idType?: string; // identifier as entered: handle | plc | web
 	selector?: string; // backlink `collection:path` selector
+	xrpcNamespace?: string; // an XRPC method's first two segments, such as app.bsky
+	xrpcTo?: string; // where an XRPC call went: pds, relay, appview, labeler, proxy, discovered or local
 	flags?: string[]; // e.g. ['param:cursor', 'param:source']
 	country?: string; // ISO-3166 country (http only, coarse, threshold-gated on display)
 	bytes?: number; // response body size
@@ -65,11 +69,40 @@ export interface StatsSnapshot {
 	idTypes: StatCount[];
 	params: StatCount[];
 	selectors: StatCount[];
+	xrpcNamespaces: StatCount[];
+	xrpcDestinations: StatCount[];
 	clients: StatCount[];
 	countries: StatCount[];
 	collections: CollectionStat[];
 	daily: DailyStat[];
 	latency: LatencyStat;
+	labels: LabelStats;
+}
+
+/** Label lookups: how many subjects were looked up and how many carried a label, the labels found, and each labeler. */
+export interface LabelStats {
+	subjects: number;
+	labeled: number;
+	/** Subjects looked up, by kind: `account`, or a record's collection. */
+	kinds: StatCount[];
+	values: StatCount[];
+	/** Labels found, by labeler DID, with `other` for labelers outside the curated list. */
+	sources: StatCount[];
+	labelers: LabelerHealth[];
+}
+
+export interface LabelerHealth {
+	key: string;
+	queries: number;
+	failures: number;
+	avgMs: number;
+}
+
+/** One label lookup, as queryLabels reports it. Subjects are reduced to their kind, so no account or record is kept. */
+export interface LabelEvent {
+	subjects: { kind: string; labeled: boolean }[];
+	values: string[];
+	labelers: { key: string; ok: boolean; ms: number; labels: number }[];
 }
 
 const TOP_COLLECTIONS = 25;
@@ -153,6 +186,8 @@ export class StatsDO extends DurableObject {
 		if (event.upstream) this.bump(`upstream:${event.upstream}`);
 		if (event.idType) this.bump(`idtype:${event.idType}`);
 		if (event.selector) this.bump(`sel:${event.selector}`);
+		if (event.xrpcNamespace) this.bump(`xrpcns:${event.xrpcNamespace}`);
+		if (event.xrpcTo) this.bump(`xrpcto:${event.xrpcTo}`);
 		for (const flag of event.flags ?? []) this.bump(flag);
 		if (event.country) this.bump(`country:${event.country}`);
 
@@ -179,6 +214,21 @@ export class StatsDO extends DurableObject {
 		this.bump('mcp:sessions');
 		if (client) this.bump(`client:${client.slice(0, 64)}`);
 		this.since(now);
+	}
+
+	labelLookup(event: LabelEvent): void {
+		for (const s of event.subjects) {
+			this.bump('lbl:subjects');
+			this.bump(`lblkind:${s.kind}`);
+			if (s.labeled) this.bump('lbl:labeled');
+		}
+		for (const v of event.values) this.bump(`lblval:${v}`);
+		for (const l of event.labelers) {
+			this.bump(`lblq:${l.key}`);
+			this.add(`lblms:${l.key}`, Math.round(l.ms));
+			if (!l.ok) this.bump(`lblfail:${l.key}`);
+			if (l.labels) this.add(`lblsrc:${l.key}`, l.labels);
+		}
 	}
 
 	snapshot(): StatsSnapshot {
@@ -227,11 +277,26 @@ export class StatsDO extends DurableObject {
 			idTypes: prefixed('idtype:'),
 			params: prefixed('param:'),
 			selectors: prefixed('sel:'),
+			xrpcNamespaces: prefixed('xrpcns:'),
+			xrpcDestinations: prefixed('xrpcto:'),
 			clients: prefixed('client:'),
 			countries: prefixed('country:'),
 			collections: collRows,
 			daily,
 			latency: this.latency(),
+			labels: {
+				subjects: counter('lbl:subjects'),
+				labeled: counter('lbl:labeled'),
+				kinds: prefixed('lblkind:'),
+				values: prefixed('lblval:'),
+				sources: prefixed('lblsrc:'),
+				labelers: prefixed('lblq:').map(({ key, count }) => ({
+					key,
+					queries: count,
+					failures: counter(`lblfail:${key}`),
+					avgMs: count ? Math.round(counter(`lblms:${key}`) / count) : 0,
+				})),
+			},
 		};
 	}
 
@@ -265,8 +330,12 @@ function stub(env: Env): DurableObjectStub<StatsDO> | null {
 
 // A well-formed NSID and a `collection:path` selector. Anything else (junk or hostile path
 // segments) is dropped so it can't pollute or inject into the stats.
+const CURATED = new Set(LABELERS.map((l) => l.did));
 const NSID_RE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/i;
 const SELECTOR_RE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+:[a-z0-9_.[\]]{1,64}$/i;
+// An XRPC method's namespace, its first two segments, and the destinations the XRPC endpoint reports.
+const XRPC_NS_RE = /^[a-z][a-z0-9-]*\.[a-z0-9-]+$/i;
+const XRPC_TO = new Set(['pds', 'relay', 'appview', 'labeler', 'proxy', 'discovered', 'local']);
 
 export interface VisitInput {
 	channel: Channel;
@@ -277,6 +346,8 @@ export interface VisitInput {
 	upstream?: string;
 	idType?: string;
 	selector?: string;
+	xrpcNamespace?: string;
+	xrpcTo?: string;
 	flags?: string[];
 	country?: string;
 	bytes?: number;
@@ -290,6 +361,8 @@ export function recordVisit(env: Env, ctx: ExecutionContext, input: VisitInput):
 
 	const collection = input.collection && NSID_RE.test(input.collection) ? input.collection : undefined;
 	const selector = input.selector && SELECTOR_RE.test(input.selector) ? input.selector : undefined;
+	const xrpcNamespace = input.xrpcNamespace && XRPC_NS_RE.test(input.xrpcNamespace) ? input.xrpcNamespace : undefined;
+	const xrpcTo = input.xrpcTo && XRPC_TO.has(input.xrpcTo) ? input.xrpcTo : undefined;
 	const d = new Date();
 	const now = d.toISOString();
 
@@ -297,10 +370,37 @@ export function recordVisit(env: Env, ctx: ExecutionContext, input: VisitInput):
 		...input,
 		collection,
 		selector,
+		xrpcNamespace,
+		xrpcTo,
 		day: now.slice(0, 10),
 		now,
 	};
 	ctx.waitUntil(Promise.resolve(s.record(event)).catch(() => {}));
+}
+
+// A label value as labelers write them: lowercase letters, digits and hyphens, with a leading ! for the global ones.
+const LABEL_VAL_RE = /^!?[a-z0-9][a-z0-9-]{0,63}$/;
+
+/** Counts a label lookup for the request it runs in. Outside a request, as in tests, it does nothing. */
+export function recordLabels(input: {
+	subjects: { uri: string; labeled: boolean }[];
+	values: string[];
+	labelers: { did: string; ok: boolean; ms: number; labels: number }[];
+}): void {
+	const store = scope.getStore();
+	const s = store && stub(store.env);
+	if (!store || !s) return;
+	const kindOf = (uri: string): string => {
+		if (!uri.startsWith('at://')) return 'account';
+		const collection = uri.slice(5).split('/')[1] ?? '';
+		return NSID_RE.test(collection) ? collection : 'record';
+	};
+	const event: LabelEvent = {
+		subjects: input.subjects.map((x) => ({ kind: kindOf(x.uri), labeled: x.labeled })),
+		values: input.values.filter((v) => LABEL_VAL_RE.test(v)),
+		labelers: input.labelers.map((l) => ({ key: CURATED.has(l.did) ? l.did : 'other', ok: l.ok, ms: l.ms, labels: l.labels })),
+	};
+	store.ctx.waitUntil(Promise.resolve(s.labelLookup(event)).catch(() => {}));
 }
 
 export function recordSession(env: Env, ctx: ExecutionContext, client?: string): void {
@@ -331,6 +431,7 @@ const paramFlags = (url: URL): string[] =>
 
 export interface HttpClass {
 	key: string;
+	xrpcNamespace?: string;
 	collection?: string;
 	idType?: string;
 	selector?: string;
@@ -380,7 +481,8 @@ export function classifyHttp(url: URL): HttpClass | null {
 			url.searchParams.get('identifier') ??
 			url.searchParams.get('handle') ??
 			undefined;
-		return { key: 'route:xrpc', idType: repo ? idTypeOf(repo) : undefined };
+		const namespace = (segments[1] ?? '').split('.').slice(0, 2).join('.');
+		return { key: 'route:xrpc', idType: repo ? idTypeOf(repo) : undefined, xrpcNamespace: namespace || undefined };
 	}
 	if (head === 'plc') return { key: `route:plc/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
 
