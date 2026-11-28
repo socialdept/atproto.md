@@ -39,6 +39,14 @@ describe('formatStats', () => {
 		],
 		params: [{ key: 'cursor', count: 90 }],
 		selectors: [{ key: 'app.bsky.feed.like:subject.uri', count: 45 }],
+		xrpcNamespaces: [
+			{ key: 'app.bsky', count: 30 },
+			{ key: 'rare.ns', count: 2 },
+		],
+		xrpcDestinations: [
+			{ key: 'appview', count: 30 },
+			{ key: 'pds', count: 12 },
+		],
 		clients: [
 			{ key: 'claude-code', count: 30 },
 			{ key: 'rare-client', count: 2 },
@@ -93,6 +101,10 @@ describe('formatStats', () => {
 		expect(md).toContain('## Latency');
 		expect(md).toContain('**p95:** < 1000ms');
 		expect(md).toContain('| `200` | 1,200 |'); // status codes
+		expect(md).toContain('## XRPC namespaces');
+		expect(md).toContain('| `app.bsky` | 30 |');
+		expect(md).not.toContain('rare.ns');
+		expect(md).toContain('| `Bluesky app view` | 30 |');
 		expect(md).toContain('## Upstream failures');
 		expect(md).toContain('| `pds` | 7 |');
 		expect(md).toContain('| `app.bsky` | 600 |'); // authority
@@ -130,6 +142,8 @@ describe('formatStats', () => {
 			idTypes: [],
 			params: [],
 			selectors: [],
+			xrpcNamespaces: [],
+			xrpcDestinations: [],
 			clients: [],
 			countries: [],
 			collections: [],

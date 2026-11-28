@@ -417,3 +417,12 @@ describe('MCP sessions', () => {
 		expect(((await req.json()) as { method: string }).method).toBe('initialize');
 	});
 });
+
+describe('XRPC stats', () => {
+	it('names the namespace of an XRPC call', () => {
+		expect(classifyHttp(new URL('https://atproto.md/xrpc/app.bsky.feed.getPostThread?uri=x'))).toMatchObject({
+			key: 'route:xrpc',
+			xrpcNamespace: 'app.bsky',
+		});
+	});
+});

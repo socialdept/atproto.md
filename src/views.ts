@@ -52,6 +52,16 @@ export const routeLabel = (key: string): string => ROUTE_LABELS[key] ?? `/${key}
 export const CHANNEL_LABELS: Record<string, string> = { http: 'HTTP', mcp: 'MCP (tools)' };
 
 const ID_LABELS: Record<string, string> = { handle: 'handle', plc: 'did:plc', web: 'did:web' };
+/** Where an XRPC call went, as the stats name it. */
+export const XRPC_DESTINATIONS: Record<string, string> = {
+	pds: "The account's PDS",
+	relay: 'Relay',
+	appview: 'Bluesky app view',
+	labeler: 'Labeler',
+	proxy: 'Service named by atproto-proxy',
+	discovered: "App view found from the app's domain",
+	local: 'Answered by atproto.md',
+};
 // Country and client rows below this many requests are hidden, on the stats page and in its markdown, so a rare one
 // cannot identify anyone.
 export const STATS_THRESHOLD = 5;
@@ -132,6 +142,14 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 	lines.push(...countTable('HTTP routes', 'Route', stats.routes, routeLabel));
 	lines.push(...countTable('MCP tools', 'Tool', stats.tools));
 	lines.push(...countTable('Identifier type', 'Type', stats.idTypes, (k) => ID_LABELS[k] ?? k));
+	lines.push(
+		...countTable(
+			'XRPC namespaces',
+			'Namespace',
+			stats.xrpcNamespaces.filter((c) => c.count >= NAMESPACE_THRESHOLD),
+		),
+	);
+	lines.push(...countTable('XRPC destinations', 'Destination', stats.xrpcDestinations, (k) => XRPC_DESTINATIONS[k] ?? k));
 	lines.push(...countTable('Pagination & params', 'Param', stats.params));
 	lines.push(
 		...countTable(

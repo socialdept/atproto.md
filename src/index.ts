@@ -85,7 +85,9 @@ export default {
 		// The home page and /stats are never counted, for browsers or agents, since they would drown the API signal.
 		const stat = classifyHttp(url);
 		const type = response.headers.get('Content-Type') ?? '';
-		if (stat && (type.startsWith('text/markdown') || type.startsWith('application/json'))) {
+		// Data responses are counted, and so are redirects: /blob, /repo/car and the XRPC blob and repo calls answer with one.
+		const redirect = response.status >= 300 && response.status < 400;
+		if (stat && (redirect || type.startsWith('text/markdown') || type.startsWith('application/json'))) {
 			const isError = response.status >= 400;
 			const country = typeof request.cf?.country === 'string' ? request.cf.country : undefined;
 			const contentLength = response.headers.get('Content-Length');
@@ -95,6 +97,8 @@ export default {
 				collection: stat.collection,
 				idType: stat.idType,
 				selector: stat.selector,
+				xrpcNamespace: stat.xrpcNamespace,
+				xrpcTo: response.headers.get('X-Upstream-Kind') ?? undefined,
 				flags: stat.flags,
 				isError,
 				status: response.status,

@@ -1,5 +1,5 @@
 import type { StatsSnapshot } from '../../stats';
-import { COUNTRY_THRESHOLD, fmtNum, NAMESPACE_THRESHOLD, routeLabel, STATS_THRESHOLD } from '../../views';
+import { COUNTRY_THRESHOLD, fmtNum, NAMESPACE_THRESHOLD, routeLabel, STATS_THRESHOLD, XRPC_DESTINATIONS } from '../../views';
 import { COUNTRY_NAMES } from '../../world-grid';
 import { COPY_SCRIPT, footer, head, topBar } from '../chrome';
 import {
@@ -50,6 +50,22 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
 						{ label: ID_LABELS.web, count: idCount('web'), color: VIZ.third },
 					],
 					{ tall: true, empty: 'No account lookups yet.' },
+				),
+			)}
+    </div>
+  </section>`;
+
+	const xrpcNamespaces = (stats?.xrpcNamespaces ?? []).filter((c) => c.count >= NAMESPACE_THRESHOLD);
+	const xrpc = `<section class="sgroup" aria-labelledby="xrpc">
+    <div class="sgroup__head"><h2 id="xrpc">XRPC</h2><p>Standard XRPC calls sent to /xrpc, by method namespace and by the server that answered. Namespaces under ${NAMESPACE_THRESHOLD} calls are hidden.</p></div>
+    <div class="grid">
+      ${panel('Namespaces', 'Calls, by method namespace', meterList(items(xrpcNamespaces), { half: true, empty: `No namespace with ${NAMESPACE_THRESHOLD} or more calls yet.` }))}
+      ${panel(
+				'Destinations',
+				'Calls, by the server that answered',
+				meterList(
+					items(stats?.xrpcDestinations ?? [], (k) => XRPC_DESTINATIONS[k] ?? k, undefined, false),
+					{ tone: 'blue', half: true, empty: 'No XRPC calls yet.' },
 				),
 			)}
     </div>
@@ -114,6 +130,7 @@ ${topBar(origin, 'stats')}
   ${overview(stats)}
   ${requestsChart(stats)}
   ${calls}
+  ${xrpc}
   ${reads}
   ${health}
   ${who}

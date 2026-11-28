@@ -11,6 +11,8 @@ export interface StatEvent {
 	upstream?: string; // failed dependency: pds, plc, relay, constellation, lexicon, …
 	idType?: string; // identifier as entered: handle | plc | web
 	selector?: string; // backlink `collection:path` selector
+	xrpcNamespace?: string; // an XRPC method's first two segments, such as app.bsky
+	xrpcTo?: string; // where an XRPC call went: pds, relay, appview, labeler, proxy, discovered or local
 	flags?: string[]; // e.g. ['param:cursor', 'param:source']
 	country?: string; // ISO-3166 country (http only, coarse, threshold-gated on display)
 	bytes?: number; // response body size
@@ -65,6 +67,8 @@ export interface StatsSnapshot {
 	idTypes: StatCount[];
 	params: StatCount[];
 	selectors: StatCount[];
+	xrpcNamespaces: StatCount[];
+	xrpcDestinations: StatCount[];
 	clients: StatCount[];
 	countries: StatCount[];
 	collections: CollectionStat[];
@@ -153,6 +157,8 @@ export class StatsDO extends DurableObject {
 		if (event.upstream) this.bump(`upstream:${event.upstream}`);
 		if (event.idType) this.bump(`idtype:${event.idType}`);
 		if (event.selector) this.bump(`sel:${event.selector}`);
+		if (event.xrpcNamespace) this.bump(`xrpcns:${event.xrpcNamespace}`);
+		if (event.xrpcTo) this.bump(`xrpcto:${event.xrpcTo}`);
 		for (const flag of event.flags ?? []) this.bump(flag);
 		if (event.country) this.bump(`country:${event.country}`);
 
@@ -227,6 +233,8 @@ export class StatsDO extends DurableObject {
 			idTypes: prefixed('idtype:'),
 			params: prefixed('param:'),
 			selectors: prefixed('sel:'),
+			xrpcNamespaces: prefixed('xrpcns:'),
+			xrpcDestinations: prefixed('xrpcto:'),
 			clients: prefixed('client:'),
 			countries: prefixed('country:'),
 			collections: collRows,
@@ -267,6 +275,9 @@ function stub(env: Env): DurableObjectStub<StatsDO> | null {
 // segments) is dropped so it can't pollute or inject into the stats.
 const NSID_RE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/i;
 const SELECTOR_RE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+:[a-z0-9_.[\]]{1,64}$/i;
+// An XRPC method's namespace, its first two segments, and the destinations the XRPC endpoint reports.
+const XRPC_NS_RE = /^[a-z][a-z0-9-]*\.[a-z0-9-]+$/i;
+const XRPC_TO = new Set(['pds', 'relay', 'appview', 'labeler', 'proxy', 'discovered', 'local']);
 
 export interface VisitInput {
 	channel: Channel;
@@ -277,6 +288,8 @@ export interface VisitInput {
 	upstream?: string;
 	idType?: string;
 	selector?: string;
+	xrpcNamespace?: string;
+	xrpcTo?: string;
 	flags?: string[];
 	country?: string;
 	bytes?: number;
@@ -290,6 +303,8 @@ export function recordVisit(env: Env, ctx: ExecutionContext, input: VisitInput):
 
 	const collection = input.collection && NSID_RE.test(input.collection) ? input.collection : undefined;
 	const selector = input.selector && SELECTOR_RE.test(input.selector) ? input.selector : undefined;
+	const xrpcNamespace = input.xrpcNamespace && XRPC_NS_RE.test(input.xrpcNamespace) ? input.xrpcNamespace : undefined;
+	const xrpcTo = input.xrpcTo && XRPC_TO.has(input.xrpcTo) ? input.xrpcTo : undefined;
 	const d = new Date();
 	const now = d.toISOString();
 
@@ -297,6 +312,8 @@ export function recordVisit(env: Env, ctx: ExecutionContext, input: VisitInput):
 		...input,
 		collection,
 		selector,
+		xrpcNamespace,
+		xrpcTo,
 		day: now.slice(0, 10),
 		now,
 	};
@@ -331,6 +348,7 @@ const paramFlags = (url: URL): string[] =>
 
 export interface HttpClass {
 	key: string;
+	xrpcNamespace?: string;
 	collection?: string;
 	idType?: string;
 	selector?: string;
@@ -380,7 +398,8 @@ export function classifyHttp(url: URL): HttpClass | null {
 			url.searchParams.get('identifier') ??
 			url.searchParams.get('handle') ??
 			undefined;
-		return { key: 'route:xrpc', idType: repo ? idTypeOf(repo) : undefined };
+		const namespace = (segments[1] ?? '').split('.').slice(0, 2).join('.');
+		return { key: 'route:xrpc', idType: repo ? idTypeOf(repo) : undefined, xrpcNamespace: namespace || undefined };
 	}
 	if (head === 'plc') return { key: `route:plc/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
 
