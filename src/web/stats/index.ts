@@ -1,5 +1,5 @@
 import type { StatsSnapshot } from '../../stats';
-import { fmtNum, routeLabel, STATS_THRESHOLD } from '../../views';
+import { COUNTRY_THRESHOLD, fmtNum, NAMESPACE_THRESHOLD, routeLabel, STATS_THRESHOLD } from '../../views';
 import { COUNTRY_NAMES } from '../../world-grid';
 import { COPY_SCRIPT, footer, head, topBar } from '../chrome';
 import {
@@ -29,8 +29,9 @@ import { STATS_STYLES } from './styles';
 // for identifier types and status classes, a latency histogram, and chips for parameters.
 
 export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): string {
-	const countries = (stats?.countries ?? []).filter((c) => c.count >= STATS_THRESHOLD);
+	const countries = (stats?.countries ?? []).filter((c) => c.count >= COUNTRY_THRESHOLD);
 	const clients = (stats?.clients ?? []).filter((c) => c.count >= STATS_THRESHOLD);
+	const selectors = (stats?.selectors ?? []).filter((c) => c.count >= STATS_THRESHOLD);
 	const ids = stats?.idTypes ?? [];
 	const idCount = (k: string) => ids.find((i) => i.key === k)?.count ?? 0;
 
@@ -38,7 +39,7 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
     <div class="sgroup__head"><h2 id="calls">Calls</h2><p>Which routes and MCP tools get used, and how accounts are named.</p></div>
     <div class="grid">
       ${panel('HTTP routes', 'Every route, by requests', meterList(items(stats?.routes ?? [], routeLabel), { all: true, empty: 'No HTTP requests yet.' }), 'wide')}
-      ${panel('MCP tools', 'Tool calls, by tool', meterList(items(stats?.tools ?? []), { tone: 'blue', empty: 'No MCP tool calls yet.' }))}
+      ${panel('MCP tools', 'Tool calls, by tool', meterList(items(stats?.tools ?? []), { tone: 'blue', half: true, empty: 'No MCP tool calls yet.' }))}
       ${panel(
 				'Identifier types',
 				'How accounts are named in requests',
@@ -66,9 +67,9 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
 				),
 				'wide',
 			)}
-      ${panel('Namespaces', 'Collections grouped by authority', meterList(items(stats?.authorities ?? []), { empty: 'No collections requested yet.' }))}
+      ${panel('Namespaces', `Collections by authority, ${NAMESPACE_THRESHOLD} or more requests`, meterList(items((stats?.authorities ?? []).filter((c) => c.count >= NAMESPACE_THRESHOLD)), { half: true, empty: `No namespace with ${NAMESPACE_THRESHOLD} or more requests yet.` }))}
       ${panel('Parameters', 'Query options sent with requests', chips(stats?.params ?? [], 'No query options used yet.'))}
-      ${panel('Backlink sources', 'Sources asked for on /backlinks', chips(stats?.selectors ?? [], 'No backlink sources asked for yet.'), 'wide')}
+      ${panel('Backlink sources', `Sources asked for ${STATS_THRESHOLD} or more times`, chips(selectors, `No backlink source asked for ${STATS_THRESHOLD} or more times yet.`), 'wide')}
     </div>
   </section>`;
 
@@ -78,12 +79,12 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
       ${panel('Status codes', 'Every response, by status', statusPanel(stats))}
       ${panel('Latency', 'Response time, every timed request', latencyHistogram(stats))}
       ${panel('Errors by route', 'Failed requests, by route', meterList(items(stats?.errorRoutes ?? [], routeLabel), { tone: 'error', stacked: true, empty: 'No failed requests.' }))}
-      ${panel('Upstream failures', 'Failures caused by an upstream service', meterList(items(stats?.upstreams ?? []), { tone: 'error', empty: 'No upstream failures.' }))}
+      ${panel('Upstream failures', 'Failures caused by an upstream service', meterList(items(stats?.upstreams ?? []), { tone: 'error', half: true, empty: 'No upstream failures.' }))}
     </div>
   </section>`;
 
 	const who = `<section class="sgroup" aria-labelledby="who">
-    <div class="sgroup__head"><h2 id="who">Clients</h2><p>Where requests come from and how agents use the MCP server. Rows under ${STATS_THRESHOLD} requests are hidden.</p></div>
+    <div class="sgroup__head"><h2 id="who">Clients</h2><p>Where requests come from and how agents use the MCP server. Countries under ${COUNTRY_THRESHOLD} requests and clients under ${STATS_THRESHOLD} sessions are hidden.</p></div>
     <div class="grid">
       ${panel(
 				'Countries',
@@ -91,13 +92,13 @@ export function htmlStatsPage(origin: string, stats: StatsSnapshot | null): stri
 				countries.length
 					? `<div class="geo"><div class="geo__map">${worldMap(countries)}</div>${meterList(
 							countries.map((c) => ({ label: c.key, count: c.count, mono: true, title: COUNTRY_NAMES[c.key] ?? c.key })),
-							{ empty: '' },
+							{ half: true, empty: '' },
 						)}</div>`
-					: emptyState(`No country with ${STATS_THRESHOLD} or more requests yet.`),
+					: emptyState(`No country with ${COUNTRY_THRESHOLD} or more requests yet.`),
 				'wide',
 			)}
       ${panel('MCP usage', 'How agents use the MCP server', mcpUsage(stats))}
-      ${panel('MCP clients', 'Sessions, by client name', meterList(items(clients), { tone: 'blue', empty: `No client with ${STATS_THRESHOLD} or more sessions yet.` }))}
+      ${panel('MCP clients', 'Sessions, by client name', meterList(items(clients), { tone: 'blue', half: true, empty: `No client with ${STATS_THRESHOLD} or more sessions yet.` }))}
     </div>
   </section>`;
 

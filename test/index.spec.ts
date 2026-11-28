@@ -172,8 +172,8 @@ describe('routing', () => {
 		const body = await (await workerFetch('http://example.com/stats')).text();
 		expect(body).toContain('**Total requests:**');
 		expect(body).toContain('| HTTP |');
-		expect(body).toContain('## Status codes');
-		expect(body).toContain('`400`'); // the /resolve usage error was counted by status
+		// A status code needs STATUS_THRESHOLD responses for its own row, so one 400 is counted but not listed.
+		expect(body).not.toContain('`400`');
 		expect(body).toContain('## Errors by route');
 	});
 });

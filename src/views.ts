@@ -55,6 +55,12 @@ const ID_LABELS: Record<string, string> = { handle: 'handle', plc: 'did:plc', we
 // Country and client rows below this many requests are hidden, on the stats page and in its markdown, so a rare one
 // cannot identify anyone.
 export const STATS_THRESHOLD = 5;
+// Countries need more requests to be listed or shaded on the map, and a status code more responses to get its own row.
+// Status classes still count every response.
+export const COUNTRY_THRESHOLD = 20;
+export const STATUS_THRESHOLD = 15;
+// A lexicon namespace needs this many requests to be listed.
+export const NAMESPACE_THRESHOLD = 10;
 
 export function bytesHuman(n: number): string {
 	if (n < 1024) return `${n} B`;
@@ -127,11 +133,29 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 	lines.push(...countTable('MCP tools', 'Tool', stats.tools));
 	lines.push(...countTable('Identifier type', 'Type', stats.idTypes, (k) => ID_LABELS[k] ?? k));
 	lines.push(...countTable('Pagination & params', 'Param', stats.params));
-	lines.push(...countTable('Backlink selectors', 'Selector', stats.selectors));
-	lines.push(...countTable('Status codes', 'Status', stats.statuses));
+	lines.push(
+		...countTable(
+			'Backlink selectors',
+			'Selector',
+			stats.selectors.filter((c) => c.count >= STATS_THRESHOLD),
+		),
+	);
+	lines.push(
+		...countTable(
+			'Status codes',
+			'Status',
+			stats.statuses.filter((c) => c.count >= STATUS_THRESHOLD),
+		),
+	);
 	lines.push(...countTable('Errors by route', 'Route', stats.errorRoutes));
 	lines.push(...countTable('Upstream failures', 'Upstream', stats.upstreams));
-	lines.push(...countTable('Top authorities', 'Authority', stats.authorities));
+	lines.push(
+		...countTable(
+			'Top authorities',
+			'Authority',
+			stats.authorities.filter((c) => c.count >= NAMESPACE_THRESHOLD),
+		),
+	);
 
 	if (stats.collections.length) {
 		lines.push('## Most queried collections', '', `*${fmtNum(stats.distinctCollections)} distinct collections queried.*`, '');
@@ -150,7 +174,7 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 		...countTable(
 			'Countries',
 			'Country',
-			stats.countries.filter((c) => c.count >= STATS_THRESHOLD),
+			stats.countries.filter((c) => c.count >= COUNTRY_THRESHOLD),
 		),
 	);
 	lines.push(...countTable('Latency distribution', 'Bucket', stats.latency.buckets));

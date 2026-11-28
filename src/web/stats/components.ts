@@ -1,5 +1,5 @@
 import type { StatsSnapshot } from '../../stats';
-import { abbrevNum, bytesHuman, fmtNum } from '../../views';
+import { abbrevNum, bytesHuman, fmtNum, STATUS_THRESHOLD } from '../../views';
 import { COUNTRY_NAMES, WORLD_COLS, WORLD_LAND, WORLD_PATHS, WORLD_ROWS } from '../../world-grid';
 import { esc } from '../kit';
 
@@ -74,20 +74,30 @@ export const emptyState = (text: string) => `<p class="empty-state">${text}</p>`
  * when it has any. Ranked lists use it, largest first.
  */
 const TICKS = 24;
-function meter(share: number, tone = 'ink'): string {
-	const on = share > 0 ? Math.max(1, Math.round(share * TICKS)) : 0;
-	return `<span class="ticks ticks--${tone}" style="--on:${on}" aria-hidden="true"></span>`;
+// Each tick is its own box, so the browser snaps every one to whole pixels and they all come out the same width. A
+// half-width card uses half as many. A stacked meter spans its row with twice as many, two per step of the share.
+function meter(share: number, tone = 'ink', stacked = false, steps = TICKS): string {
+	const lit = share > 0 ? Math.max(1, Math.round(share * steps)) : 0;
+	const count = stacked ? steps * 2 : steps,
+		on = stacked ? lit * 2 : lit;
+	const ticks = Array.from({ length: count }, (_, k) => (k < on ? '<i class="on"></i>' : '<i></i>')).join('');
+	return `<span class="ticks ticks--${tone}" aria-hidden="true">${ticks}</span>`;
 }
-export function meterList(list: Item[], opts: { tone?: string; all?: boolean; stacked?: boolean; empty: string }): string {
+export function meterList(list: Item[], opts: { tone?: string; all?: boolean; stacked?: boolean; half?: boolean; empty: string }): string {
 	if (!list.length) return emptyState(opts.empty);
 	const total = list.reduce((n, i) => n + i.count, 0);
 	const max = Math.max(1, ...list.map((i) => i.count));
 	const rows = list
 		.map((i) => {
-			// Mono labels are routes and paths: a narrow row breaks them after a slash, never inside a segment.
-			const text = i.mono ? esc(i.label).replace(/\/(?!\/)/g, '/<wbr>') : esc(i.label);
+			// Mono labels are routes, NSIDs and tool names. A narrow row breaks them after a slash, a dot or an underscore,
+			// so a long one never runs under its meter or widens a phone screen.
+			const text = i.mono
+				? esc(i.label)
+						.replace(/\/(?!\/)/g, '/<wbr>')
+						.replace(/([._])(?=\w)/g, '$1<wbr>')
+				: esc(i.label);
 			const label = i.href ? `<a href="${esc(i.href)}">${text}</a>` : text;
-			return `<li style="--share:${((i.count / max) * 100).toFixed(1)}%"><span class="m__label${i.mono ? ' mono' : ''}"${i.title ? ` title="${esc(i.title)}"` : ''}>${label}</span>${meter(i.count / total, opts.tone)}<span class="m__pct">${percent(i.count, total)}</span><span class="m__num" title="${fmtNum(i.count)}">${esc(abbrevNum(i.count))}</span></li>`;
+			return `<li style="--share:${((i.count / max) * 100).toFixed(1)}%"><span class="m__label${i.mono ? ' mono' : ''}"${i.title ? ` title="${esc(i.title)}"` : ''}>${label}</span>${meter(i.count / total, opts.tone, opts.stacked, opts.half ? TICKS / 2 : TICKS)}<span class="m__pct">${percent(i.count, total)}</span><span class="m__num" title="${fmtNum(i.count)}">${esc(abbrevNum(i.count))}</span></li>`;
 		})
 		.join('');
 	return `<ol class="meters${opts.all ? '' : ' meters--scroll'}${opts.stacked ? ' meters--stacked' : ''}">${rows}</ol>`;
@@ -249,7 +259,9 @@ export function statusPanel(stats: StatsSnapshot | null): string {
 	const color = (k: string) =>
 		({ '2': STATUS.ok, '3': STATUS.redirect, '4': STATUS.client, '5': STATUS.server })[cls(k)] ?? STATUS.redirect;
 	const total = codes.reduce((n, c) => n + c.count, 0);
+	// Rare codes are left out of the list. The summary above still counts them in their class.
 	const list = codes
+		.filter((c) => c.count >= STATUS_THRESHOLD)
 		.map(
 			(c) =>
 				`<li><i style="background:${color(c.key)}"></i><span class="mono">${esc(c.key)}</span><b>${esc(fmtNum(c.count))}</b><em>${percent(c.count, total)}</em></li>`,
