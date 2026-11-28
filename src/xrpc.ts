@@ -3,11 +3,14 @@ import { resolveActor, resolveDidDoc, resolveToDid } from './identity';
 import { RELAY } from './relay';
 import { DEFAULT_LABELER } from './labelers';
 import { labelerEndpoint } from './labels';
+import { discover, proxyService } from './services';
 
 // One XRPC endpoint for the whole network: /xrpc/{method} with the same query an atproto server takes. Identity
 // methods are answered here. Repo and sync methods that name an account go to that account's PDS, a handle in
 // their place is resolved to the DID first, the rest of sync goes to the relay, and app.bsky methods go to the public
-// app view. Read only: a call that signs in, or any procedure, is refused, so no credential ever passes through.
+// app view. Any other app's methods go to the service an atproto-proxy header names, or to the app view its domain
+// publishes (see services.ts). Public calls only: a call that signs in is refused, so no credential passes through,
+// and so is every com.atproto procedure, since some of those write without signing in (createAccount).
 
 const APPVIEW = 'https://public.api.bsky.app';
 
@@ -83,8 +86,21 @@ async function identity(method: string, params: URLSearchParams): Promise<Respon
 	return null;
 }
 
+interface Target {
+	base: string;
+	params: URLSearchParams;
+	/** The service as did#id, when one was named or found. */
+	service?: string;
+	/** The method's kind from its lexicon, when one was looked up. */
+	kind?: 'query' | 'procedure' | null;
+}
+
 // Where a method goes, with the query to send. Null when no server for it is known.
-async function route(method: string, params: URLSearchParams): Promise<{ base: string; params: URLSearchParams } | null> {
+async function route(method: string, params: URLSearchParams, proxy: string | null): Promise<Target | null> {
+	if (proxy) {
+		const svc = await proxyService(proxy);
+		return { base: svc.endpoint, params, service: svc.ref };
+	}
 	const name = accountParam(method, params);
 	if (name) {
 		const actor = await resolveActor(params.get(name)!);
@@ -103,8 +119,19 @@ async function route(method: string, params: URLSearchParams): Promise<{ base: s
 	}
 	if (method.startsWith('com.atproto.sync.')) return { base: RELAY, params };
 	if (method.startsWith('app.bsky.')) return { base: APPVIEW, params };
-	return null;
+	if (method.startsWith('com.atproto.')) return null;
+	const found = await discover(method);
+	if (!found.service) {
+		throw {
+			status: 501,
+			message: `No app view found for ${method} at ${found.tried.join(', ')}. Send an atproto-proxy header naming the service, such as did:web:example.com#example_appview.`,
+		};
+	}
+	return { base: found.service.endpoint, params, service: found.service.ref, kind: found.kind };
 }
+
+// Request headers an app view may use, passed on as they came.
+const FORWARD = ['accept', 'accept-language', 'atproto-accept-labelers', 'content-type'];
 
 export async function xrpc(request: Request, url: URL): Promise<Response> {
 	const method = url.pathname.slice('/xrpc/'.length);
@@ -114,16 +141,23 @@ export async function xrpc(request: Request, url: URL): Promise<Response> {
 	if (request.headers.has('Authorization')) {
 		return xrpcError(401, 'AuthNotSupported', 'atproto.md serves public reads only. Send signed-in calls to the account’s own PDS.');
 	}
-	if (request.method !== 'GET' && request.method !== 'HEAD') {
-		return xrpcError(405, 'MethodNotSupported', 'atproto.md serves queries only. Send procedures to the account’s own PDS.');
+	const post = request.method === 'POST';
+	if (!post && request.method !== 'GET' && request.method !== 'HEAD') {
+		return xrpcError(405, 'MethodNotSupported', 'Send queries with GET and procedures with POST.');
+	}
+	if (post && method.startsWith('com.atproto.')) {
+		return xrpcError(405, 'MethodNotSupported', 'atproto.md does not forward com.atproto procedures. Send them to the account’s own PDS.');
 	}
 
 	try {
-		const answered = await identity(method, url.searchParams);
+		const answered = post ? null : await identity(method, url.searchParams);
 		if (answered) return answered;
 
-		const target = await route(method, url.searchParams);
+		const target = await route(method, url.searchParams, request.headers.get('atproto-proxy'));
 		if (!target) return xrpcError(501, 'MethodNotImplemented', `atproto.md does not know which server answers ${method}.`);
+		// A published lexicon says which verb the method takes.
+		if (target.kind === 'procedure' && !post) return xrpcError(405, 'MethodNotSupported', `${method} is a procedure. Send it with POST.`);
+		if (target.kind === 'query' && post) return xrpcError(405, 'MethodNotSupported', `${method} is a query. Send it with GET.`);
 
 		const upstream = new URL(`${target.base}/xrpc/${method}`);
 		upstream.search = target.params.toString();
@@ -136,26 +170,38 @@ export async function xrpc(request: Request, url: URL): Promise<Response> {
 		}
 		let res: Response;
 		try {
+			const headers: Record<string, string> = {};
+			for (const h of FORWARD) {
+				const v = request.headers.get(h);
+				if (v) headers[h] = v;
+			}
+			headers.accept ??= '*/*';
 			res = await fetch(upstream.toString(), {
 				method: request.method,
-				headers: { Accept: request.headers.get('Accept') ?? '*/*' },
-				cf: { cacheTtl: TTL, cacheEverything: true },
+				headers,
+				...(post ? { body: request.body } : { cf: { cacheTtl: TTL, cacheEverything: true } }),
 			} as RequestInit);
 		} catch {
 			return xrpcError(502, 'UpstreamFailure', `Could not reach ${host}.`);
 		}
 
-		const headers = new Headers({ ...CORS, ...SAFE, 'X-Upstream-Host': host });
+		const headers = new Headers({
+			...CORS,
+			...SAFE,
+			'X-Upstream-Host': host,
+			...(target.service ? { 'X-Upstream-Service': target.service } : {}),
+		});
 		for (const h of PASS) {
 			const v = res.headers.get(h);
 			if (v) headers.set(h, v);
 		}
-		headers.set('Cache-Control', res.ok ? `public, max-age=${TTL}` : 'no-store');
+		headers.set('Cache-Control', res.ok && !post ? `public, max-age=${TTL}` : 'no-store');
 		return new Response(res.body, { status: res.status, headers });
 	} catch (err: unknown) {
 		const error = err as { status?: number; message?: string };
 		const status = error?.status ?? 502;
-		const code = status === 404 ? 'NotFound' : status === 400 ? 'InvalidRequest' : 'UpstreamFailure';
+		const code =
+			status === 404 ? 'NotFound' : status === 400 ? 'InvalidRequest' : status === 501 ? 'MethodNotImplemented' : 'UpstreamFailure';
 		return xrpcError(status, code, error?.message ?? 'The request could not be completed.');
 	}
 }
