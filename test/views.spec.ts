@@ -72,7 +72,8 @@ describe('formatStats', () => {
 			],
 			values: [
 				{ key: 'spam', count: 12 },
-				{ key: 'rare-one', count: 1 },
+				{ key: 'rare-one', count: 4 },
+				{ key: 'sometimes', count: 5 },
 			],
 			sources: [
 				{ key: 'did:plc:ar7c4by46qjdydhdevvrndac', count: 12 },
@@ -121,6 +122,7 @@ describe('formatStats', () => {
 		expect(md).toContain('**Found a label:** 4 of 40 lookups (10.0%)');
 		expect(md).toContain('| `spam` | 12 |');
 		expect(md).not.toContain('rare-one');
+		expect(md).toContain('| `sometimes` | 5 |');
 		expect(md).toContain('| `moderation.bsky.app` | 12 |');
 		expect(md).toContain('| `Other labelers` | 1 |');
 		expect(md).toContain('| `moderation.bsky.app` | 20 | 1 | 240 ms |');

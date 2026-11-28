@@ -124,7 +124,7 @@ function labelTables(stats: StatsSnapshot): string[] {
 		...countTable(
 			'Labels found',
 			'Label',
-			l.values.filter((c) => c.count >= NAMESPACE_THRESHOLD),
+			l.values.filter((c) => c.count >= STATS_THRESHOLD),
 		),
 	);
 	lines.push(...countTable('Labels found by labeler', 'Labeler', l.sources, labelerName));
