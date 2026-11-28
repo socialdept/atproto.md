@@ -145,9 +145,10 @@ export const STATS_STYLES = `
 
 /* Parameter chips. */
 .chipset { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.chipset li { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 10px; ${px(C.line, C.card, NOTCH)} }
-.chipset code { font: 500 13px var(--accent); }
-.chipset b { min-width: 22px; padding: 1px 6px; text-align: center; font: 600 12px var(--accent); color: var(--muted); ${px(C.tray, C.tray, [2, [1]])} }
+/* A chip is one line tall until its name is wider than the card, then it wraps at the breaks the name allows. */
+.chipset li { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; max-width: 100%; box-sizing: border-box; padding: 4px 4px 4px 10px; ${px(C.line, C.card, NOTCH)} }
+.chipset code { min-width: 0; font: 500 13px var(--accent); }
+.chipset b { flex: none; min-width: 22px; padding: 1px 6px; text-align: center; font: 600 12px var(--accent); color: var(--muted); ${px(C.tray, C.tray, [2, [1]])} }
 
 /* Sections. */
 .sgroup { margin-top: 64px; }

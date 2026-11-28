@@ -340,7 +340,7 @@ export const EXAMPLES: [string, string][] = [
 	['Latest posts', 'at://bsky.app/app.bsky.feed.post'],
 	['Lexicon', 'lexicon/site.standard.document'],
 	// A page that publishes its AT URI with at-tags, resolved through the page lookup.
-	['Blog link', 'https://blog.pds.rip'],
+	['Blog link', 'https://news.offprint.app'],
 ];
 
 // One table per kind of parameter, so what goes in the path never mixes with what goes after the ?.
