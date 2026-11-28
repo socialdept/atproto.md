@@ -144,9 +144,9 @@ export const HOME_STYLES = `
 .hosts li { position: absolute; transform: translate(-50%, -50%); font: 400 13.5px Courneuf, var(--mono); border: 6px solid transparent; border-image: ${badgeImage(C.line)} 6 fill / 6px stretch; padding: 0 5px; line-height: 16px; white-space: nowrap; filter: drop-shadow(0 1px 1px rgba(0,0,0,.04)) drop-shadow(0 3px 3px rgba(0,0,0,.04)); transition: color .5s; }
 .hosts li.lit { border-image-source: ${badgeImage('#2a78d6')}; color: #2a78d6; }
 /* Offprint's tilt (SiteLayout os-tilt-a, b and c). The float itself moves each badge from the line script. */
-.hosts:not(.list) li.tilt-0 { animation: tilt-a 8s ease-in-out infinite; }
-.hosts:not(.list) li.tilt-1 { animation: tilt-b 11s ease-in-out infinite; }
-.hosts:not(.list) li.tilt-2 { animation: tilt-c 9s ease-in-out infinite; }
+.hosts li.tilt-0 { animation: tilt-a 8s ease-in-out infinite; }
+.hosts li.tilt-1 { animation: tilt-b 11s ease-in-out infinite; }
+.hosts li.tilt-2 { animation: tilt-c 9s ease-in-out infinite; }
 @keyframes tilt-a { 0%, 100% { rotate: -3deg; } 50% { rotate: 3deg; } }
 @keyframes tilt-b { 0%, 100% { rotate: 2deg; } 50% { rotate: -2deg; } }
 @keyframes tilt-c { 0%, 100% { rotate: -1.5deg; } 50% { rotate: 2.5deg; } }
@@ -171,9 +171,10 @@ export const HOME_STYLES = `
 .field .prefix { display: flex; align-items: center; align-self: stretch; padding: 0 12px 0 19px; border-right: 1px solid var(--line); font: 16px var(--mono); color: var(--muted); white-space: nowrap; }
 .ask .field input, .ask .field input:focus { flex: 1; min-width: 0; height: 100%; padding: 0 14px 0 12px; border: 0; border-radius: 0; background: none; }
 @media (max-width: 720px) { .ask .field { flex: none; } .field .prefix { display: none; } .ask .field input, .ask .field input:focus { padding-left: 19px; } }
-/* Too narrow for an arc: the hosts wrap as a centered list under the pill, and light up without fan lines. */
-.hosts.list { position: static; height: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 28px; }
-.hosts.list li { position: static; transform: none; translate: none; }
+/* Too narrow for an arc: the hosts wrap in centered rows under the pill, with room above and between the rows for
+   the lines. */
+.hosts.list { position: static; height: auto; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 8px; margin-top: 48px; }
+.hosts.list li { position: static; transform: none; text-align: center; }
 /* Home page headlines are set in Beast. */
 .hero h1, .block h2, .landing-foot h2 { font-family: var(--beast); font-weight: 400; letter-spacing: -0.04em; }
 /* Sized to its longest line, "Every record on the" (about 13.4em in Beast), so it only shrinks when it has to. */

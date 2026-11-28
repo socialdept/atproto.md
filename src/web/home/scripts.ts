@@ -174,12 +174,27 @@ export const LINE_SCRIPT = `
     d += ' L' + rail + ',' + turn + ' C' + rail + ',' + (turn + span * 0.65) + ' ' + cx + ',' + (cy - span * 0.65) + ' ' + cx + ',' + cy;
     const hosts = page.querySelector('.hosts'); hostEls = [...hosts.children];
     const narrow = page.clientWidth < 640;
-    hostEls.forEach((el) => { el.style.translate = ''; });
+    let fanD = '';
+    bases = [];
+    hostEls.forEach((el) => { el.style.translate = ''; el.style.width = ''; });
     hosts.classList.toggle('list', narrow);
     hostEls.forEach((el) => { el.style.left = ''; el.style.top = ''; });
+    // Too narrow for the arc: the badges wrap in centered rows, and each line still runs from the hub to the middle of
+    // its badge's top edge, passing under the rows above. Each badge keeps the width it started with, so a torph
+    // morph never moves its neighbors off their lines.
+    if (narrow) {
+      hostEls.forEach((el) => { el.style.width = el.offsetWidth + 'px'; });
+      hostEls.forEach((el, i) => {
+        const b = rel(el);
+        el.style.transformOrigin = '50% 0';
+        el.classList.add('tilt-' + (i % 3));
+        el.style.animationDelay = '-' + ((i * 1.3 + 0.4) % 11).toFixed(1) + 's';
+        bases[i] = { x: b.x + b.w / 2, y: b.y + b.h / 2, h: b.h };
+        fanD += '<path class="fan" d=""/>';
+      });
+    }
     const hb = rel(hosts);
     const w = hb.w, n = hostEls.length, top = core.y + core.h + gap;
-    let fanD = '';
     if (!narrow) hostEls.forEach((el, i) => {
       const a = Math.PI * (n === 1 ? 0.5 : i / (n - 1));
       // Each line meets its badge in the middle. A badge near the edge is kept inside the page, and its line follows it.
@@ -243,7 +258,6 @@ export const LINE_SCRIPT = `
     cutX = -cutLeft;
     maxScroll = Math.max(1, document.documentElement.scrollHeight - innerHeight);
     nodeEls = [...svg.querySelectorAll('.node')];
-    if (narrow) bases = [];
     float(performance.now());
     if (!floating && !still && bases.length) { floating = true; requestAnimationFrame(loop); }
     tick();
