@@ -112,7 +112,7 @@ ${EXAMPLES.map(([label, value]) => `          <button class="chip" type="button"
 
   <section class="block" aria-labelledby="agents">
     <h2 id="agents">For agents</h2>
-    <p class="sub">The MCP server has six tools: resolve, get, list_records, backlinks, discover and lexicon. The skill sheet teaches the HTTP routes to any agent that can run curl.</p>
+    <p class="sub">The MCP server has seven tools: resolve, get, list_records, backlinks, discover, lexicon and labels. The skill sheet teaches the HTTP routes to any agent that can run curl.</p>
     <div class="agents">
       <div class="tray">
         <div class="tray__head"><h3>MCP server</h3><p>Install in Claude Code</p></div>

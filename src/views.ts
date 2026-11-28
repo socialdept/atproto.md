@@ -181,6 +181,8 @@ GET ${origin}/repo/car/{actor}                              the whole repo as a 
 
 - \`{actor}\` is a handle or DID. A \`{address}\` is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
 - Lists take \`limit\` (25 by default, 100 at most), \`cursor\` and \`reverse\` (oldest first).
+- \`labels\` on any record route attaches each record's labels, and \`author\` its account's. Bluesky's moderation labeler unless
+  \`labelers\` is \`all\` or names handles and DIDs.
 - \`expand\` on any record route also returns the records they reference (reply parent and root, quoted post,
   like or repost subject), one level deep, under \`expanded\`.
 
@@ -199,6 +201,9 @@ GET ${origin}/plc/last/{actor}                              latest PLC operation
 
 \`\`\`
 GET ${origin}/discover/{collection}                         every repo with records in a collection
+GET ${origin}/labels/{target}                               labels on a record or account
+GET ${origin}/labels/{target}?labelers=all                  from every known labeler, or name handles and DIDs
+GET ${origin}/labelers                                      the known labelers
 GET ${origin}/lexicon/{nsid}                                the published Lexicon schema
 GET ${origin}/backlinks/{at-uri-or-did-or-url}              who links to a target, by source
 GET ${origin}/backlinks/{target}?source={collection:path}   the linking record URIs
@@ -227,7 +232,7 @@ Errors are JSON too: \`{"error": "...", "status": 404}\`, with the same HTTP sta
 
 ## For agents
 
-- MCP server at \`${origin}/mcp\`, with the tools resolve, get, list_records, backlinks, discover and lexicon.
+- MCP server at \`${origin}/mcp\`, with the tools resolve, get, list_records, backlinks, discover, lexicon and labels.
   Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
 - [\`/skill.md\`](${origin}/skill.md): the skill sheet. Save it as a command with \`curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md\`
 - [\`/llms.txt\`](${origin}/llms.txt): the API summary

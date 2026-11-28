@@ -31,6 +31,18 @@ const EXPAND: Param = {
 	desc: 'Also fetch the records these reference (reply parent and root, quoted post, like or repost subject), one level deep, up to 25, under expanded.',
 };
 
+const LABELERS: Param = {
+	name: 'labelers',
+	in: 'query',
+	type: 'all, handles or DIDs',
+	desc: 'Which labelers to ask: all for every known one, or handles and DIDs separated by commas. Bluesky’s moderation labeler when left out.',
+};
+const LABEL_PARAMS: Param[] = [
+	{ name: 'labels', in: 'query', type: 'flag', desc: 'Attach each record’s labels, under labels.' },
+	{ name: 'author', in: 'query', type: 'flag', desc: 'Also attach the labels on each record’s account, under authorLabels.' },
+	LABELERS,
+];
+
 export const ROUTES: [string, string, Endpoint[]][] = [
 	[
 		'Records',
@@ -69,6 +81,7 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 					{ name: 'cursor', in: 'query', type: 'string', desc: 'The cursor from the previous page.' },
 					{ name: 'reverse', in: 'query', type: 'flag', desc: 'Oldest first.' },
 					EXPAND,
+					...LABEL_PARAMS,
 				],
 				returns: '{ did, handle, pds, entryway, collection, cursor, records: [{ uri, cid, value, blobs }] }',
 				note: 'cursor is null on the last page.',
@@ -82,6 +95,7 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 					{ name: 'collection', in: 'path', type: 'NSID', desc: 'The record’s collection.' },
 					{ name: 'rkey', in: 'path', type: 'string', desc: 'The record key, such as self or 3l6oveex3ii2l.' },
 					EXPAND,
+					...LABEL_PARAMS,
 				],
 				returns: '{ uri, cid, value, blobs, expanded }',
 				note: 'blobs lists a getBlob URL for each image or video in value. expanded is present only with expand.',
@@ -118,6 +132,7 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 						desc: 'An at:// record URI or a link to the record: a Bluesky-style client, an explorer such as pdsls.dev, or any page that publishes at-tags. Repeat it for each record, up to 25.',
 					},
 					EXPAND,
+					...LABEL_PARAMS,
 				],
 				returns: '{ records, errors, expanded }',
 				note: 'Each account is looked up once per call. An address that fails goes into errors as { address, error }, and the rest still come back.',
@@ -173,6 +188,31 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				params: [ACTOR],
 				returns: '{ did, operation }',
 				example: '/plc/last/bsky.app',
+			},
+		],
+	],
+	[
+		'Labels',
+		'Asked of each labeler directly. Bluesky’s moderation labeler unless labelers names others.',
+		[
+			{
+				path: '/labels/{target}',
+				desc: 'The labels on a record or an account.',
+				params: [
+					{ name: 'target', in: 'path', type: 'at:// URI, handle, DID or link', desc: 'A record, or an account by handle, DID or profile link.' },
+					LABELERS,
+					{ name: 'author', in: 'query', type: 'flag', desc: 'For a record, also return the labels on its account.' },
+				],
+				returns: '{ target, labels: [{ val, uri, cts, exp, labeler }], authorLabels, labelers: [{ did, handle, ok, error }] }',
+				note: 'Negated and expired labels are left out. A labeler that fails is listed in labelers, and the rest still answer.',
+				example: '/labels/bsky.app?labelers=all',
+			},
+			{
+				path: '/labelers',
+				desc: 'The known labelers that labelers=all asks.',
+				params: [],
+				returns: '{ default, labelers: [{ did, handle, name }] }',
+				example: '/labelers',
 			},
 		],
 	],
