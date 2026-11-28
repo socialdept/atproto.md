@@ -110,7 +110,9 @@ export function head(origin: string, title: string, extra = ''): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
+<link rel="icon" href="${origin}/favicon.ico" sizes="48x48">
 <link rel="icon" href="${origin}/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="${origin}/apple-touch-icon.png">
 <link rel="preload" href="${origin}/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="${origin}/fonts/Beast-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <script type="module">import { TextMorph } from '${origin}/vendor/torph-0.1.3.mjs'; window.TextMorph = TextMorph;</script>

@@ -15,7 +15,8 @@
     "og:glyphs": "node scripts/og-glyphs.mjs",
     "world:grid": "node scripts/world-grid.mjs",
     "labelers": "node scripts/labelers.mjs",
-    "stats:seed": "node scripts/seed-stats.mjs"
+    "stats:seed": "node scripts/seed-stats.mjs",
+    "icons": "node scripts/gen-icons.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",
