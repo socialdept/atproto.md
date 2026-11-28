@@ -33,7 +33,7 @@ labels on a record route attaches each record's labels, author its account's, an
 
 ## XRPC
 
-- [XRPC](${origin}/xrpc/{method}): standard XRPC queries, each sent to the server that answers it. Set ${origin} as the service URL of any AT Protocol SDK. repo and did take a handle or a DID. com.atproto.repo and com.atproto.sync calls go to the account's PDS, other sync calls to the relay, app.bsky calls to Bluesky's public app view, and identity calls are answered by atproto.md. Calls with an Authorization header and procedures are refused.
+- [XRPC](${origin}/xrpc/{method}): standard XRPC queries, each sent to the server that answers it. Set ${origin} as the service URL of any AT Protocol SDK. repo and did take a handle or a DID. com.atproto.repo and com.atproto.sync calls go to the account's PDS, other sync calls to the relay, app.bsky calls to Bluesky's public app view, other apps' calls to the app view published on the app's own domain (social.grain.* to did:web:grain.social), and identity calls are answered by atproto.md. An atproto-proxy header (did#service_id) names the service for any method. Procedures that need no sign-in are forwarded with POST, except com.atproto procedures. Calls with an Authorization header are refused.
 
 ## Examples
 
@@ -152,6 +152,9 @@ GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account'
 GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
 GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
 GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view
+GET ${origin}/xrpc/{nsid}                                   other apps: sent to the app view on the app's domain
+POST ${origin}/xrpc/{nsid}                                  other apps' procedures that need no sign-in
+any method with atproto-proxy: did#service_id               sent to that service
 \`\`\`
 
 - {actor} is a handle or DID. An {address} is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
@@ -159,7 +162,7 @@ GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's pu
 - labels works on every record route: labels attaches each record's labels, author its account's too, and labelers is all or handles and DIDs (Bluesky's moderation labeler by default).
 - expand works on every record route. hydrate works on backlinks with source, 25 records at most.
 - A batch reports a failed address in errors and still returns the rest.
-- /xrpc passes each server's response on unchanged. Its errors are {"error", "message"}. Calls with an Authorization header and procedures are refused: send those to the account's own PDS.
+- /xrpc passes each server's response on unchanged, and X-Upstream-Service names the service that answered. Its errors are {"error", "message"}. Calls with an Authorization header and com.atproto procedures are refused: send those to the account's own PDS. When no app view is found, the 501 names the domains tried: send an atproto-proxy header.
 
 ## Install as a Claude Code command
 

@@ -214,7 +214,7 @@ GET ${origin}/backlinks/{target}?source=...&hydrate         the linking records 
 
 ## XRPC
 
-Set \`${origin}\` as the service URL of any AT Protocol SDK. Each query goes to the server that answers it.
+Set \`${origin}\` as the service URL of any AT Protocol SDK. Each call goes to the server that answers it, for Bluesky and any other app.
 
 \`\`\`
 GET ${origin}/xrpc/com.atproto.repo.*?repo={actor}&...      sent to the account's PDS
@@ -222,9 +222,12 @@ GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account'
 GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
 GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
 GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view
+GET ${origin}/xrpc/{nsid}                                   other apps: sent to the app view on the app's domain
+POST ${origin}/xrpc/{nsid}                                  other apps' procedures that need no sign-in
+any method with atproto-proxy: did#service_id               sent to that service
 \`\`\`
 
-\`repo\` and \`did\` take a handle or a DID. Responses are passed on unchanged. Calls with an Authorization header and procedures are refused.
+\`repo\` and \`did\` take a handle or a DID. Responses are passed on unchanged. Calls with an Authorization header, and \`com.atproto\` procedures, are refused.
 
 ## Errors
 

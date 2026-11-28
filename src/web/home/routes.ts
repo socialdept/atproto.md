@@ -283,7 +283,7 @@ const METHOD_PARAMS: Param = {
 export const XRPC_ROUTES: [string, string, Endpoint[]][] = [
 	[
 		'XRPC',
-		'Standard XRPC queries, each sent to the server that answers it. Calls with an Authorization header and procedures are refused.',
+		'Standard XRPC calls, each sent to the server that answers it, for Bluesky and any other app. Calls with an Authorization header are refused.',
 		[
 			{
 				path: '/xrpc/com.atproto.repo.*',
@@ -321,6 +321,14 @@ export const XRPC_ROUTES: [string, string, Endpoint[]][] = [
 				params: [METHOD_PARAMS],
 				returns: 'The app view’s response, unchanged',
 				example: '/xrpc/app.bsky.actor.getProfile?actor=bsky.app',
+			},
+			{
+				path: '/xrpc/{nsid}',
+				desc: 'Any other app’s methods, sent to that app’s app view.',
+				params: [METHOD_PARAMS],
+				returns: 'The app view’s response, unchanged',
+				note: 'The app view is found on the app’s own domain: social.grain.* goes to did:web:grain.social. An atproto-proxy header, such as did:web:grain.social#grain_appview, names the service for any method. Procedures that need no sign-in are forwarded with POST. com.atproto procedures are refused.',
+				example: '/xrpc/social.grain.actor.getProfile?actor=grain.social',
 			},
 		],
 	],

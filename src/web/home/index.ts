@@ -151,7 +151,7 @@ ${EXAMPLES.map(([label, value]) => `          <button class="chip" type="button"
 
   <section class="block" aria-labelledby="xrpc">
     <h2 id="xrpc">XRPC</h2>
-    <p class="sub">Set your SDK’s service URL to atproto.md and read any account without resolving it first. Each call goes to the server that answers it. Public reads only.</p>
+    <p class="sub">Set your SDK’s service URL to atproto.md and read any account without resolving it first. Each call goes to the server that answers it, for Bluesky and any other app. Public calls only.</p>
     <div class="agents">
       <div class="tray agents__wide">
         <div class="tray__head"><h3>Service URL</h3><p>For any SDK or XRPC client</p></div>
