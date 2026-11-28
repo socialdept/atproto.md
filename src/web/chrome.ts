@@ -100,7 +100,7 @@ footer.foot { padding-top: 72px; padding-bottom: 8px; text-align: left; }
 .landing-foot + .foot { padding-top: 0; } .foot__row a:hover { color: var(--ink); }
 @media (max-width: 640px) { .foot__cols { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; } }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 `;
 
 export function head(origin: string, title: string, extra = ''): string {
