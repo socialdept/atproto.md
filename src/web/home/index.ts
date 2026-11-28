@@ -41,6 +41,8 @@ export function htmlIndexPage(origin: string): string {
 <meta name="twitter:description" content="${DESCRIPTION}">
 <meta name="twitter:image" content="${ogImage}">`;
 
+	// A GitHub address in a note becomes a link to that repo.
+	const linked = (text: string) => esc(text).replace(/github\.com\/[\w.-]+\/[\w.-]*[\w-]/g, (m) => `<a href="https://${m}">${m}</a>`);
 	const trays = (list: typeof ROUTES, openFirst: boolean) => list.map(
 		([title, note, endpoints], g) => `<div class="tray">
       <div class="tray__head"><h3>${title}</h3><p>${esc(note)}</p></div>
@@ -61,7 +63,7 @@ export function htmlIndexPage(origin: string): string {
 							e.params.filter((p) => p.in === 'query'),
 						)}
             <div class="ret"><span>Returns</span><code>${esc(e.returns)}</code></div>
-            ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}
+            ${e.note ? `<p class="note">${linked(e.note)}</p>` : ''}
             <div class="ex"><code>curl "${esc(origin + e.example)}"</code><button class="iconbtn" type="button" data-try="${esc(e.example)}">Try it</button></div>
           </div>
         </details>`,

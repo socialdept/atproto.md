@@ -231,6 +231,6 @@ Errors are JSON too: \`{"error": "...", "status": 404}\`, with the same HTTP sta
 - [\`/llms.txt\`](${origin}/llms.txt): the API summary
 - [\`/stats\`](${origin}/stats): anonymous usage counts
 
-Records come from each account's own PDS, discovery from the relay, and backlinks from [Constellation](https://constellation.microcosm.blue). Public data only.
+Resized images come from the [co/infra image CDN](https://github.com/co-infra/co-infra-img). Records come from each account's own PDS, discovery from the relay, and backlinks from [Constellation](https://constellation.microcosm.blue). Public data only.
 `;
 }
