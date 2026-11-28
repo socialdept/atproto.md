@@ -45,7 +45,10 @@ export const STATS_STYLES = `
    tall as the latency card beside it and the list fills what is left, down to the card's bottom edge. Alone in its
    row, on a phone, it shows about five codes. */
 .panel .card:has(> .codes) { display: flex; flex-direction: column; padding-bottom: 0; }
-.card > .codes { flex: 1 1 0; min-height: 150px; overflow: hidden auto; align-content: start; padding-bottom: 18px; }
+/* It reaches out to the card's side edges and takes that room back as padding, so its scrollbar sits in the card's
+   padding, clear of the numbers. Its divider stays inset, the width of the rows. */
+.card > .codes { flex: 1 1 0; min-height: 150px; overflow: hidden auto; align-content: start; margin: 16px -20px 0; padding: 14px 20px 18px; border-top: 0;
+  background: linear-gradient(var(--line), var(--line)) 20px 0 / calc(100% - 40px) 1px no-repeat; }
 .codes .mono { font: 500 13px var(--accent); }
 
 /* Panels: a tray head with a title and a line, then the card. */
@@ -65,7 +68,9 @@ export const STATS_STYLES = `
 .meters li + li { border-top: 1px solid var(--line); }
 /* Seven rows, then the rest scrolls. HTTP routes shows every row. */
 /* The scroll box reaches the card's top and bottom edges, with the card's 8px inside it, so rows clip at the frame. */
-.meters--scroll { max-height: calc(7 * 41px + 16px); overflow: hidden auto; margin: -8px 0; padding: 8px 0; }
+/* A scrolling list reaches out to the card's edges and takes that room back as padding, so the scrollbar sits in the
+   card's padding, clear of the numbers. */
+.meters--scroll { max-height: calc(7 * 41px + 16px); overflow: hidden auto; margin: -8px -20px; padding: 8px 20px; }
 .m__label { min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
 .m__label.mono { font: 500 13px var(--accent); overflow-wrap: anywhere; }
 .m__label a { text-decoration: none; }
@@ -167,7 +172,7 @@ export const STATS_STYLES = `
 /* The country list scrolls from the card's top edge to its bottom edge, and the map keeps its own room. */
 .panel .card:has(> .geo) { padding: 0 20px; }
 .geo__map { padding: 30px 0; }
-.geo .meters--scroll { margin: 0; padding: 18px 0; max-height: calc(7 * 41px + 36px); }
+.geo .meters--scroll { margin: 0 -20px 0 0; padding: 18px 20px 18px 0; max-height: calc(7 * 41px + 36px); }
 .map { display: block; width: 100%; height: auto; }
 .map__layer path { cursor: default; transition: fill .15s; }
 .map__layer path:hover { fill: var(--ink); }
