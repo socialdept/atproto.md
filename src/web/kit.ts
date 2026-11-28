@@ -11,6 +11,9 @@ export const C = {
 	card: '#ffffff',
 };
 
+// Links that leave atproto.md open in a new tab.
+export const EXTERNAL = ' target="_blank" rel="noopener"';
+
 export const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // Lucide copy and check, solid strokes.

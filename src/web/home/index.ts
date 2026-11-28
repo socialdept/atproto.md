@@ -1,4 +1,4 @@
-import { esc, ICON_COPY } from '../kit';
+import { esc, EXTERNAL, ICON_COPY } from '../kit';
 import { COPY_SCRIPT, DESCRIPTION, footer, head, TABLE_SCRIPT, TITLE, topBar } from '../chrome';
 import { EXAMPLES, paramTable, ROUTES, XRPC_ROUTES } from './routes';
 import { INTRO_SCRIPT, INTRO_STYLES } from './intro';
@@ -42,7 +42,7 @@ export function htmlIndexPage(origin: string): string {
 <meta name="twitter:image" content="${ogImage}">`;
 
 	// A GitHub address in a note becomes a link to that repo.
-	const linked = (text: string) => esc(text).replace(/github\.com\/[\w.-]+\/[\w.-]*[\w-]/g, (m) => `<a href="https://${m}">${m}</a>`);
+	const linked = (text: string) => esc(text).replace(/github\.com\/[\w.-]+\/[\w.-]*[\w-]/g, (m) => `<a href="https://${m}"${EXTERNAL}>${m}</a>`);
 	const trays = (list: typeof ROUTES, openFirst: boolean) => list.map(
 		([title, note, endpoints], g) => `<div class="tray">
       <div class="tray__head"><h3>${title}</h3><p>${esc(note)}</p></div>

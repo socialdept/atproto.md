@@ -1,5 +1,5 @@
 import { version } from '../../package.json';
-import { C, CURVE, frameSrc, ICON_CHECK, ICON_COPY, NOTCH, px } from './kit';
+import { C, CURVE, EXTERNAL, frameSrc, ICON_CHECK, ICON_COPY, NOTCH, px } from './kit';
 
 export const TITLE = 'Every Atmosphere record, one address for agents | ATMD';
 export const DESCRIPTION =
@@ -123,12 +123,12 @@ export function topBar(origin: string, current: 'home' | 'stats'): string {
 	// On the home page the line runs from the wordmark into the hero, so the header carries its first piece.
 	return `<header class="top" id="top"><div class="bar">
   <nav class="start" aria-label="Site">
-    <a class="link" href="${DOCS}">Docs</a>
+    <a class="link" href="${DOCS}"${EXTERNAL}>Docs</a>
     <a class="link" href="${origin}/stats"${current === 'stats' ? ' aria-current="page"' : ''}>Stats</a>
   </nav>
   <a class="bar__mark" href="${origin}/" aria-label="atproto.md">ATMD</a>
   <nav class="end" aria-label="More">
-    <a class="link" href="${REPO}">GitHub</a>
+    <a class="link" href="${REPO}"${EXTERNAL}>GitHub</a>
     <button class="btn btn--ghost" type="button" data-copy="claude mcp add --transport http atproto-md ${origin}/mcp" aria-label="Copy the command that adds the MCP server to Claude Code">${ICON_COPY}<span>Add to Claude</span></button>
   </nav>
 </div></header>`;
@@ -170,8 +170,8 @@ export function footer(origin: string, wrapped = true): string {
 		],
 	];
 	return `<footer class="foot${wrapped ? ' wrap' : ''}">
-  <nav class="foot__cols" aria-label="Footer">${cols.map(([title, links]) => `<div><h3>${title}</h3>${links.map(([label, href]) => `<a href="${href}">${label}</a>`).join('')}</div>`).join('')}</nav>
-  <div class="foot__row"><span>ATMD v${version}. Public data only, no sign-in. Backlinks from <a href="https://constellation.microcosm.blue">Constellation</a>.</span><span>MIT licensed. Maintained by <a href="https://socialde.pt">Social Dept.</a></span></div>
+  <nav class="foot__cols" aria-label="Footer">${cols.map(([title, links]) => `<div><h3>${title}</h3>${links.map(([label, href]) => `<a href="${href}"${href.startsWith(origin) ? '' : EXTERNAL}>${label}</a>`).join('')}</div>`).join('')}</nav>
+  <div class="foot__row"><span>ATMD v${version}. Public data only, no sign-in. Backlinks from <a href="https://constellation.microcosm.blue"${EXTERNAL}>Constellation</a>.</span><span>MIT licensed. Maintained by <a href="https://socialde.pt"${EXTERNAL}>Social Dept.</a></span></div>
 </footer>`;
 }
 
