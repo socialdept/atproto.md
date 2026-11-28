@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nsidAuthority, renderLexiconBody } from '../src/lexicon';
+import { nsidAuthority } from '../src/lexicon';
 
 describe('nsidAuthority', () => {
 	it('drops the name segment and reverses the domain labels', () => {
@@ -19,35 +19,5 @@ describe('nsidAuthority', () => {
 
 	it('rejects NSIDs with empty segments', () => {
 		expect(() => nsidAuthority('app..post')).toThrow();
-	});
-});
-
-describe('renderLexiconBody', () => {
-	const value = {
-		lexicon: 1,
-		id: 'app.bsky.feed.post',
-		defs: {
-			main: { type: 'record', description: 'A declaration of a post.' },
-			replyRef: { type: 'object' },
-		},
-	};
-
-	it('lists each def with its type and description', () => {
-		const md = renderLexiconBody(value);
-		expect(md).toContain('**Definitions:**');
-		expect(md).toContain('- `main` (`record`) — A declaration of a post.');
-		expect(md).toContain('- `replyRef` (`object`)');
-	});
-
-	it('embeds the full schema JSON', () => {
-		const md = renderLexiconBody(value);
-		expect(md).toContain('```json');
-		expect(md).toContain('"id": "app.bsky.feed.post"');
-	});
-
-	it('handles a value with no defs', () => {
-		const md = renderLexiconBody({ id: 'x.y.z' });
-		expect(md).not.toContain('**Definitions:**');
-		expect(md).toContain('```json');
 	});
 });

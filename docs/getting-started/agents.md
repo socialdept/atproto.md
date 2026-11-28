@@ -1,6 +1,6 @@
 # Agents
 
-Part of the [atproto.md docs](../introduction.md#documentation). The MCP server, the skill sheet for Claude Code, and `llms.txt`.
+The MCP server, the skill sheet for Claude Code, `llms.txt`, and using it as an SDK's service URL.
 
 ## MCP server
 
@@ -10,20 +10,17 @@ Part of the [atproto.md docs](../introduction.md#documentation). The MCP server,
 claude mcp add --transport http atproto-md https://atproto.md/mcp
 ```
 
-It exposes ten tools, each backed by the same code as an HTTP endpoint:
+It exposes seven tools, each backed by the same code as an HTTP endpoint. Every result is the same JSON object the endpoint returns, and a failed call returns `{"error", "status"}` flagged as an error.
 
-| Tool                           | Endpoint                                               |
-| ------------------------------ | ------------------------------------------------------ |
-| `resolve_identity`             | [`/resolve/{handle-or-did}`](../endpoints/identity.md) |
-| `get_repo`                     | [`/at://{actor}`](../endpoints/records.md)             |
-| `list_records`                 | [`/at://{actor}/{collection}`](../endpoints/records.md) |
-| `get_record`                   | [`/at://{actor}/{collection}/{rkey}`](../endpoints/records.md) |
-| `get_lexicon`                  | [`/lexicon/{nsid}`](../endpoints/network.md)           |
-| `discover_repos_by_collection` | [`/discover/{collection}`](../endpoints/network.md)    |
-| `get_backlinks`                | [`/backlinks/{target}`](../endpoints/network.md)       |
-| `plc_audit`                    | [`/plc/audit/{handle-or-did}`](../endpoints/identity.md) |
-| `plc_data`                     | [`/plc/data/{handle-or-did}`](../endpoints/identity.md) |
-| `plc_last`                     | [`/plc/last/{handle-or-did}`](../endpoints/identity.md) |
+| Tool           | What it does                                                                                     | Endpoint                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `resolve`      | Identity, account status, PDS, entryway, DID document and collections. `plc` returns the PLC data, audit log or last op, and `did` the DID document or a resolution trace | [`/resolve`, `/did/*`, `/plc/*`](../endpoints/identity.md) |
+| `get`          | Up to 25 records by `at://` URI or web link, with `expand` for referenced records and `labels`  | [`/get`](../endpoints/records.md)                               |
+| `list_records` | Records in a collection, paginated, with `expand`                                                | [`/at://{actor}/{collection}`](../endpoints/records.md)         |
+| `backlinks`    | Link sources and counts, or with `source` the linking records, hydrated on request               | [`/backlinks/{target}`](../endpoints/network.md)                |
+| `discover`     | Every repo with records in a collection                                                          | [`/discover/{collection}`](../endpoints/network.md)             |
+| `labels`       | The labels on a record or account, from Bluesky's moderation labeler, `all`, or named labelers   | [`/labels/{target}`](../endpoints/labels.md)                    |
+| `lexicon`      | The published Lexicon schema for an NSID                                                         | [`/lexicon/{nsid}`](../endpoints/network.md)                    |
 
 ## Skill sheet
 
@@ -39,4 +36,8 @@ curl -s https://atproto.md/skill.md > ~/.claude/commands/atproto.md
 
 ## The home page
 
-`GET /` is the API reference. Browsers and link-card crawlers get HTML, and everything else, such as `curl`, gets markdown.
+`GET /` is the API reference. Browsers and link-card crawlers get HTML, and everything else, such as `curl`, gets markdown. The data routes return JSON, described in [Response format](../output.md).
+
+## SDKs
+
+An agent that writes code against an AT Protocol SDK can set its service URL to `https://atproto.md` and read any account without resolving it first. See [XRPC](../endpoints/xrpc.md).

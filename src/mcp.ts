@@ -1,28 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getBacklinks, getLinkSources } from './constellation';
-import { resolveActor, resolvePlcAuditLog, resolvePlcData, resolvePlcLastOp, resolveToDid } from './identity';
-import { resolveLexiconDid } from './lexicon';
-import { pdsGet } from './pds';
-import { listReposByCollection } from './relay';
+import { backlinks, didDocument, labels, discover, getRecords, lexicon, listRecords, MAX_BATCH, plc, resolve, traceActor } from './api';
 import { recordSession, recordVisit } from './stats';
-import type { AtpRecord } from './types';
 import { version } from '../package.json';
-import {
-	formatAuditLog,
-	formatBacklinkRecords,
-	formatBacklinkSources,
-	formatDiscovery,
-	formatPlcData,
-	formatPlcLastOp,
-	formatLexicon,
-	formatRecordList,
-	formatRepo,
-	formatResolution,
-	formatSingleRecord,
-} from './views';
 
-type TextResult = { content: { type: 'text'; text: string }[] };
+type TextResult = { content: { type: 'text'; text: string }[]; isError?: boolean };
 
 export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext): McpServer {
 	const server = new McpServer({
@@ -46,178 +28,148 @@ export function createMcpServer(origin: string, env: Env, ctx: ExecutionContext)
 		if (args.cursor) flags.push('param:cursor');
 		if (args.reverse) flags.push('param:reverse');
 		if (args.source) flags.push('param:source');
+		if (args.expand) flags.push('param:expand');
+		if (args.hydrate) flags.push('param:hydrate');
+		if (args.labels) flags.push('param:labels');
+		if (args.author) flags.push('param:author');
 		return { collection, idType, selector: args.source as string | undefined, flags };
 	};
 
 	// Wrap a tool callback so every invocation is counted exactly once (success or error),
 	// against the `mcp` channel, carrying the anonymous arg meta.
-	const tracked = (tool: string, cb: (args: any) => Promise<TextResult>) => async (args: any): Promise<TextResult> => {
-		let isError = false;
-		let status: number | undefined;
-		let upstream: string | undefined;
-		try {
-			return await cb(args);
-		} catch (e) {
-			isError = true;
-			const err = e as { status?: number; upstream?: string };
-			status = err?.status;
-			upstream = err?.upstream;
-			throw e;
-		} finally {
-			recordVisit(env, ctx, { channel: 'mcp', key: `tool:${tool}`, isError, status, upstream, ...argMeta(args) });
-		}
-	};
+	const tracked =
+		(tool: string, cb: (args: any) => Promise<TextResult>) =>
+		async (args: any): Promise<TextResult> => {
+			let isError = false;
+			let status: number | undefined;
+			let upstream: string | undefined;
+			try {
+				return await cb(args);
+			} catch (e) {
+				isError = true;
+				const err = e as { status?: number; upstream?: string; message?: string };
+				status = err?.status ?? 502;
+				upstream = err?.upstream;
+				// Errors come back as the same JSON shape the HTTP API uses, flagged so the client sees a failed call.
+				const body = { error: err?.message ?? 'Upstream error.', status };
+				return { content: [{ type: 'text', text: JSON.stringify(body) }], isError: true };
+			} finally {
+				recordVisit(env, ctx, { channel: 'mcp', key: `tool:${tool}`, isError, status, upstream, ...argMeta(args) });
+			}
+		};
+
+	const json = (body: unknown): TextResult => ({ content: [{ type: 'text', text: JSON.stringify(body) }] });
 
 	server.tool(
-		'resolve_identity',
-		'Resolve the full identity chain for an AT Protocol actor: handle → DID → DID document → PDS endpoint',
-		{ actor: z.string().describe('A handle (e.g. bsky.app) or DID (e.g. did:plc:z72i7hdynmk6r22z27h6tvur)') },
-		tracked('resolve_identity', async ({ actor: input }) => {
-			const actor = await resolveActor(input);
-			return { content: [{ type: 'text', text: formatResolution(origin, actor) }] };
-		}),
+		'resolve',
+		'Resolve an Atmosphere account (handle, DID, at:// URI, or a profile link or page from an Atmosphere app) to its DID, handle, PDS, entryway, DID document and the collections in its repo. The response says whether the account is active and when it moved to its PDS. Pass plc to get plc.directory data instead: "data" for current state with rotation keys, "audit" for the full dated operation log (migrations, handle changes, key rotations), "last" for the latest operation. Pass did for "doc", the raw DID document, or "trace", every resolution step (DNS, HTTPS, DID document, PDS) with its response, for working out why an account does not resolve.',
+		{
+			actor: z.string().describe('Handle, DID, at:// URI, or a profile link or page from an Atmosphere app'),
+			plc: z.enum(['data', 'audit', 'last']).optional().describe('Return plc.directory data for a did:plc instead of the identity'),
+			did: z.enum(['doc', 'trace']).optional().describe('Return the raw DID document, or every resolution step, instead of the identity'),
+		},
+		tracked('resolve', async ({ actor, plc: view, did }) =>
+			json(
+				view
+					? await plc(actor, view)
+					: did === 'doc'
+						? await didDocument(actor)
+						: did === 'trace'
+							? await traceActor(actor)
+							: await resolve(actor),
+			),
+		),
 	);
 
 	server.tool(
-		'get_repo',
-		'List all collections in an AT Protocol repo',
-		{ actor: z.string().describe('A handle or DID') },
-		tracked('get_repo', async ({ actor: input }) => {
-			const actor = await resolveActor(input);
-			const data = await pdsGet(actor.pds, 'com.atproto.repo.describeRepo', { repo: actor.did });
-			return { content: [{ type: 'text', text: formatRepo(origin, actor, (data.collections as string[]) ?? []) }] };
-		}),
+		'get',
+		`Fetch up to ${MAX_BATCH} records by address in one call, as raw JSON exactly as the PDS stores them, with blob URLs. Addresses are at:// record URIs or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical). expand also fetches every record the results reference (reply parent and root, quoted post, like or repost subject), one level deep.`,
+		{
+			uris: z
+				.array(z.string())
+				.min(1)
+				.max(MAX_BATCH)
+				.describe('Record addresses: at://{actor}/{collection}/{rkey} or a link to the record from an Atmosphere app or page'),
+			expand: z.boolean().default(false).describe('Also fetch the records these reference, under expanded'),
+			labels: z
+				.boolean()
+				.default(false)
+				.describe("Attach each record's labels, from Bluesky's moderation labeler unless labelers says otherwise"),
+			labelers: z.string().optional().describe('"all", or labeler handles and DIDs separated by commas'),
+			author: z.boolean().default(false).describe("Also attach the labels on each record's account"),
+		},
+		tracked('get', async ({ uris, expand, labels, labelers, author }) =>
+			json(await getRecords(uris, { expand, labels, labelers, author })),
+		),
 	);
 
 	server.tool(
 		'list_records',
-		'List records in any AT Protocol collection on any PDS',
+		'List records in any collection of any repo, as raw JSON with blob URLs. Newest first unless reverse is set.',
 		{
-			actor: z.string().describe('A handle or DID'),
-			collection: z.string().describe('Collection NSID (e.g. app.bsky.feed.post, com.whtwnd.blog.entry)'),
-			limit: z.number().min(1).max(100).default(25).describe('Records per page'),
-			cursor: z.string().optional().describe('Pagination cursor from a previous response'),
-			reverse: z.boolean().default(false).describe('Set true for oldest-first ordering'),
+			actor: z.string().describe('Handle or DID'),
+			collection: z.string().describe('Collection NSID, for example app.bsky.feed.post'),
+			limit: z.number().min(1).max(100).default(25),
+			cursor: z.string().optional().describe('cursor from the previous page'),
+			reverse: z.boolean().default(false).describe('Oldest first'),
+			expand: z.boolean().default(false).describe(`Also fetch up to ${MAX_BATCH} records these reference, under expanded`),
+			labels: z
+				.boolean()
+				.default(false)
+				.describe("Attach each record's labels, from Bluesky's moderation labeler unless labelers says otherwise"),
+			labelers: z.string().optional().describe('"all", or labeler handles and DIDs separated by commas'),
+			author: z.boolean().default(false).describe("Also attach the labels on each record's account"),
 		},
-		tracked('list_records', async ({ actor: input, collection, limit, cursor, reverse }) => {
-			const actor = await resolveActor(input);
-			const data = await pdsGet(actor.pds, 'com.atproto.repo.listRecords', {
-				repo: actor.did,
-				collection,
-				limit,
-				cursor: cursor ?? undefined,
-				reverse: reverse || undefined,
-			});
-			const text = formatRecordList(actor, collection, (data.records as AtpRecord[]) ?? [], data.cursor as string | undefined);
-			return { content: [{ type: 'text', text }] };
-		}),
+		tracked('list_records', async ({ actor, collection, limit, cursor, reverse, expand, labels, labelers, author }) =>
+			json(await listRecords(actor, collection, { limit, cursor, reverse, expand, labels, labelers, author })),
+		),
 	);
 
 	server.tool(
-		'get_record',
-		'Fetch a single AT Protocol record by its rkey',
+		'backlinks',
+		'Find records anywhere on the network that link to a target (an at:// URI, DID or web URL): likes, reposts, replies, quotes, follows or any lexicon. Without source, returns each source as "collection:path" with record and account counts. With source, returns the linking record URIs, or the records themselves when hydrate is set. Indexed by microcosm Constellation.',
 		{
-			actor: z.string().describe('A handle or DID'),
-			collection: z.string().describe('Collection NSID (e.g. app.bsky.feed.post)'),
-			rkey: z.string().describe('Record key (e.g. self, 3jui7kd54zh2y)'),
+			target: z.string().describe('at:// URI, DID or web URL'),
+			source: z.string().optional().describe('A "collection:path" source from the summary, for example app.bsky.feed.like:subject.uri'),
+			limit: z.number().min(1).max(100).optional().describe(`Records per page (50 by default, at most ${MAX_BATCH} when hydrating)`),
+			cursor: z.string().optional(),
+			hydrate: z.boolean().default(false).describe('Return the linking records instead of their URIs'),
 		},
-		tracked('get_record', async ({ actor: input, collection, rkey }) => {
-			const actor = await resolveActor(input);
-			const data = await pdsGet(actor.pds, 'com.atproto.repo.getRecord', {
-				repo: actor.did,
-				collection,
-				rkey,
-			});
-			return { content: [{ type: 'text', text: formatSingleRecord(actor, collection, rkey, data as unknown as AtpRecord) }] };
-		}),
+		tracked('backlinks', async ({ target, source, limit, cursor, hydrate }) =>
+			json(await backlinks(target, { source, limit, cursor, hydrate })),
+		),
 	);
 
 	server.tool(
-		'discover_repos_by_collection',
-		'Discover every repo (DID) on the AT Protocol network that has records in a given collection NSID. Useful for finding all users of a third-party lexicon, e.g. site.standard.document. Network-wide, via the relay.',
+		'discover',
+		'List every repo (DID) on the network that has records in a collection, via the relay. Finds the users of any lexicon, for example site.standard.document.',
 		{
-			collection: z.string().describe('Collection NSID (e.g. site.standard.document, app.bsky.feed.post)'),
-			limit: z.number().min(1).max(2000).default(100).describe('Repos per page'),
-			cursor: z.string().optional().describe('Pagination cursor from a previous response'),
+			collection: z.string().describe('Collection NSID'),
+			limit: z.number().min(1).max(2000).default(100),
+			cursor: z.string().optional(),
 		},
-		tracked('discover_repos_by_collection', async ({ collection, limit, cursor }) => {
-			const result = await listReposByCollection(collection, limit, cursor ?? undefined);
-			return { content: [{ type: 'text', text: formatDiscovery(origin, collection, result) }] };
-		}),
+		tracked('discover', async ({ collection, limit, cursor }) => json(await discover(collection, limit, cursor))),
 	);
 
 	server.tool(
-		'get_lexicon',
-		'Resolve an AT Protocol Lexicon schema by its NSID. Uses DNS-based lexicon resolution (_lexicon TXT record → DID → com.atproto.lexicon.schema record) to fetch the canonical schema definition for any lexicon, e.g. app.bsky.feed.post.',
-		{ nsid: z.string().describe('Lexicon NSID (e.g. app.bsky.feed.post, community.lexicon.calendar.event)') },
-		tracked('get_lexicon', async ({ nsid }) => {
-			const { did, authority } = await resolveLexiconDid(nsid);
-			const actor = await resolveActor(did);
-			const data = await pdsGet(actor.pds, 'com.atproto.repo.getRecord', {
-				repo: actor.did,
-				collection: 'com.atproto.lexicon.schema',
-				rkey: nsid,
-			});
-			return { content: [{ type: 'text', text: formatLexicon(origin, nsid, authority, actor, data as unknown as AtpRecord) }] };
-		}),
-	);
-
-	server.tool(
-		'plc_audit',
-		'Fetch the PLC audit log for a did:plc identity — the full, chronological history of identity operations from plc.directory. Surfaces PDS migrations (when and from/to which host), handle changes, and signing/rotation key rotations. Use to date a migration, debug a moved repo, or verify an identity\'s provenance.',
-		{ actor: z.string().describe('A handle (e.g. bsky.app) or did:plc DID') },
-		tracked('plc_audit', async ({ actor: input }) => {
-			const did = await resolveToDid(input);
-			const log = await resolvePlcAuditLog(did);
-			const handle = log[log.length - 1]?.operation?.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
-			return { content: [{ type: 'text', text: formatAuditLog(origin, did, handle, log) }] };
-		}),
-	);
-
-	server.tool(
-		'plc_data',
-		'Fetch the current canonical PLC state for a did:plc identity from plc.directory — its active PDS, all handles (alsoKnownAs), atproto signing key, and rotation keys in priority order. Unlike resolve_identity (DID document), this surfaces the rotation keys that actually control the identity.',
-		{ actor: z.string().describe('A handle (e.g. bsky.app) or did:plc DID') },
-		tracked('plc_data', async ({ actor: input }) => {
-			const did = await resolveToDid(input);
-			const data = await resolvePlcData(did);
-			const handle = data.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
-			return { content: [{ type: 'text', text: formatPlcData(origin, did, handle, data) }] };
-		}),
-	);
-
-	server.tool(
-		'plc_last',
-		'Fetch the most recent PLC operation for a did:plc identity and the state it established (PDS, handles, keys, operation type). Lightweight "what changed last" check; use plc_audit for the full dated history.',
-		{ actor: z.string().describe('A handle (e.g. bsky.app) or did:plc DID') },
-		tracked('plc_last', async ({ actor: input }) => {
-			const did = await resolveToDid(input);
-			const op = await resolvePlcLastOp(did);
-			const handle = op.alsoKnownAs?.[0]?.replace(/^at:\/\//, '') ?? did;
-			return { content: [{ type: 'text', text: formatPlcLastOp(origin, did, handle, op) }] };
-		}),
-	);
-
-	server.tool(
-		'get_backlinks',
-		'Find records across the network that link to a target (an at:// URI, DID, or web URL) — likes, reposts, replies, follows, or any lexicon. Omit `source` for a summary of all link sources with counts; provide it to list the actual linking records. Indexed by microcosm Constellation.',
+		'labels',
+		'The labels on a record or an account, from Bluesky\'s moderation labeler by default. Pass labelers as "all" for every known labeler (the list is at /labelers), or as handles and DIDs separated by commas. Negated and expired labels are left out. author also returns the labels on a record\'s account.',
 		{
-			target: z.string().describe('Target to find backlinks to: an at:// URI, DID, or web URL'),
-			source: z
+			target: z.string().describe('An at:// record URI, a handle, a DID, or a link to a post or profile'),
+			labelers: z
 				.string()
 				.optional()
-				.describe('A "collection:path" selector from the summary (e.g. app.bsky.feed.like:subject.uri). Omit for the summary of all sources.'),
-			limit: z.number().min(1).max(100).default(50).describe('Linking records per page (only used with source)'),
-			cursor: z.string().optional().describe('Pagination cursor from a previous response (only used with source)'),
+				.describe('"all", or handles and DIDs separated by commas. Bluesky\'s moderation labeler when left out'),
+			author: z.boolean().default(false).describe('For a record, also return the labels on its account'),
 		},
-		tracked('get_backlinks', async ({ target, source, limit, cursor }) => {
-			if (!source) {
-				const sources = await getLinkSources(target);
-				return { content: [{ type: 'text', text: formatBacklinkSources(origin, target, sources) }] };
-			}
-			const data = await getBacklinks(target, source, limit, cursor ?? undefined);
-			return { content: [{ type: 'text', text: formatBacklinkRecords(origin, target, source, data) }] };
-		}),
+		tracked('labels', async ({ target, labelers, author }) => json(await labels(target, { labelers, author }))),
+	);
+
+	server.tool(
+		'lexicon',
+		'Fetch the published Lexicon schema for an NSID, resolved through its _lexicon DNS record to the com.atproto.lexicon.schema record.',
+		{ nsid: z.string().describe('Lexicon NSID, for example app.bsky.feed.post') },
+		tracked('lexicon', async ({ nsid }) => json(await lexicon(nsid))),
 	);
 
 	return server;

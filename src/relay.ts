@@ -2,7 +2,7 @@
 // Unlike PDS calls (scoped to one repo), the relay can answer
 // "which repos have records in collection X" across the whole network.
 
-const RELAY = 'https://relay1.us-west.bsky.network';
+export const RELAY = 'https://relay1.us-west.bsky.network';
 
 export interface ReposByCollection {
 	repos: { did: string }[];
@@ -20,7 +20,7 @@ export async function listReposByCollection(collection: string, limit: number, c
 	const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
 
 	if (!res.ok) {
-		const err: Record<string, unknown> = await res.json().catch(() => ({}));
+		const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 		throw { status: res.status, message: (err.message as string) || res.statusText, upstream: 'relay' };
 	}
 

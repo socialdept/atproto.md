@@ -74,7 +74,7 @@ async function constellationGet(url: URL): Promise<Record<string, unknown>> {
 	const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
 
 	if (!res.ok) {
-		const err: Record<string, unknown> = await res.json().catch(() => ({}));
+		const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 		throw { status: res.status, message: (err.message as string) || res.statusText, upstream: 'constellation' };
 	}
 

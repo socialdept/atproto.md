@@ -1,12 +1,12 @@
 # Stats
 
-Part of the [atproto.md docs](../introduction.md#documentation). The anonymous usage dashboard and how to reset it.
+The anonymous usage dashboard and how to reset it.
 
 ## `GET /stats`
 
-An anonymous usage dashboard: request counts by route and MCP tool, MCP sessions, the most-queried collections and which of them still need a [formatter](../formatting.md), status codes, upstream failures, and aggregate timing. Browsers get HTML, and agents get markdown.
+An anonymous usage dashboard: request counts by route and MCP tool, MCP sessions, the most-queried collections, status codes, upstream failures, and aggregate timing. Browsers get HTML, and agents get markdown.
 
-Only the markdown responses served over HTTP and the MCP tool calls are counted. HTML visits to the home and stats pages are not. Counters never hold IPs, handles, DIDs or record keys. HTTP requests do record a coarse country code.
+Only the JSON responses served over HTTP, `/llms.txt`, `/skill.md` and the MCP tool calls are counted. Redirects, such as `/blob`, `/repo/car` and the blob and repo calls through [`/xrpc`](xrpc.md), are not. HTML visits to the home and stats pages are not. Counters never hold IPs, handles, DIDs or record keys. HTTP requests do record a coarse country code.
 
 The counters live in the `STATS` Durable Object, which is SQLite-backed.
 

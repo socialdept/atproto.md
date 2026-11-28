@@ -1,0 +1,224 @@
+import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import worker from '../src/index';
+import { backlinks, getRecord, getRecords, listRecords, resolve } from '../src/api';
+
+// A small fake network: one PLC DID on one PDS, with a reply thread and a profile.
+const DID = 'did:plc:alice';
+const PDS = 'https://pds.example';
+const ENTRYWAY = 'https://entryway.example';
+
+const RECORDS: Record<string, { cid: string; value: Record<string, unknown> }> = {
+	'app.bsky.actor.profile/self': {
+		cid: 'cprofile',
+		value: {
+			$type: 'app.bsky.actor.profile',
+			displayName: 'Alice',
+			avatar: { $type: 'blob', ref: { $link: 'bafyavatar' }, mimeType: 'image/jpeg', size: 9 },
+		},
+	},
+	'app.bsky.feed.post/root': { cid: 'croot', value: { $type: 'app.bsky.feed.post', text: 'root', createdAt: '2026-01-01T00:00:00Z' } },
+	'app.bsky.feed.post/reply': {
+		cid: 'creply',
+		value: {
+			$type: 'app.bsky.feed.post',
+			text: 'reply',
+			langs: ['en'],
+			reply: {
+				root: { uri: `at://${DID}/app.bsky.feed.post/root`, cid: 'croot' },
+				parent: { uri: `at://${DID}/app.bsky.feed.post/root`, cid: 'croot' },
+			},
+		},
+	},
+};
+
+const json = (body: unknown, status = 200) =>
+	new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+function fakeNetwork(input: RequestInfo | URL): Response {
+	const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+	const q = url.searchParams;
+
+	if (url.pathname.endsWith('com.atproto.identity.resolveHandle'))
+		return q.get('handle') === 'alice.test' ? json({ did: DID }) : json({ message: 'no' }, 400);
+	if (url.hostname === 'plc.directory' && url.pathname.endsWith('/log/audit')) {
+		const op = (endpoint: string) => ({
+			type: 'plc_operation',
+			services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint } },
+		});
+		return json([
+			{ did: DID, cid: 'c1', nullified: false, createdAt: '2024-01-01T00:00:00Z', operation: op(PDS) },
+			{ did: DID, cid: 'c2', nullified: false, createdAt: '2025-01-01T00:00:00Z', operation: op('https://old.example') },
+			{ did: DID, cid: 'c3', nullified: true, createdAt: '2025-06-01T00:00:00Z', operation: op('https://never.example') },
+			{ did: DID, cid: 'c4', nullified: false, createdAt: '2026-01-01T00:00:00Z', operation: op(`${PDS}/`) },
+			{ did: DID, cid: 'c5', nullified: false, createdAt: '2026-02-01T00:00:00Z', operation: op(PDS) },
+		]);
+	}
+	if (url.hostname === 'plc.directory') {
+		return json({
+			id: DID,
+			alsoKnownAs: ['at://alice.test'],
+			service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: PDS }],
+		});
+	}
+	if (url.hostname === 'constellation.microcosm.blue') {
+		return json({ total: 1, records: [{ did: DID, collection: 'app.bsky.feed.post', rkey: 'reply' }] });
+	}
+	if (url.origin === PDS) {
+		if (url.pathname === '/.well-known/oauth-protected-resource') return json({ resource: PDS, authorization_servers: [ENTRYWAY] });
+		if (url.pathname.endsWith('getRepoStatus')) return json({ did: DID, active: false, status: 'deactivated' });
+		if (url.pathname.endsWith('describeRepo')) return json({ collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'] });
+		if (url.pathname.endsWith('listRecords')) {
+			const records = Object.entries(RECORDS)
+				.filter(([k]) => k.startsWith(`${q.get('collection')}/`))
+				.map(([k, r]) => ({ uri: `at://${DID}/${k}`, ...r }));
+			return json({ records, cursor: 'next' });
+		}
+		if (url.pathname.endsWith('getRecord')) {
+			const r = RECORDS[`${q.get('collection')}/${q.get('rkey')}`];
+			return r
+				? json({ uri: `at://${DID}/${q.get('collection')}/${q.get('rkey')}`, ...r })
+				: json({ error: 'RecordNotFound', message: 'Could not locate record' }, 400);
+		}
+	}
+	return json({ message: `unexpected ${url}` }, 500);
+}
+
+let calls: string[] = [];
+
+beforeEach(() => {
+	calls = [];
+	vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+		calls.push(String(input instanceof Request ? input.url : input));
+		return fakeNetwork(input as RequestInfo);
+	});
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('records', () => {
+	it('returns a record exactly as stored, with blob URLs', async () => {
+		const r = await getRecord('at://alice.test/app.bsky.actor.profile/self');
+		expect(r.value).toEqual(RECORDS['app.bsky.actor.profile/self'].value);
+		expect(r.cid).toBe('cprofile');
+		expect(r.blobs).toEqual([`${PDS}/xrpc/com.atproto.sync.getBlob?did=${DID}&cid=bafyavatar`]);
+	});
+
+	it('expands referenced records one level deep', async () => {
+		const r = await getRecord(`at://${DID}/app.bsky.feed.post/reply`, { expand: true });
+		expect(Object.keys(r.expanded!)).toEqual([`at://${DID}/app.bsky.feed.post/root`]);
+		expect((r.expanded![`at://${DID}/app.bsky.feed.post/root`] as { value: { text: string } }).value.text).toBe('root');
+	});
+
+	it('batches records, resolving each actor once, and reports failures per address', async () => {
+		const r = await getRecords([
+			'at://alice.test/app.bsky.feed.post/root',
+			'https://bsky.app/profile/alice.test/post/reply',
+			'at://alice.test/app.bsky.feed.post/missing',
+		]);
+		expect(r.records.map((x) => x.cid)).toEqual(['croot', 'creply']);
+		expect(r.errors).toEqual([{ address: 'at://alice.test/app.bsky.feed.post/missing', error: 'Could not locate record' }]);
+		expect(calls.filter((c) => c.includes('resolveHandle'))).toHaveLength(1);
+		expect(calls.filter((c) => c.includes('plc.directory'))).toHaveLength(1);
+	});
+
+	it('refuses a batch over the limit and non-record addresses', async () => {
+		await expect(getRecords(Array(26).fill('at://alice.test/app.bsky.feed.post/root'))).rejects.toMatchObject({ status: 400 });
+		const r = await getRecords(['at://alice.test']);
+		expect(r.errors?.[0].error).toContain('is not a record address');
+	});
+
+	it('lists records with the cursor and raw values', async () => {
+		const r = await listRecords('alice.test', 'app.bsky.feed.post', { limit: 5 });
+		expect(r).toMatchObject({
+			did: DID,
+			handle: 'alice.test',
+			pds: PDS,
+			entryway: ENTRYWAY,
+			collection: 'app.bsky.feed.post',
+			cursor: 'next',
+		});
+		expect(r.records[1].value).toEqual(RECORDS['app.bsky.feed.post/reply'].value);
+	});
+
+	it('resolves identity and collections together', async () => {
+		const r = await resolve('alice.test');
+		expect(r).toMatchObject({
+			did: DID,
+			handle: 'alice.test',
+			pds: PDS,
+			entryway: ENTRYWAY,
+			collections: ['app.bsky.actor.profile', 'app.bsky.feed.post'],
+		});
+		expect(r.didDoc.id).toBe(DID);
+	});
+
+	it('says whether the account is active, and since when it has been on its PDS', async () => {
+		const r = await resolve('alice.test');
+		expect(r).toMatchObject({ active: false, status: 'deactivated', pdsSince: '2026-01-01T00:00:00Z' });
+	});
+
+	it('dates the move to the current PDS, skipping nullified operations and trailing slashes', async () => {
+		const { pdsSinceOf } = await import('../src/api');
+		const op = (endpoint: string) => ({ services: { atproto_pds: { endpoint } } }) as never;
+		const entry = (createdAt: string, endpoint: string, nullified = false) => ({
+			did: DID,
+			cid: createdAt,
+			nullified,
+			createdAt,
+			operation: op(endpoint),
+		});
+		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://one/')])).toBe('a');
+		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://two', true)])).toBe('a');
+		expect(pdsSinceOf([entry('a', 'https://one'), entry('b', 'https://two'), entry('c', 'https://two')])).toBe('b');
+		expect(pdsSinceOf([])).toBeNull();
+	});
+
+	it('leaves the entryway null when it is the PDS itself or unpublished', async () => {
+		const { entryway } = await import('../src/identity');
+		expect(await entryway('https://bare.example')).toBeNull();
+	});
+
+	it('hydrates backlinks into records', async () => {
+		const r = await backlinks(`at://${DID}/app.bsky.feed.post/root`, { source: 'app.bsky.feed.post:reply.parent.uri', hydrate: true });
+		expect(r).toMatchObject({ total: 1, cursor: null });
+		expect((r.records as { cid: string }[])[0].cid).toBe('creply');
+	});
+});
+
+async function workerFetch(path: string, init?: RequestInit) {
+	const ctx = createExecutionContext();
+	const res = await worker.fetch(new Request(`https://atproto.md${path}`, init) as never, env, ctx);
+	await waitOnExecutionContext(ctx);
+	return res;
+}
+
+describe('HTTP output', () => {
+	it('returns raw JSON by default', async () => {
+		const res = await workerFetch('/at://alice.test/app.bsky.actor.profile/self');
+		expect(res.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
+		expect(JSON.parse(await res.text()).value.displayName).toBe('Alice');
+	});
+
+	it('still answers older links with ?format=json, and Accept: application/json, with the same JSON', async () => {
+		const a = await workerFetch('/at://alice.test/app.bsky.actor.profile/self?format=json');
+		expect(a.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
+		expect((await a.json<{ cid: string }>()).cid).toBe('cprofile');
+
+		const b = await workerFetch('/resolve/alice.test', { headers: { Accept: 'application/json' } });
+		expect((await b.json<{ did: string }>()).did).toBe(DID);
+	});
+
+	it('serves batches at /get', async () => {
+		const res = await workerFetch(`/get?expand&uri=${encodeURIComponent(`at://${DID}/app.bsky.feed.post/reply`)}`);
+		const body = await res.json<{ records: unknown[]; expanded: Record<string, unknown> }>();
+		expect(body.records).toHaveLength(1);
+		expect(Object.keys(body.expanded)).toHaveLength(1);
+	});
+
+	it('returns errors as JSON with the HTTP status', async () => {
+		const res = await workerFetch('/at://alice.test/app.bsky.feed.post/missing');
+		expect(res.status).toBe(400);
+		expect(await res.json()).toEqual({ error: 'Could not locate record', status: 400 });
+	});
+});

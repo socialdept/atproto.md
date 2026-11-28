@@ -8,7 +8,7 @@ export async function pdsGet(pds: string, lexicon: string, params: Record<string
 	const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
 
 	if (!res.ok) {
-		const err: Record<string, unknown> = await res.json().catch(() => ({}));
+		const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 		throw { status: res.status, message: (err.message as string) || res.statusText, upstream: 'pds' };
 	}
 

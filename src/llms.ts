@@ -1,250 +1,173 @@
 export function llmsTxt(origin: string): string {
 	return `# atproto.md
 
-> A read-only, markdown-first API for the AT Protocol ecosystem. Returns structured markdown from any PDS. Accepts at:// URIs directly in the URL path. No authentication required — public data only.
+> Every Atmosphere record, one address for agents. Put an at:// URI, a handle or a link after atproto.md/, or set it as an SDK's service URL, and each call reaches the account's own PDS. Records are raw JSON, exactly as stored, for any collection on any PDS. No authentication, public data only.
 
-atproto.md resolves handles and DIDs, fetches data directly from the user's PDS via \`com.atproto.repo.*\`, and returns rich markdown. Works with any collection on any PDS — not just Bluesky.
+## Records
 
-## Endpoints
+- [Repo](${origin}/at://{actor}): DID, handle, PDS, entryway, account status, when it moved to its PDS, DID document and every collection
+- [List records](${origin}/at://{actor}/{collection}): records newest first. Params: limit (25, at most 100), cursor, reverse, expand
+- [Get record](${origin}/at://{actor}/{collection}/{rkey}): one record with blob URLs. Param: expand
+- [Get many](${origin}/get?uri={address}&uri={address}): up to 25 records by at:// URI or web link in one call. Param: expand
+- [Blob](${origin}/blob/{actor}/{cid}): redirects to the blob on its PDS. Add transform options such as /p=avatar or /w=400,f=webp to redirect to a resized copy from the co/infra image CDN (https://github.com/co-infra/co-infra-img)
+- [Repo CAR](${origin}/repo/car/{actor}): redirects to the whole repo as a CAR file on its PDS
 
-- [Resolve identity](${origin}/resolve/{handle-or-did}): Full identity chain — handle → DID → DID document → PDS endpoint
-- [PLC audit log](${origin}/plc/audit/{handle-or-did}): Chronological history of a did:plc identity — PDS migrations, handle changes, key rotations
-- [PLC data](${origin}/plc/data/{handle-or-did}): Current canonical PLC state — active PDS, handles, signing key, and rotation keys
-- [PLC last op](${origin}/plc/last/{handle-or-did}): The most recent PLC operation and the state it established
-- [Usage stats](${origin}/stats): Anonymous traffic — route + MCP-tool hit counts and most-queried collections. No user-specific data
-- [Repo overview](${origin}/at://{actor}): Lists all collections in an actor's repo
-- [List records](${origin}/at://{actor}/{collection}): Paginated records from any collection. Params: limit (default 25, max 100), cursor, reverse
-- [Get record](${origin}/at://{actor}/{collection}/{rkey}): Fetch a single record by its rkey
-- [Get lexicon](${origin}/lexicon/{nsid}): Resolve a Lexicon schema by NSID via DNS-based lexicon resolution (_lexicon TXT → DID → com.atproto.lexicon.schema record)
-- [Discover repos by collection](${origin}/discover/{collection}): Every repo on the network with records in a collection NSID. Params: limit (default 100, max 2000), cursor
-- [Backlinks](${origin}/backlinks/{at-uri-or-did-or-url}): Who links to a target (likes, reposts, replies, follows, any lexicon). Summary of sources by default; add source={collection:path} to list linking records
+labels on a record route attaches each record's labels, author its account's, and labelers chooses who to ask. expand also returns the records the results reference (reply parent and root, quoted post, like or repost subject), one level deep, under expanded.
+
+## Identity
+
+- [Resolve](${origin}/resolve/{handle-or-did}): the same as /at://{actor}
+- [DID document](${origin}/did/doc/{handle-or-did}): the DID document as published
+- [Trace](${origin}/did/trace/{handle-or-did}): every resolution step (DNS, HTTPS, DID document, PDS) with its response, for working out why an account does not resolve
+- [PLC data](${origin}/plc/data/{handle-or-did}): current PLC state, with rotation keys
+- [PLC audit log](${origin}/plc/audit/{handle-or-did}): every PLC operation, dated
+- [PLC last op](${origin}/plc/last/{handle-or-did}): the latest PLC operation
+
+## Network
+
+- [Discover](${origin}/discover/{collection}): every repo with records in a collection. Params: limit (100, at most 2000), cursor
+- [Lexicon](${origin}/lexicon/{nsid}): the published schema for an NSID
+- [Labels](${origin}/labels/{target}): labels on a record or account, from Bluesky's moderation labeler. Params: labelers (all, or handles and DIDs), author (a record's account labels too)
+- [Labelers](${origin}/labelers): the known labelers that labelers=all asks
+- [Backlinks](${origin}/backlinks/{at-uri-or-did-or-url}): link sources with counts. Add source={collection:path} for the linking record URIs, and hydrate for the records
+
+## XRPC
+
+- [XRPC](${origin}/xrpc/{method}): standard XRPC queries, each sent to the server that answers it. Set ${origin} as the service URL of any AT Protocol SDK. repo and did take a handle or a DID. com.atproto.repo and com.atproto.sync calls go to the account's PDS, other sync calls to the relay, app.bsky calls to Bluesky's public app view, other apps' calls to the app view published on the app's own domain (social.grain.* to did:web:grain.social), and identity calls are answered by atproto.md. An atproto-proxy header (did#service_id) names the service for any method. Procedures that need no sign-in are forwarded with POST, except com.atproto procedures. Calls with an Authorization header are refused.
 
 ## Examples
 
-- [Resolve bsky.app](${origin}/resolve/bsky.app)
-- [PLC audit log for bsky.app](${origin}/plc/audit/bsky.app)
-- [PLC data for bsky.app](${origin}/plc/data/bsky.app)
-- [Browse repo](${origin}/at://bsky.app)
-- [List posts](${origin}/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post?limit=5)
-- [Get profile](${origin}/at://bsky.app/app.bsky.actor.profile/self)
-- [Get the app.bsky.feed.post lexicon](${origin}/lexicon/app.bsky.feed.post)
-- [Discover site.standard.document repos](${origin}/discover/site.standard.document)
-- [Backlinks to a post](${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lgwdn7vd722r)
+- [A profile](${origin}/at://bsky.app/app.bsky.actor.profile/self)
+- [Latest posts](${origin}/at://bsky.app/app.bsky.feed.post?limit=5)
+- [A post and what it replies to](${origin}/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&expand)
+- [Repos using site.standard.document](${origin}/discover/site.standard.document)
+- [A resolution trace](${origin}/did/trace/bsky.app)
+- [A record through XRPC](${origin}/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self)
 
-## Install as MCP server
+## Agents
 
-- [MCP endpoint](${origin}/mcp): Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
-- [Skill instructions](${origin}/skill.md): Full agent skill sheet with usage triggers, examples, and endpoint reference
-
-## Install as a Claude Code command
-
-Save the skill sheet as a slash command (invoke with \`/atproto\`):
-
-\`\`\`bash
-curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
-\`\`\`
+- [MCP server](${origin}/mcp): tools resolve, get, list_records, backlinks, discover, lexicon and labels. Install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`
+- [Skill sheet](${origin}/skill.md): save it as a command with \`curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md\`
 `;
 }
 
 export function skillMd(origin: string): string {
 	return `---
 name: atproto-md
-description: Fetch any public AT Protocol data as clean Markdown — resolve handles/DIDs, browse repos, read records from any collection on any PDS (Bluesky or third-party lexicons), resolve lexicon schemas by NSID, discover every repo using a lexicon, explore backlinks, and trace a did:plc identity's history via its PLC audit log. Use whenever the user shares an at:// URI, a handle/DID, or a lexicon NSID (e.g. app.bsky.feed.post, site.standard.document), or asks to inspect AT Protocol / atproto / Bluesky / Standard.site data, or wants to know when an account migrated PDS or changed its handle.
+description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS, entryway and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read a did:plc identity's PLC history, trace why an account does not resolve, export a repo as a CAR file, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
 ---
 
-# atproto-md — AT Protocol Markdown API
+# atproto-md
 
-Fetch any public AT Protocol data as clean Markdown. No auth, no API key required.
-Works with **any collection on any PDS** — not just Bluesky.
-Base URL: ${origin}
+Every Atmosphere record, one address. Read-only, no auth. Base URL: ${origin}
+
+## Updating this skill
+
+Arguments: $ARGUMENTS
+
+If the argument is \`update\`, update this skill and do nothing else:
+
+1. Find the file this skill was loaded from, such as \`~/.claude/commands/atproto.md\` or \`~/.claude/skills/atproto-md/SKILL.md\`.
+2. Download the latest version next to it: \`curl -fsS ${origin}/skill.md -o <that file>.new\`. If the download fails, delete the \`.new\` file, leave the skill as it was and say why.
+3. Compare the two, replace the skill with the new file (\`mv <that file>.new <that file>\`), and tell the user in a few lines what changed, or that it was already up to date.
 
 ## When to use this skill
 
-Use this API whenever the user asks to:
-- Browse an AT Protocol repo or list someone's collections
-- Read records from any AT Protocol collection (posts, profiles, follows, publications, etc.)
-- Resolve a handle to a DID, or inspect someone's DID document and PDS
-- Explore third-party lexicons that get rich Markdown formatting: Standard (\`site.standard\`), Leaflet (\`pub.leaflet\`), Offprint (\`app.offprint\`), Pocket (\`blog.pckt\`), Linkat (\`blue.linkat\`), Woosh (\`link.woosh\`), Smoke Signal (\`events.smokesignal.calendar\`), Wisp (\`place.wisp\`), Lexicon schemas (\`com.atproto.lexicon.schema\`), and Bluesky (\`app.bsky.*\`) — any other collection still renders as generic markdown
-- Fetch content from any PDS on the AT Protocol network
-- Dereference an \`at://\` URI
-- Resolve a Lexicon schema definition by its NSID (e.g. inspect the \`app.bsky.feed.post\` schema)
-- Discover every repo on the network using a given collection/lexicon (e.g. all repos with \`site.standard.document\`)
-- Find who liked, reposted, replied to, follows, or otherwise links to a record, account, or URL (backlinks)
-- Date a PDS migration or trace an account's handle/key history via its PLC audit log
-- Inspect the rotation keys that control a did:plc identity (PLC data)
+- Read a record, a collection or a whole repo on any PDS, for Bluesky or any other lexicon
+- Dereference an at:// URI or a web link to a record: Bluesky-style client links, explorer links, or any page with at-tags
+- Read a post together with its parent, root and quoted post
+- Find who liked, reposted, replied to, quoted or follows something
+- Check the labels on a post or account, from Bluesky's moderation labeler or any others
+- Find every repo using a lexicon, or fetch a lexicon's schema
+- Resolve a handle or DID to its PDS and entryway, or date a PDS migration or handle change from the PLC log
+- Find out why an account does not resolve or its records are missing: /did/trace shows each step, and /at://{actor} says whether the account is active
+- Write code against an AT Protocol SDK that reads any account: set the service URL to ${origin}
+
+For Bluesky threads, timelines, feeds and search, use the Bluesky AppView or bsky.md. atproto.md reads records from each account's own PDS.
+
+## Use the MCP server when it is installed
+
+If the atproto-md MCP server is connected (its tools are resolve, get, list_records, backlinks, discover, lexicon and labels, shown in Claude Code as mcp__atproto-md__*), call those tools instead of curl, unless the user has said to use HTTP. Each tool returns the same JSON as the matching route:
+
+- resolve: /at://{actor} and /resolve, plus plc for /plc/* and did for /did/doc and /did/trace
+- get: /get and single records
+- list_records: /at://{actor}/{collection}
+- backlinks, discover, lexicon and labels: the routes of the same name
+
+Use HTTP for what no tool covers: /xrpc, /blob and /repo/car. Without the MCP server, use HTTP for everything.
 
 ## How to call it
 
-All endpoints return \`Content-Type: text/markdown\`. Just fetch the URL.
-Open CORS — works from browser, server, or CLI.
+Every data route returns one JSON object as application/json. Add \`?pretty\` to indent it.
+Records are \`{uri, cid, value, blobs}\`. \`value\` is exactly what the PDS stores, and \`blobs\` lists direct getBlob URLs.
+Errors are \`{"error": "...", "status": 404}\`.
+
+Use the fewest calls: batch addresses into one /get, add \`expand\` for referenced records, and add \`hydrate\` to backlinks.
 
 \`\`\`bash
-# Resolve a handle or DID
+# Identity, PDS, entryway and collections
 curl ${origin}/resolve/bsky.app
-
-# Trace a did:plc identity's history (PDS migrations, handle/key changes)
-curl ${origin}/plc/audit/bsky.app
-
-# Current PLC state — active PDS, handles, and rotation keys
-curl ${origin}/plc/data/bsky.app
-
-# Browse a repo (list all collections)
 curl ${origin}/at://bsky.app
 
-# List records in a collection
+# Records
 curl "${origin}/at://bsky.app/app.bsky.feed.post?limit=5"
-
-# Fetch a single record
 curl ${origin}/at://bsky.app/app.bsky.actor.profile/self
 
-# Resolve a Lexicon schema by NSID
-curl ${origin}/lexicon/app.bsky.feed.post
+# Several records, with the records they reference
+curl "${origin}/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&uri=at://bsky.app/app.bsky.actor.profile/self&expand"
 
-# Discover every repo on the network with a given collection
-curl ${origin}/discover/site.standard.document
+# Why an account does not resolve, step by step
+curl ${origin}/did/trace/bsky.app
 
-# Find backlinks to a record (summary of all link sources)
-curl ${origin}/backlinks/at://bsky.app/app.bsky.feed.post/3lgwdn7vd722r
+# Any XRPC query, routed to the account's PDS
+curl "${origin}/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self"
 
-# List the actual liking records
-curl "${origin}/backlinks/at://bsky.app/app.bsky.feed.post/3lgwdn7vd722r?source=app.bsky.feed.like:subject.uri"
+# Who replied to a post, as records
+curl "${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3n2opitxdyc2j?source=app.bsky.feed.post:reply.parent.uri&hydrate"
 \`\`\`
 
 ## Endpoint reference
 
-### Resolve identity
 \`\`\`
-GET ${origin}/resolve/{actor}
-\`\`\`
-Full identity chain: handle → DID → DID document → PDS endpoint.
-Returns the DID, all \`alsoKnownAs\` handles, services, and verification keys.
-
-### PLC audit log
-\`\`\`
-GET ${origin}/plc/audit/{actor}
-\`\`\`
-Chronological history of a \`did:plc\` identity from plc.directory, with each operation diffed
-against the previous one. Surfaces PDS migrations (from/to endpoint and date), handle changes,
-and signing/rotation key rotations — useful for dating a migration or verifying provenance.
-\`did:web\` identities have no PLC log.
-
-### PLC data
-\`\`\`
-GET ${origin}/plc/data/{actor}
-\`\`\`
-The current canonical PLC state — active PDS, all handles (\`alsoKnownAs\`), atproto signing key,
-and rotation keys in priority order. Unlike \`/resolve\` (the DID document), this exposes the
-rotation keys that actually control the identity.
-
-### PLC last operation
-\`\`\`
-GET ${origin}/plc/last/{actor}
-\`\`\`
-The most recent PLC operation and the state it established (PDS, handles, keys, op type).
-Lightweight "what changed last" check; use \`/plc/audit\` for the full dated history.
-
-### Repo overview
-\`\`\`
-GET ${origin}/at://{actor}
-\`\`\`
-Lists all collections present in the actor's repo with links to browse each one.
-
-### List records
-\`\`\`
-GET ${origin}/at://{actor}/{collection}[?limit=&cursor=&reverse=]
-\`\`\`
-Paginated list of records in any collection. Unknown collections are rendered as generic key-value markdown.
-
-### Single record
-\`\`\`
-GET ${origin}/at://{actor}/{collection}/{rkey}
-\`\`\`
-Fetch a single record by its record key.
-
-### Get lexicon
-\`\`\`
-GET ${origin}/lexicon/{nsid}
-\`\`\`
-Resolve a Lexicon schema by its NSID using AT Protocol DNS-based lexicon resolution: the
-\`_lexicon.{authority}\` TXT record points at a DID, whose repo holds the schema at
-\`com.atproto.lexicon.schema/{nsid}\`. Returns the schema's definitions and full JSON.
-Works for any published lexicon — e.g. \`/lexicon/app.bsky.feed.post\`.
-
-### Discover repos by collection
-\`\`\`
-GET ${origin}/discover/{collection}[?limit=&cursor=]
-\`\`\`
-Every repo (DID) on the network with records in the given collection NSID. Network-wide,
-via the relay's \`com.atproto.sync.listReposByCollection\`. Use it to find all users of a
-lexicon — e.g. \`/discover/site.standard.document\`. Cursor-paginated (limit default 100, max 2000).
-Each result links straight into that repo's records for the collection.
-
-### Backlinks
-\`\`\`
-GET ${origin}/backlinks/{at-uri-or-did-or-url}[?source=&limit=&cursor=]
-\`\`\`
-Records across the network that link to a target — likes, reposts, replies, follows, quotes,
-or any custom lexicon. Without \`source\`, returns a summary table of every link source with
-record + distinct-DID counts. With \`source={collection:path}\` (e.g. \`app.bsky.feed.like:subject.uri\`),
-lists the actual linking records, cursor-paginated. Indexed by Constellation (microcosm.blue).
-
-URLs accept \`at://\` URIs directly in the path:
-
-\`\`\`
-${origin}/at://{actor}                          → repo overview
-${origin}/at://{actor}/{collection}              → list records
-${origin}/at://{actor}/{collection}/{rkey}       → single record
+GET ${origin}/at://{actor}                                  {did, handle, pds, entryway, active, status, pdsSince, collections, didDoc}
+GET ${origin}/at://{actor}/{collection}                     {did, handle, pds, entryway, collection, cursor, records}
+GET ${origin}/at://{actor}/{collection}/{rkey}              {uri, cid, value, blobs}
+GET ${origin}/get?uri={address}&uri=...                     {records, errors, expanded}, up to 25
+GET ${origin}/resolve/{actor}                               same as /at://{actor}
+GET ${origin}/did/doc/{actor}                               the DID document
+GET ${origin}/did/trace/{actor}                             {did, handle, handleVerified, pds, entryway, ok, steps}
+GET ${origin}/blob/{actor}/{cid}[/{params}]                 redirect to the blob, or to a resized copy
+GET ${origin}/repo/car/{actor}                              redirect to the repo CAR file
+GET ${origin}/plc/data/{actor}                              current PLC state
+GET ${origin}/plc/audit/{actor}                             {did, operations}
+GET ${origin}/plc/last/{actor}                              {did, operation}
+GET ${origin}/discover/{collection}                         {collection, cursor, repos}
+GET ${origin}/labels/{target}                               {target, labels, labelers}
+GET ${origin}/labelers                                      {default, labelers}
+GET ${origin}/lexicon/{nsid}                                {nsid, authority, did, uri, cid, schema}
+GET ${origin}/backlinks/{target}                            {target, total, sources}
+GET ${origin}/backlinks/{target}?source={collection:path}   {target, source, total, cursor, records}
+GET ${origin}/xrpc/com.atproto.repo.*?repo={actor}&...      sent to the account's PDS
+GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS, blobs and repos as redirects
+GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
+GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
+GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view
+GET ${origin}/xrpc/{nsid}                                   other apps: sent to the app view on the app's domain
+POST ${origin}/xrpc/{nsid}                                  other apps' procedures that need no sign-in
+any method with atproto-proxy: did#service_id               sent to that service
 \`\`\`
 
-## Parameter notes
-
-- **{actor}** — a handle (\`alice.bsky.social\`, \`bsky.app\`, \`aka.dad\`) or DID (\`did:plc:...\`, \`did:web:...\`)
-- **{collection}** — any AT Protocol collection NSID (e.g. \`app.bsky.feed.post\`, \`site.standard.document\`, \`link.woosh.linkPage\`)
-- **{rkey}** — the record key (e.g. \`self\`, \`3jui7kd54zh2y\`)
-- **limit** — integer 1–100, default 25
-- **cursor** — opaque pagination token from a previous response
-- **reverse** — \`true\` for oldest-first ordering
-
-## Response format
-
-All responses are plain Markdown text:
-- Records include collection type, AT URI, and formatted content
-- Known collections get rich formatting (posts with embeds, profiles with bios, publications with URLs, etc.)
-- Unknown collections are rendered as generic key-value markdown — nothing is unreadable
-- Paginated responses include a cursor for the next page
-- Errors return markdown with status code and message
-
-## Rich formatting for known collections
-
-| Collection                                      | Notes                              |
-| ----------------------------------------------- | ---------------------------------- |
-| \`app.bsky.feed.post\`                            | Text, embeds, reply context        |
-| \`app.bsky.actor.profile\`                        | Bio, display name                  |
-| \`app.bsky.graph.follow/block/list/listitem\`     | Subjects, timestamps               |
-| \`app.bsky.feed.like/repost/generator\`           | Subjects, timestamps               |
-| \`app.bsky.labeler.service\`                      | Label policies                     |
-| \`site.standard.publication\`                     | Name, URL, description             |
-| \`site.standard.document\`                        | Title, content, published date     |
-| \`pub.leaflet.publication/document\`              | Name, URL, content from pages      |
-| \`app.offprint.publication/document.article\`     | References to standard records     |
-| \`blog.pckt.publication\`                         | Reference to standard record       |
-| \`link.woosh.linkPage\`                           | Description, labeled link sections |
-| \`blue.linkat.entry\`                             | Title, URL, description            |
-| \`events.smokesignal.calendar.event\`             | Name, dates, location              |
-| *Any other collection*                          | Generic key-value markdown         |
+- {actor} is a handle or DID. An {address} is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
+- Lists take limit, cursor and reverse (oldest first). cursor is null on the last page.
+- labels works on every record route: labels attaches each record's labels, author its account's too, and labelers is all or handles and DIDs (Bluesky's moderation labeler by default).
+- expand works on every record route. hydrate works on backlinks with source, 25 records at most.
+- A batch reports a failed address in errors and still returns the rest.
+- /xrpc passes each server's response on unchanged, and X-Upstream-Service names the service that answered. Its errors are {"error", "message"}. Calls with an Authorization header and com.atproto procedures are refused: send those to the account's own PDS. When no app view is found, the 501 names the domains tried: send an atproto-proxy header.
 
 ## Install as a Claude Code command
-
-Save this skill sheet as a slash command (then invoke it with \`/atproto\`):
 
 \`\`\`bash
 curl -s ${origin}/skill.md > ~/.claude/commands/atproto.md
 \`\`\`
-
-## Full reference
-
-${origin}/llms.txt — structured API summary for LLM discovery
-${origin}/mcp — MCP server endpoint (install in Claude Code: \`claude mcp add --transport http atproto-md ${origin}/mcp\`)
-${origin}/ — interactive homepage
 `;
 }

@@ -2,6 +2,7 @@ import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloud
 import { describe, it, expect } from 'vitest';
 import worker from '../src/index';
 import { classifyHttp } from '../src/stats';
+import { OG_VERSION } from '../src/og-version';
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
@@ -17,12 +18,20 @@ describe('classifyHttp (stats tracking)', () => {
 	const c = (path: string) => classifyHttp(new URL(`http://example.com${path}`));
 
 	it('classifies recognized API routes', () => {
-		expect(c('/')?.key).toBe('route:home');
 		expect(c('/resolve/bsky.app')?.key).toBe('route:resolve');
 		expect(c('/at://bsky.app')?.key).toBe('route:repo');
 		expect(c('/at://bsky.app/app.bsky.feed.post')?.key).toBe('route:records');
 		expect(c('/plc/audit/bsky.app')?.key).toBe('route:plc/audit');
 		expect(c('/lexicon/app.bsky.feed.post')?.key).toBe('route:lexicon');
+		expect(c('/did/doc/bsky.app')?.key).toBe('route:did/doc');
+		expect(c('/did/trace/did:plc:abc')).toMatchObject({ key: 'route:did/trace', idType: 'plc' });
+		expect(c('/repo/car/bsky.app')?.key).toBe('route:repo/car');
+		expect(c('/xrpc/com.atproto.repo.getRecord?repo=bsky.app')).toMatchObject({ key: 'route:xrpc', idType: 'handle' });
+	});
+
+	it('never counts the home page or the stats page', () => {
+		expect(c('/')).toBeNull();
+		expect(c('/stats')).toBeNull();
 	});
 
 	it('ignores assets and unrecognized paths (returns null)', () => {
@@ -68,7 +77,7 @@ describe('routing', () => {
 	it('returns 400 for unrecognized paths', async () => {
 		const res = await workerFetch('http://example.com/invalid/path');
 		expect(res.status).toBe(400);
-		expect(await res.text()).toContain('Error');
+		expect(await res.text()).toContain('"error"');
 	});
 
 	it('returns usage hint for /resolve without an actor', async () => {
@@ -131,7 +140,7 @@ describe('routing', () => {
 		expect(res.status).toBe(200);
 		expect(res.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
 		const body = await res.text();
-		expect(body).toContain('<title>usage stats — atproto.md</title>');
+		expect(body).toContain('<title>Public stats | ATMD</title>');
 		expect(body).toContain('name="robots" content="noindex"');
 	});
 
@@ -162,7 +171,7 @@ describe('routing', () => {
 
 		const body = await (await workerFetch('http://example.com/stats')).text();
 		expect(body).toContain('**Total requests:**');
-		expect(body).toContain('HTTP (markdown)');
+		expect(body).toContain('| HTTP |');
 		expect(body).toContain('## Status codes');
 		expect(body).toContain('`400`'); // the /resolve usage error was counted by status
 		expect(body).toContain('## Errors by route');
@@ -177,7 +186,7 @@ describe('content negotiation on /', () => {
 
 		const body = await res.text();
 		expect(body).toContain('<!doctype html>');
-		expect(body).toContain('<title>atproto.md');
+		expect(body).toContain('<title>Every Atmosphere record, one address for agents | ATMD</title>');
 		expect(body).toContain('property="og:title"');
 		expect(body).toContain('name="twitter:card"');
 		expect(body).toContain('http://example.com/og.png');
@@ -196,7 +205,7 @@ describe('content negotiation on /', () => {
 
 	it('uses the request origin in og:image and canonical URLs', async () => {
 		const body = await (await workerFetch('https://atproto.md/', { headers: { Accept: 'text/html' } })).text();
-		expect(body).toContain('content="https://atproto.md/og.png"');
+		expect(body).toContain(`content="https://atproto.md/og.png?v=${OG_VERSION}"`);
 		expect(body).toContain('<link rel="canonical" href="https://atproto.md/">');
 	});
 });
@@ -302,15 +311,7 @@ describe('index page content', () => {
 		expect(body).toContain('/lexicon/{nsid}');
 		expect(body).toContain('/discover/{collection}');
 		expect(body).toContain('/backlinks/{at-uri-or-did-or-url}');
-	});
-
-	it('lists known collection formatters', async () => {
-		const body = await (await workerFetch('http://example.com/')).text();
-		expect(body).toContain('app.bsky.feed.post');
-		expect(body).toContain('app.bsky.actor.profile');
-		expect(body).toContain('site.standard.publication');
-		expect(body).toContain('blue.linkat.entry');
-		expect(body).toContain('events.smokesignal.calendar.event');
+		expect(body).toContain('/get?uri=');
 	});
 
 	it('mentions skill.md, llms.txt, and MCP', async () => {
@@ -337,6 +338,18 @@ describe('/skill.md', () => {
 		expect(body).toContain('# atproto-md');
 		expect(body).toContain('## When to use this skill');
 		expect(body).toContain('## Endpoint reference');
+	});
+
+	it('updates itself when run with update', async () => {
+		const body = await (await workerFetch('http://example.com/skill.md')).text();
+		expect(body).toContain('Arguments: $ARGUMENTS');
+		expect(body).toContain('curl -fsS http://example.com/skill.md -o <that file>.new');
+	});
+
+	it('tells the agent to prefer the MCP tools when they are installed', async () => {
+		const body = await (await workerFetch('http://example.com/skill.md')).text();
+		expect(body).toContain('## Use the MCP server when it is installed');
+		expect(body).toContain('unless the user has said to use HTTP');
 	});
 
 	it('starts with YAML frontmatter (name + description) for Claude Code command discovery', async () => {
