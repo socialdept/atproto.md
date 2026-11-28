@@ -4,9 +4,14 @@ The anonymous usage dashboard and how to reset it.
 
 ## `GET /stats`
 
-An anonymous usage dashboard: request counts by route and MCP tool, MCP sessions, the most-queried collections, status codes, upstream failures, and aggregate timing. Browsers get HTML, and agents get markdown.
+An anonymous usage dashboard: request counts by route and MCP tool, MCP sessions and their client names, the most-queried collections, status codes, upstream failures, and aggregate timing. Browsers get HTML, and agents get markdown.
 
-Only the JSON responses served over HTTP, `/llms.txt`, `/skill.md` and the MCP tool calls are counted. Redirects, such as `/blob`, `/repo/car` and the blob and repo calls through [`/xrpc`](xrpc.md), are not. HTML visits to the home and stats pages are not. Counters never hold IPs, handles, DIDs or record keys. HTTP requests do record a coarse country code.
+- **XRPC.** Calls through [`/xrpc`](xrpc.md), by method namespace (`app.bsky`, `com.atproto`) and by the server that answered: the account's PDS, the relay, Bluesky's app view, a labeler, a service named by `atproto-proxy`, an app view found from the app's domain, or atproto.md itself.
+- **Labels.** The share of [label lookups](labels.md) that found a label, split into accounts and records, the collections of the records looked up, the labels found by value and by labeler, and each labeler's average answer time and failure rate. Labelers outside the curated list are counted together as "Other labelers".
+
+The JSON responses served over HTTP, redirects (`/blob`, `/repo/car` and the blob and repo calls through `/xrpc`), `/llms.txt`, `/skill.md` and the MCP tool calls are counted. HTML visits to the home and stats pages are not. Counters never hold IPs, handles, DIDs or record keys. A label lookup is counted by kind only: an account, or a record's collection. HTTP requests do record a coarse country code.
+
+Rare rows are hidden: countries under 20 requests, status codes under 15 responses, namespaces under 10 requests, and MCP clients, backlink sources and labels under 5.
 
 The counters live in the `STATS` Durable Object, which is SQLite-backed.
 
