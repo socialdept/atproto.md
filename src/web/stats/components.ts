@@ -301,5 +301,7 @@ export function mcpUsage(stats: StatsSnapshot | null): string {
 
 export function chips(list: { key: string; count: number }[], empty: string): string {
 	if (!list.length) return emptyState(empty);
-	return `<ul class="chipset">${list.map((p) => `<li><code>${esc(p.key)}</code><b>${esc(abbrevNum(p.count))}</b></li>`).join('')}</ul>`;
+	// A long selector may break after a dot, colon or bracket, so a chip wraps on a phone in place of widening the page.
+	const breakable = (key: string) => esc(key).replace(/([.:\]\[])(?=\w)/g, '$1<wbr>');
+	return `<ul class="chipset">${list.map((p) => `<li><code>${breakable(p.key)}</code><b>${esc(abbrevNum(p.count))}</b></li>`).join('')}</ul>`;
 }
