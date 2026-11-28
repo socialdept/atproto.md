@@ -4,7 +4,7 @@
 
 - **One address:** put an `at://` URI, a handle or a web link after `atproto.md/` and get the repo, a collection or a single record back, from the account's own PDS, or the whole repo as a CAR file.
 - **One service URL:** point any AT Protocol SDK or XRPC client at `https://atproto.md`, and each [XRPC](endpoints/xrpc.md) call goes to the server that answers it, with handles resolved on the way.
-- **Raw records:** every record is the exact JSON the PDS stores, with direct blob URLs.
+- **Raw records:** every record is the exact JSON the PDS stores, with direct blob URLs. Images can be resized through the [co/infra image CDN](https://github.com/co-infra/co-infra-img).
 - **Fewer calls:** fetch up to 25 records by URI or web link in one call, and add `expand` to get the records they reference in the same response.
 - **Identity:** resolve a handle or DID to its DID document, PDS, entryway and account status, trace every resolution step when one fails, and read a `did:plc` identity's history from [plc.directory](https://plc.directory).
 - **Network-wide:** discover every repo using a lexicon, explore the backlinks pointing at any record, identity or URL, and resolve a lexicon schema by its NSID through DNS.

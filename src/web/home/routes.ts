@@ -88,6 +88,18 @@ export const ROUTES: [string, string, Endpoint[]][] = [
 				example: '/at://bsky.app/app.bsky.actor.profile/self',
 			},
 			{
+				path: '/blob/{actor}/{cid}',
+				desc: 'A blob as uploaded, or with transform options, a resized copy from the co/infra image CDN.',
+				params: [
+					ACTOR,
+					{ name: 'cid', in: 'path', type: 'CID', desc: 'The blob, as listed in a record’s blobs.' },
+					{ name: 'params', in: 'path', type: 'optional', desc: 'Transform options for the co/infra image CDN, such as p=avatar or w=400,f=webp. With them, the response redirects to the CDN.' },
+				],
+				returns: 'The file with its own Content-Type, or a redirect to img.infra.coop',
+				note: 'Originals are cached for a day and sandboxed. The CDN’s options and presets are listed at github.com/co-infra/co-infra-img.',
+				example: '/blob/bsky.app/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka',
+			},
+			{
 				path: '/repo/car/{actor}',
 				desc: 'The whole repo as a CAR file, streamed from the account’s PDS.',
 				params: [ACTOR],

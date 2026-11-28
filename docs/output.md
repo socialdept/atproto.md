@@ -16,7 +16,7 @@ Add `?pretty` to indent the JSON. It is compact by default, which keeps response
 
 A record is `{uri, cid, value}`, where `value` is exactly what the PDS stores: every field, including `$type`, facets, embeds, `langs` and reply refs. Nothing is renamed, summarised or left out.
 
-When a record holds blobs (avatars, banners, images, video), a `blobs` array lists a direct `com.atproto.sync.getBlob` URL for each one on the account's PDS, so fetching an image takes no extra lookup.
+When a record holds blobs (avatars, banners, images, video), a `blobs` array lists a direct `com.atproto.sync.getBlob` URL for each one on the account's PDS, so fetching an image takes no extra lookup. [`/blob/{actor}/{cid}`](endpoints/records.md#get-blobactorcid) serves the same file from atproto.md, and with transform options it redirects to the [co/infra image CDN](https://github.com/co-infra/co-infra-img) for a resized copy.
 
 ## Referenced records
 
@@ -32,7 +32,7 @@ Errors use the same format, with the HTTP status repeated in the body:
 
 ## Files and XRPC responses
 
-[`/repo/car`](endpoints/records.md#get-repocaractor) returns a CAR file download in place of JSON. [`/xrpc`](endpoints/xrpc.md) is the other exception: it passes each server's response on unchanged, in that server's own format, and its errors use the XRPC shape `{"error", "message"}`.
+[`/repo/car`](endpoints/records.md#get-repocaractor) and [`/blob`](endpoints/records.md#get-blobactorcid) return files in place of JSON. [`/xrpc`](endpoints/xrpc.md) is the other exception: it passes each server's response on unchanged, in that server's own format, and its errors use the XRPC shape `{"error", "message"}`.
 
 ## Pages for reading
 

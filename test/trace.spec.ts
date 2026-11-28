@@ -28,6 +28,7 @@ beforeEach(() => {
 		}
 		if (url.origin === PDS && url.pathname === '/.well-known/oauth-protected-resource') return json({ authorization_servers: ['https://entryway.example'] });
 		if (url.origin === PDS && url.pathname.endsWith('getRepoStatus')) return json({ did: DID, active: true });
+		if (url.pathname.endsWith('getBlob')) return new Response('img', { headers: { 'Content-Type': 'image/png' } });
 		if (url.pathname.endsWith('getRepo')) return new Response('car-bytes', { headers: { 'Content-Type': 'application/vnd.ipld.car' } });
 		if (url.pathname.endsWith('resolveHandle')) return json({ did: DID });
 		return json({ message: `unexpected ${url}` }, 500);
@@ -66,7 +67,7 @@ describe('trace', () => {
 	});
 });
 
-describe('did and repo namespaces', () => {
+describe('did, repo and blob routes', () => {
 	const get = async (path: string) => {
 		const ctx = createExecutionContext();
 		const res = await worker.fetch(new Request(`https://atproto.md${path}`) as never, env, ctx);
@@ -87,6 +88,20 @@ describe('did and repo namespaces', () => {
 		expect(res.headers.get('Content-Type')).toBe('application/vnd.ipld.car');
 		expect(res.headers.get('Content-Disposition')).toBe('attachment; filename="did_plc_alice.car"');
 		expect(await res.text()).toBe('car-bytes');
+	});
+
+	it('serves a blob sandboxed, and redirects to the image CDN with transform options', async () => {
+		const res = await get('/blob/alice.test/bafyimg');
+		expect(res.headers.get('Content-Type')).toBe('image/png');
+		expect(res.headers.get('Content-Security-Policy')).toBe("default-src 'none'; sandbox");
+		const cdn = await get('/blob/alice.test/bafyimg/p=avatar,f=webp');
+		expect(cdn.status).toBe(302);
+		expect(cdn.headers.get('Location')).toBe('https://img.infra.coop/blob/did%3Aplc%3Aalice/bafyimg/p=avatar,f=webp');
+	});
+
+	it('refuses a malformed CID or transform options', async () => {
+		expect((await get('/blob/alice.test/bafy%2F..')).status).toBe(400);
+		expect((await get('/blob/alice.test/bafyimg/p=a%3Cb')).status).toBe(400);
 	});
 
 	it('explains an unknown view', async () => {

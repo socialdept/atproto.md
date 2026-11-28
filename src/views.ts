@@ -34,6 +34,7 @@ const ROUTE_LABELS: Record<string, string> = {
 	'did/doc': '/did/doc/{actor}',
 	'did/trace': '/did/trace/{actor}',
 	'repo/car': '/repo/car/{actor}',
+	blob: '/blob/{actor}/{cid}',
 	xrpc: '/xrpc/{method}',
 	'plc/audit': '/plc/audit/{actor}',
 	'plc/data': '/plc/data/{actor}',
@@ -172,6 +173,7 @@ GET ${origin}/at://{actor}                                  DID, handle, PDS, en
 GET ${origin}/at://{actor}/{collection}                     records, newest first
 GET ${origin}/at://{actor}/{collection}/{rkey}              one record
 GET ${origin}/get?uri={address}&uri={address}               up to 25 records in one call
+GET ${origin}/blob/{actor}/{cid}[/{params}]                 a blob, or with params a resized copy from the co/infra image CDN
 GET ${origin}/repo/car/{actor}                              the whole repo as a CAR file
 \`\`\`
 

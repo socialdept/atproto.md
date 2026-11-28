@@ -1,6 +1,6 @@
 # Repos and records
 
-The `at://` URL structure, the resolution chain, repos, collections, single records, batches and CAR exports.
+The `at://` URL structure, the resolution chain, repos, collections, single records, batches, blobs and CAR exports.
 
 ## URL structure
 
@@ -55,6 +55,18 @@ curl "https://atproto.md/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb
 ```
 
 Each actor is resolved once per call. An address that fails goes into `errors` as `{address, error}`, and the other records still come back. Takes `expand`.
+
+## `GET /blob/{actor}/{cid}`
+
+A blob (an image, video or other file) as its account uploaded it, with its own `Content-Type`. It is served the way [`/xrpc`](xrpc.md) serves `com.atproto.sync.getBlob`: cached for a day, since a CID never changes, and sandboxed, so a file never runs as a page on atproto.md. Errors use the XRPC shape.
+
+Add transform options after the CID and the response is a redirect to the [co/infra image CDN](https://github.com/co-infra/co-infra-img), which resizes, crops and reformats the image and caches the result. The options are the CDN's own, comma separated, including presets such as `p=avatar`, `p=thumb` and `p=card`:
+
+```bash
+curl -L https://atproto.md/blob/bsky.app/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka/p=avatar
+```
+
+The handle is resolved to its DID before the redirect, so the CDN address works on its own afterwards.
 
 ## `GET /repo/car/{actor}`
 

@@ -16,6 +16,10 @@ import { dataResponse, errorResponse } from './output';
 import { parseTarget } from './refs';
 import { toAddress } from './links';
 import { xrpc } from './xrpc';
+import { resolveToDid } from './identity';
+
+// The co/infra image CDN (github.com/co-infra/co-infra-img), which resizes and reformats blobs.
+const IMG_CDN = 'https://img.infra.coop';
 import { llmsTxt, skillMd } from './llms';
 import { createMcpServer } from './mcp';
 import { classifyHttp, getStats, recordVisit, resetStats } from './stats';
@@ -142,6 +146,20 @@ async function handleGet(request: Request, url: URL, origin: string, env: Env): 
 			if (view !== 'doc' && view !== 'trace') return usage('Usage: /did/{doc|trace}/{handle-or-did}');
 			if (!input) return usage(`Usage: /did/${view}/{handle-or-did}, for example /did/${view}/bsky.app`);
 			return data(view === 'doc' ? await didDocument(input) : await traceActor(input));
+		}
+
+		// A blob: /blob/{actor}/{cid} is the original file, served the way /xrpc serves getBlob. With transform options
+		// after it, /blob/{actor}/{cid}/{params} redirects to the co/infra image CDN, which resizes and reformats it.
+		if (segments[0] === 'blob') {
+			const [, actor, cid, params] = segments.map(decodeURIComponent);
+			if (!actor || !cid || !/^[A-Za-z0-9]+$/.test(cid)) return usage('Usage: /blob/{handle-or-did}/{cid}, or /blob/{handle-or-did}/{cid}/{params} for a transformed image');
+			const did = await resolveToDid(actor);
+			if (params) {
+				if (!/^[\w=,.-]+$/.test(params)) return usage('Transform options are a comma-separated list such as p=avatar or w=400,f=webp.');
+				return new Response(null, { status: 302, headers: { ...CORS, Location: `${IMG_CDN}/blob/${encodeURIComponent(did)}/${cid}/${params}`, 'Cache-Control': 'public, max-age=86400' } });
+			}
+			const blob = new URL(`/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${cid}`, url);
+			return xrpc(new Request(blob, { headers: request.headers }), blob);
 		}
 
 		// The repo namespace: /repo/car/{actor} is the whole repo as a CAR file.

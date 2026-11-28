@@ -9,6 +9,7 @@ export function llmsTxt(origin: string): string {
 - [List records](${origin}/at://{actor}/{collection}): records newest first. Params: limit (25, at most 100), cursor, reverse, expand
 - [Get record](${origin}/at://{actor}/{collection}/{rkey}): one record with blob URLs. Param: expand
 - [Get many](${origin}/get?uri={address}&uri={address}): up to 25 records by at:// URI or web link in one call. Param: expand
+- [Blob](${origin}/blob/{actor}/{cid}): a blob as uploaded. Add transform options such as /p=avatar or /w=400,f=webp to redirect to a resized copy from the co/infra image CDN (https://github.com/co-infra/co-infra-img)
 - [Repo CAR](${origin}/repo/car/{actor}): the whole repo as a CAR file download
 
 expand also returns the records the results reference (reply parent and root, quoted post, like or repost subject), one level deep, under expanded.
@@ -80,7 +81,7 @@ If the atproto-md MCP server is connected (its tools are resolve, get, list_reco
 - list_records: /at://{actor}/{collection}
 - backlinks, discover and lexicon: the routes of the same name
 
-Use HTTP for what no tool covers: /xrpc and /repo/car. Without the MCP server, use HTTP for everything.
+Use HTTP for what no tool covers: /xrpc, /blob and /repo/car. Without the MCP server, use HTTP for everything.
 
 ## How to call it
 
@@ -122,6 +123,7 @@ GET ${origin}/get?uri={address}&uri=...                     {records, errors, ex
 GET ${origin}/resolve/{actor}                               same as /at://{actor}
 GET ${origin}/did/doc/{actor}                               the DID document
 GET ${origin}/did/trace/{actor}                             {did, handle, handleVerified, pds, entryway, ok, steps}
+GET ${origin}/blob/{actor}/{cid}[/{params}]                 a blob, or a redirect to a resized copy
 GET ${origin}/repo/car/{actor}                              the whole repo as a CAR file
 GET ${origin}/plc/data/{actor}                              current PLC state
 GET ${origin}/plc/audit/{actor}                             {did, operations}

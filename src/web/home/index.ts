@@ -130,7 +130,7 @@ ${EXAMPLES.map(([label, value]) => `          <button class="chip" type="button"
   <section class="block" aria-labelledby="routes">
     <h2 id="routes">HTTP routes</h2>
     <div class="common">
-      <p><b>Every route</b> returns one JSON object as application/json and takes this option. /repo/car returns a CAR file.</p>
+      <p><b>Every route</b> returns one JSON object as application/json and takes this option. /repo/car and /blob return files.</p>
       <dl>
         <div><dt><code>pretty</code></dt><dd>Indent the JSON. It is compact by default.</dd></div>
         <div><dt>Errors</dt><dd><code>{ "error", "status" }</code> with the same HTTP status.</dd></div>

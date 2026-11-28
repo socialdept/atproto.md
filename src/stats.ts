@@ -365,6 +365,7 @@ export function classifyHttp(url: URL): HttpClass | null {
 	if (head === 'backlinks') {
 		return { key: 'route:backlinks', selector: url.searchParams.get('source') ?? undefined, flags };
 	}
+	if (head === 'blob') return { key: 'route:blob', idType: idTypeOf(segments[1]) };
 	if (head === 'did' || head === 'repo') return { key: `route:${head}/${segments[1] ?? ''}`.replace(/\/$/, ''), idType: idTypeOf(segments[2]) };
 	if (head === 'xrpc') {
 		const repo = url.searchParams.get('repo') ?? url.searchParams.get('did') ?? url.searchParams.get('identifier') ?? url.searchParams.get('handle') ?? undefined;
