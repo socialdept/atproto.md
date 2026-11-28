@@ -21,14 +21,10 @@ export const STATS_STYLES = `
 /* Overview: the hero figure beside a grid of six tiles. */
 .overview { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; }
 .hero-tile .card { padding: 20px; height: 100%; display: flex; flex-direction: column; gap: 20px; }
-/* The 30 day strip sits beside the total, and drops below it on a screen too narrow for both. */
-.hero-tile__top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.strip { display: flex; align-items: flex-end; gap: 3px; height: 56px; flex: 1; max-width: 220px; }
-/* One bar per day for 30 days. A quiet day is a short faint tick, so the strip always reads as 30 days. */
-.strip i { flex: 1; min-width: 3px; min-height: 4px; background: var(--ink); border-radius: 1px; }
-.strip i.z { background: var(--line); }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); height: 100%; }
 .tile { padding: 18px 20px; }
+/* On desktop each tile's help text stays on one line. */
+@media (min-width: 1024px) { .tile .k-sub { white-space: nowrap; } }
 .tile:not(:nth-child(3n+1)) { border-left: 1px solid var(--line); }
 .tile:nth-child(n+4) { border-top: 1px solid var(--line); }
 
@@ -188,11 +184,10 @@ export const STATS_STYLES = `
    when reduced motion is off and the script runs, so without it every mark shows at once. --i is each mark's place in its row, set by the script. */
 @property --share { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
 html.motion { --ease: cubic-bezier(.22, 1, .36, 1); }
-html.motion .tray:not(.in) :is(.strip i, .cols .col, .hist__col span) { transform: scaleY(0); }
+html.motion .tray:not(.in) :is(.cols .col, .hist__col span) { transform: scaleY(0); }
 html.motion .tray:not(.in) :is(.hero-num, .tile__num) { visibility: hidden; }
 html.motion .tray:not(.in) .split { clip-path: inset(0 100% 0 0); }
 html.motion .tray:not(.in) .map__layer, html.motion .tray:not(.in) .ticks { opacity: 0; }
-html.motion .tray.in .strip i { transform-origin: bottom; animation: rise .45s var(--ease) calc(var(--i, 0) * 10ms) backwards; }
 html.motion .tray.in .cols .col { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 12ms) backwards; }
 html.motion .tray.in .hist__col span { transform-origin: bottom; animation: rise .5s var(--ease) calc(var(--i, 0) * 40ms) backwards; }
 /* A meter fills a tick at a time: each lit tick switches on in turn, its row a little after the row above. */
@@ -207,8 +202,9 @@ html.motion .tray.in .map__layer { animation: shade .4s ease-out calc(var(--i, 0
 @keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes shade { from { opacity: 0; } }
 
+/* Below 1024px the tiles beside the hero figure have no room for their help text, so the two cards stack. */
+@media (max-width: 1023px) { .overview { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
-  .overview { grid-template-columns: 1fr; }
   .geo { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {

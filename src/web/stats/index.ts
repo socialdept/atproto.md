@@ -24,7 +24,7 @@ import { STATS_STYLES } from './styles';
 
 // --- Stats page ------------------------------------------------------------------------------------------------
 //
-// Each section has a stat component made for its data: a hero figure with a daily strip and the HTTP and MCP split,
+// Each section has a stat component made for its data: a hero figure with the HTTP and MCP split,
 // small figure tiles, a requests chart with 7 and 30 day ranges, segmented meters for ranked lists, a segmented bar
 // for identifier types and status classes, a latency histogram, and chips for parameters.
 

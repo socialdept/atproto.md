@@ -123,18 +123,22 @@ export function splitBar(parts: { label: string; count: number; color: string }[
 	return `<div class="split${opts.tall ? ' split--tall' : ''}" role="img" aria-label="${esc(shown.map((p) => `${p.label} ${percent(p.count, total)}`).join(', '))}">${bar}</div><ul class="legend">${legend}</ul>`;
 }
 
-/** The overview: the request total as the hero figure, a strip of the last 30 days, and the HTTP and MCP split. */
+// A large count to one decimal, 152.8M, short enough for a tile's one-line help text.
+const roughly = (n: number): string => {
+	for (const [div, unit] of [
+		[1e9, 'B'],
+		[1e6, 'M'],
+		[1e3, 'K'],
+	] as const) {
+		if (n >= div) return `${(n / div).toFixed(1).replace(/\.0$/, '')}${unit}`;
+	}
+	return fmtNum(n);
+};
+
+/** The overview: the request total as the hero figure, and the HTTP and MCP split. */
 export function overview(stats: StatsSnapshot | null): string {
 	const total = stats?.total ?? 0;
 	const channel = (k: string): number => stats?.channels.find((c) => c.key === k)?.count ?? 0;
-	const days = lastDays(stats, 30);
-	const top = Math.max(1, ...days.map(dayTotal));
-	const strip = days
-		.map(
-			(d) =>
-				`<i${dayTotal(d) ? '' : ' class="z"'} style="height:${dayTotal(d) ? Math.max(12, (dayTotal(d) / top) * 100).toFixed(1) : 0}%" title="${esc(dayLabel(d.day))}: ${fmtNum(dayTotal(d))}"></i>`,
-		)
-		.join('');
 	const since = stats?.since ? `Since ${esc(dayLabel(stats.since.slice(0, 10)))}, ${esc(stats.since.slice(0, 4))}` : 'No requests yet';
 
 	const errors = stats?.errors ?? 0;
@@ -142,20 +146,15 @@ export function overview(stats: StatsSnapshot | null): string {
 	const tiles: [string, string, string][] = [
 		['MCP sessions', abbrevNum(stats?.sessions ?? 0), 'Clients that connected'],
 		['Error rate', total ? `${((errors / total) * 100).toFixed(1)}%` : '0%', `${fmtNum(errors)} failed requests`],
-		[
-			'Average latency',
-			lat?.count ? `${fmtNum(lat.avgMs)} ms` : 'None yet',
-			lat?.count ? `Median ${lat.p50}, p95 ${lat.p95}` : 'No timed requests',
-		],
-		['Served', bytesHuman(stats?.bytes ?? 0), `About ${abbrevNum(stats?.estTokens ?? 0)} tokens`],
-		['Collections', fmtNum(stats?.distinctCollections ?? 0), 'Distinct NSIDs requested'],
+		['Average latency', lat?.count ? `${fmtNum(lat.avgMs)} ms` : 'None yet', lat?.count ? `p95 ${lat.p95}` : 'No timed requests'],
+		['Served', bytesHuman(stats?.bytes ?? 0), `About ${roughly(stats?.estTokens ?? 0)} tokens`],
+		['Collections', fmtNum(stats?.distinctCollections ?? 0), 'Distinct collections'],
 		['Average response', bytesHuman(stats?.avgBytes ?? 0), 'Per request'],
 	];
 
 	return `<section class="overview">
     <div class="tray hero-tile"><div class="card">
-      <div class="hero-tile__top"><div><p class="k">Requests</p><p class="hero-num" title="${fmtNum(total)}">${esc(fmtNum(total))}</p><p class="k-sub">${since}</p></div>
-      <div class="strip" role="img" aria-label="Requests per day for the last 30 days">${strip}</div></div>
+      <div><p class="k">Requests</p><p class="hero-num" title="${fmtNum(total)}">${esc(fmtNum(total))}</p><p class="k-sub">${since}</p></div>
       ${splitBar(
 				[
 					{ label: 'HTTP', count: channel('http'), color: VIZ.http },

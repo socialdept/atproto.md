@@ -50,7 +50,6 @@ export const MOTION_SCRIPT = `
   const root = document.documentElement;
   if (!root.classList.contains('motion')) return;
   const number = (groups) => groups.forEach((g) => [...g].forEach((el, i) => el.style.setProperty('--i', i)));
-  number([...document.querySelectorAll('.strip')].map((s) => s.children));
   number([...document.querySelectorAll('.cols')].map((c) => c.children));
   number([...document.querySelectorAll('.hist')].map((h) => h.querySelectorAll('.hist__col span')));
   number([...document.querySelectorAll('.meters')].map((m) => m.children));
