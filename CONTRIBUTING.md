@@ -71,7 +71,7 @@ A request goes through three layers:
 2. `src/api.ts` fetches the data and builds one plain object per route. This is where new data goes.
 3. `src/output.ts` sends that object as JSON.
 
-`/xrpc` is the one route outside these layers: `src/xrpc.ts` answers identity methods itself and passes every other query to the server that answers it.
+`/xrpc` is the one route outside these layers: `src/xrpc.ts` answers identity methods itself and passes every other call to the server that answers it, found by `src/services.ts` for apps other than Bluesky.
 
 `src/refs.ts` parses addresses (at:// URIs, handles, DIDs, bsky.app links) and finds the record URIs and blobs inside a value. The upstream clients are `src/identity.ts` (handles, DIDs, PLC), `src/pds.ts`, `src/relay.ts`, `src/constellation.ts` and `src/lexicon.ts`.
 
@@ -102,6 +102,7 @@ src/
   constellation.ts      # Constellation helper for /backlinks
   lexicon.ts            # DNS lexicon resolution for /lexicon
   xrpc.ts               # /xrpc: identity answers and routing to the PDS, relay or app view
+  services.ts           # The service for other apps' methods: atproto-proxy, or the app view on the app's domain
   http.ts               # CORS headers and markdown responses for the docs pages
   views.ts              # Home page and /stats markdown, for agents
   html.ts               # HTML responses for browsers and crawlers, robots.txt, sitemap
@@ -126,6 +127,7 @@ test/
   links.spec.ts         # Web links and at-tags
   web.spec.ts           # Page helpers: figures and parameter tables
   xrpc.spec.ts          # /xrpc routing, refusals and response headers
+  services.spec.ts      # atproto-proxy, app view discovery and forwarded procedures
   trace.spec.ts         # Resolution traces and the did and repo namespaces
   labels.spec.ts        # Labels: choosing labelers, negation, records and XRPC
 ```
