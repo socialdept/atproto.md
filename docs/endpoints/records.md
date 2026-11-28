@@ -1,6 +1,6 @@
 # Repos and records
 
-Part of the [atproto.md docs](../introduction.md#documentation). The `at://` URL structure, the resolution chain, repos, collections, single records and batches.
+The `at://` URL structure, the resolution chain, repos, collections, single records and batches.
 
 ## URL structure
 

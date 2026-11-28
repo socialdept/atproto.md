@@ -1,6 +1,6 @@
 # Identity
 
-Part of the [atproto.md docs](../introduction.md#documentation). Resolving a handle or DID, and a `did:plc` identity's PLC audit log, current data and last operation.
+Resolving a handle or DID, and a `did:plc` identity's PLC audit log, current data and last operation.
 
 Every route here takes a handle or a DID. The `/plc` routes work only for `did:plc` identities. `did:web` identities have no PLC log, so they get a 400.
 

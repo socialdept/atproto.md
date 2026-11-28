@@ -1,8 +1,8 @@
 # atproto.md
 
-A read-only API for the AT Protocol ecosystem, built for LLM agents. Records come back as raw JSON, exactly as the PDS stores them.
+Every Atmosphere record, one address for agents. atproto.md reads any record on any PDS and returns it as raw JSON, exactly as stored, through an MCP server, a URL or a standard XRPC endpoint.
 
-atproto.md is a Cloudflare Worker that takes `at://` URIs, handles or links in the URL path and returns JSON. Records come from the user's own PDS, not a Bluesky-specific AppView, so it works with any collection on any PDS. It also answers network-wide questions: which repos use a lexicon, and which records link to a record, identity or URL. To learn all about it, head over to [the documentation](https://socialde.pt/docs/atproto.md).
+Records live on each account's own PDS, so reading one normally means resolving a handle, reading a DID document and finding the server first. atproto.md does that on every call. Put an `at://` URI, a handle or a link after `atproto.md/`, or point an SDK at it, and the call reaches the right server. It also answers network-wide questions: which repos use a lexicon, and which records link to a record, account or URL. To learn all about it, head over to [the documentation](https://socialde.pt/docs/atproto.md).
 
 Here are a few short examples of what you can do. List the records in any collection on any PDS:
 
@@ -10,16 +10,16 @@ Here are a few short examples of what you can do. List the records in any collec
 curl https://atproto.md/at://bsky.app/app.bsky.feed.post
 ```
 
-Resolve a handle to its DID, PDS, DID document and collections:
-
-```bash
-curl https://atproto.md/resolve/bsky.app
-```
-
 Fetch a post with the posts it replies to and quotes, in one call:
 
 ```bash
 curl "https://atproto.md/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&expand"
+```
+
+Use it as the service URL of any AT Protocol SDK, with no resolving on your side:
+
+```bash
+curl "https://atproto.md/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self"
 ```
 
 Find every repo on the network with records in a collection:

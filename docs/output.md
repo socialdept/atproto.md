@@ -1,10 +1,10 @@
 # Response format
 
-Part of the [atproto.md docs](introduction.md#documentation). What every data route returns.
+What every data route returns.
 
 ## One JSON object per response
 
-Every data route returns a single JSON object as `application/json`:
+Every data route returns a single JSON object as `application/json`, the same object the matching MCP tool returns:
 
 ```json
 {"uri":"at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.actor.profile/self","cid":"bafy...","value":{...}}
@@ -30,6 +30,10 @@ Errors use the same format, with the HTTP status repeated in the body:
 {"error":"Could not locate record","status":400}
 ```
 
-## Pages that stay markdown
+## XRPC responses
 
-The home page, `/llms.txt`, `/skill.md` and `/stats` are documentation for people and agents, so they stay markdown. Browsers get HTML for the home page and `/stats`.
+[`/xrpc`](endpoints/xrpc.md) is the exception: it passes each server's response on unchanged, in that server's own format, and its errors use the XRPC shape `{"error", "message"}`.
+
+## Pages for reading
+
+The home page, `/llms.txt`, `/skill.md` and `/stats` describe the API for people and agents. Browsers get HTML for the home page and `/stats`, and everything else gets markdown.

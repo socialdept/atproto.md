@@ -1,6 +1,6 @@
 # Agents
 
-Part of the [atproto.md docs](../introduction.md#documentation). The MCP server, the skill sheet for Claude Code, and `llms.txt`.
+The MCP server, the skill sheet for Claude Code, `llms.txt`, and using it as an SDK's service URL.
 
 ## MCP server
 
@@ -36,3 +36,7 @@ curl -s https://atproto.md/skill.md > ~/.claude/commands/atproto.md
 ## The home page
 
 `GET /` is the API reference. Browsers and link-card crawlers get HTML, and everything else, such as `curl`, gets markdown. The data routes return JSON, described in [Response format](../output.md).
+
+## SDKs
+
+An agent that writes code against an AT Protocol SDK can set its service URL to `https://atproto.md` and read any account without resolving it first. See [XRPC](../endpoints/xrpc.md).

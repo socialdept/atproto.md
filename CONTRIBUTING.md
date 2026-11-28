@@ -20,7 +20,7 @@ When requesting or submitting new features, first consider whether it might be u
 - Search existing issues to avoid duplicates
 - Check the [documentation](https://socialde.pt/docs/atproto.md) to ensure it's not a usage question
 - Provide a clear title and description
-- Include the URL you requested and the Markdown you got back
+- Include the URL you requested and the response you got back
 - For wrong or missing data, link the record and say what the PDS returns for it
 
 ### Before Submitting a Pull Request
@@ -69,7 +69,9 @@ A request goes through three layers:
 
 1. `src/index.ts` (HTTP) and `src/mcp.ts` (MCP tools) read the parameters.
 2. `src/api.ts` fetches the data and builds one plain object per route. This is where new data goes.
-3. `src/output.ts` sends that object as a ```` ```json ```` fence or as bare JSON.
+3. `src/output.ts` sends that object as JSON.
+
+`/xrpc` is the one route outside these layers: `src/xrpc.ts` answers identity methods itself and passes every other query to the server that answers it.
 
 `src/refs.ts` parses addresses (at:// URIs, handles, DIDs, bsky.app links) and finds the record URIs and blobs inside a value. The upstream clients are `src/identity.ts` (handles, DIDs, PLC), `src/pds.ts`, `src/relay.ts`, `src/constellation.ts` and `src/lexicon.ts`.
 
@@ -96,8 +98,9 @@ src/
   relay.ts              # Relay helper for /discover
   constellation.ts      # Constellation helper for /backlinks
   lexicon.ts            # DNS lexicon resolution for /lexicon
+  xrpc.ts               # /xrpc: identity answers and routing to the PDS, relay or app view
   http.ts               # CORS headers and markdown responses for the docs pages
-  views.ts              # Home page and /stats markdown
+  views.ts              # Home page and /stats markdown, for agents
   html.ts               # HTML responses for browsers and crawlers, robots.txt, sitemap
   web/
     kit.ts              # Palette, escaping, icons and the stepped pixel frames
@@ -119,6 +122,7 @@ test/
   views.spec.ts         # /stats markdown
   links.spec.ts         # Web links and at-tags
   web.spec.ts           # Page helpers: figures and parameter tables
+  xrpc.spec.ts          # /xrpc routing, refusals and response headers
 ```
 
 ## Checking against real data

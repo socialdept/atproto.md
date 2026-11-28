@@ -1,6 +1,6 @@
 # Network
 
-Part of the [atproto.md docs](../introduction.md#documentation). Discovering repos by collection, backlinks through Constellation, and lexicon resolution through DNS.
+Discovering repos by collection, backlinks through Constellation, and lexicon resolution through DNS.
 
 These routes answer questions a single PDS can't, so they go past the [resolution chain](records.md#how-it-works) to network-wide sources. None of them use authentication, since every source serves public data.
 

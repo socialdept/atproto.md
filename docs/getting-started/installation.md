@@ -1,6 +1,6 @@
 # Installation
 
-Part of the [atproto.md docs](../introduction.md#documentation). Installing, running locally, configuring and deploying the Worker.
+Installing, running locally, configuring and deploying the Worker.
 
 atproto.md is built as a Cloudflare Worker and managed with [Wrangler](https://developers.cloudflare.com/workers/wrangler/). A public instance runs at https://atproto.md, so you only need this page to run a copy of your own.
 
@@ -33,4 +33,4 @@ Run `npm run cf-typegen` (`wrangler types`) after changing bindings in `wrangler
 npm run deploy   # wrangler deploy
 ```
 
-Markdown responses carry `Cache-Control: public, max-age=60`. The Worker has no rate limiting of its own, so the upstream PDS, relay and index limits apply. If you expect significant traffic, add rate limiting per IP, for example backed by Cloudflare KV.
+Responses are cached for 60 seconds, and blobs passed through `/xrpc` for a day. Errors are not cached. The Worker has no rate limiting of its own, so the upstream PDS, relay and index limits apply. If you expect significant traffic, add rate limiting per IP, for example backed by Cloudflare KV.
