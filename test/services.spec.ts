@@ -27,6 +27,8 @@ beforeEach(() => {
 				],
 			});
 		}
+		// A domain with no server: the connection never answers.
+		if (url.href === 'https://api.pics.example/.well-known/did.json') return new Promise<Response>(() => {});
 		if (url.href === 'https://named.example/.well-known/did.json') {
 			return json({
 				id: 'did:web:named.example',

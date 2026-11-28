@@ -40,14 +40,19 @@ export async function proxyService(header: string): Promise<Service> {
 }
 
 // The app view a did:web document names: one typed as an app view first, then the only remaining service.
+// A domain with no server can hold a connection for twenty seconds, so each lookup gets three.
+const LOOKUP_MS = 3000;
+const within = <T>(p: Promise<T>, ms: number, fallback: T): Promise<T> =>
+	Promise.race([p, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
+
 async function appViewAt(domain: string): Promise<Service | null> {
 	const did = `did:web:${domain}`;
-	let doc: DidDocument;
-	try {
-		doc = await resolveDidDoc(did);
-	} catch {
-		return null;
-	}
+	const doc = await within<DidDocument | null>(
+		resolveDidDoc(did).catch(() => null),
+		LOOKUP_MS,
+		null,
+	);
+	if (!doc) return null;
 	const candidates = (doc.service ?? []).filter((s) => !NOT_APPVIEW(s) && endpointOf(s));
 	const pick =
 		candidates.find((s) => /AppView/i.test(s.type) || /appview/i.test(s.id)) ?? (candidates.length === 1 ? candidates[0] : undefined);
@@ -74,19 +79,36 @@ export async function discover(method: string): Promise<Discovery> {
 	// social.grain.gallery.getGallery: the app's domain is the first two segments reversed, grain.social.
 	const [tld, name] = method.split('.');
 	const domain = `${name}.${tld}`;
-	const schema = await lexicon(method).catch(() => null);
+	// The lexicon and the domain lookups run together. The domains are taken in order of preference, and the first
+	// that names an app view is used without waiting for the rest.
+	const schemaP = within(
+		lexicon(method).catch(() => null),
+		LOOKUP_MS * 2,
+		null,
+	);
+	const tried = [domain, `api.${domain}`];
+	const lookups = tried.map(appViewAt);
+	let service: Service | null = null;
+	for (const l of lookups) if ((service = await l)) break;
+
+	const schema = await schemaP;
 	const def = (schema?.schema as { defs?: { main?: { type?: string } } } | undefined)?.defs?.main;
 	const kind = def?.type === 'query' || def?.type === 'procedure' ? def.type : null;
 	// The lexicon's publisher may live on another domain than the NSID, such as an app that moved.
-	const publisher = schema
-		? await resolveDidDoc(schema.did)
+	if (!service && schema) {
+		const publisher = await within(
+			resolveDidDoc(schema.did)
 				.then((d) => d.alsoKnownAs?.find((a) => a.startsWith('at://'))?.slice(5))
-				.catch(() => undefined)
-		: undefined;
-
-	const tried = [...new Set([domain, `api.${domain}`, ...(publisher ? [publisher] : [])])];
-	const found = await Promise.all(tried.map(appViewAt));
-	const result: Discovery = { service: found.find(Boolean) ?? null, kind, tried };
+				.catch(() => undefined),
+			LOOKUP_MS,
+			undefined,
+		);
+		if (publisher && !tried.includes(publisher)) {
+			tried.push(publisher);
+			service = await appViewAt(publisher);
+		}
+	}
+	const result: Discovery = { service, kind, tried };
 	cache.set(method, { at: Date.now(), found: result });
 	return result;
 }
