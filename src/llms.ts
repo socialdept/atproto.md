@@ -1,7 +1,7 @@
 export function llmsTxt(origin: string): string {
 	return `# atproto.md
 
-> A read-only AT Protocol API for agents. Every data route returns one JSON object as application/json. Records are raw, exactly as the PDS stores them, for any collection on any PDS. No authentication, public data only.
+> Every Atmosphere record, one address for agents. Put an at:// URI, a handle or a link after atproto.md/, or set it as an SDK's service URL, and each call reaches the account's own PDS. Records are raw JSON, exactly as stored, for any collection on any PDS. No authentication, public data only.
 
 ## Records
 
@@ -25,12 +25,17 @@ expand also returns the records the results reference (reply parent and root, qu
 - [Lexicon](${origin}/lexicon/{nsid}): the published schema for an NSID
 - [Backlinks](${origin}/backlinks/{at-uri-or-did-or-url}): link sources with counts. Add source={collection:path} for the linking record URIs, and hydrate for the records
 
+## XRPC
+
+- [XRPC](${origin}/xrpc/{method}): standard XRPC queries, each sent to the server that answers it. Set ${origin} as the service URL of any AT Protocol SDK. repo and did take a handle or a DID. com.atproto.repo and com.atproto.sync calls go to the account's PDS, other sync calls to the relay, app.bsky calls to Bluesky's public app view, and identity calls are answered by atproto.md. Calls with an Authorization header and procedures are refused.
+
 ## Examples
 
 - [A profile](${origin}/at://bsky.app/app.bsky.actor.profile/self)
 - [Latest posts](${origin}/at://bsky.app/app.bsky.feed.post?limit=5)
 - [A post and what it replies to](${origin}/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&expand)
 - [Repos using site.standard.document](${origin}/discover/site.standard.document)
+- [A record through XRPC](${origin}/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self)
 
 ## Agents
 
@@ -42,12 +47,12 @@ expand also returns the records the results reference (reply parent and root, qu
 export function skillMd(origin: string): string {
 	return `---
 name: atproto-md
-description: Read any public AT Protocol data as raw JSON. Resolve a handle or DID to its PDS and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, and read a did:plc identity's PLC history. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
+description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read a did:plc identity's PLC history, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
 ---
 
 # atproto-md
 
-Read-only AT Protocol data, as JSON. No auth. Base URL: ${origin}
+Every Atmosphere record, one address. Read-only, no auth. Base URL: ${origin}
 
 ## When to use this skill
 
@@ -57,6 +62,7 @@ Read-only AT Protocol data, as JSON. No auth. Base URL: ${origin}
 - Find who liked, reposted, replied to, quoted or follows something
 - Find every repo using a lexicon, or fetch a lexicon's schema
 - Resolve a handle or DID to its PDS, or date a PDS migration or handle change from the PLC log
+- Write code against an AT Protocol SDK that reads any account: set the service URL to ${origin}
 
 For Bluesky threads, timelines, feeds and search, use the Bluesky AppView or bsky.md. atproto.md reads records from each account's own PDS.
 
@@ -80,6 +86,9 @@ curl ${origin}/at://bsky.app/app.bsky.actor.profile/self
 # Several records, with the records they reference
 curl "${origin}/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&uri=at://bsky.app/app.bsky.actor.profile/self&expand"
 
+# Any XRPC query, routed to the account's PDS
+curl "${origin}/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self"
+
 # Who replied to a post, as records
 curl "${origin}/backlinks/at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3n2opitxdyc2j?source=app.bsky.feed.post:reply.parent.uri&hydrate"
 \`\`\`
@@ -99,12 +108,18 @@ GET ${origin}/discover/{collection}                         {collection, cursor,
 GET ${origin}/lexicon/{nsid}                                {nsid, authority, did, uri, cid, schema}
 GET ${origin}/backlinks/{target}                            {target, total, sources}
 GET ${origin}/backlinks/{target}?source={collection:path}   {target, source, total, cursor, records}
+GET ${origin}/xrpc/com.atproto.repo.*?repo={actor}&...      sent to the account's PDS
+GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS: blobs, repo CAR files
+GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
+GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
+GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view
 \`\`\`
 
 - {actor} is a handle or DID. An {address} is an at:// record URI or a web link: Bluesky-style clients (bsky.app, deer.social, blacksky.community and others), explorers (pdsls.dev, atp.tools, atproto.at) or any page that publishes its AT URI with at-tags (at:canonical).
 - Lists take limit, cursor and reverse (oldest first). cursor is null on the last page.
 - expand works on every record route. hydrate works on backlinks with source, 25 records at most.
 - A batch reports a failed address in errors and still returns the rest.
+- /xrpc passes each server's response on unchanged. Its errors are {"error", "message"}. Calls with an Authorization header and procedures are refused: send those to the account's own PDS.
 
 ## Install as a Claude Code command
 

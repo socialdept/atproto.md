@@ -155,7 +155,8 @@ export function formatStats(origin: string, stats: StatsSnapshot | null): string
 export function indexPage(origin: string): string {
 	return `# atproto.md
 
-A read-only AT Protocol API for agents. Every data route returns one JSON object as application/json.
+Every Atmosphere record, one address for agents. Put an at:// URI, a handle or a link after atproto.md/,
+or set it as an SDK's service URL. Every data route returns one JSON object as application/json.
 Records are raw JSON, exactly as the PDS stores them, with direct blob URLs. Any collection on any PDS.
 
 Add \`?pretty\` to indent the JSON.
@@ -195,9 +196,23 @@ GET ${origin}/backlinks/{target}?source=...&hydrate         the linking records 
 
 \`discover\` takes \`limit\` (100 by default, 2000 at most) and \`cursor\`. Backlinks take \`limit\` and \`cursor\`.
 
+## XRPC
+
+Set \`${origin}\` as the service URL of any AT Protocol SDK. Each query goes to the server that answers it.
+
+\`\`\`
+GET ${origin}/xrpc/com.atproto.repo.*?repo={actor}&...      sent to the account's PDS
+GET ${origin}/xrpc/com.atproto.sync.*?did={actor}&...       sent to the account's PDS: blobs, repo CAR files
+GET ${origin}/xrpc/com.atproto.sync.*                       sent to the relay
+GET ${origin}/xrpc/com.atproto.identity.*                   resolveHandle, resolveDid, resolveIdentity
+GET ${origin}/xrpc/app.bsky.*                               sent to Bluesky's public app view
+\`\`\`
+
+\`repo\` and \`did\` take a handle or a DID. Responses are passed on unchanged. Calls with an Authorization header and procedures are refused.
+
 ## Errors
 
-Errors are JSON too: \`{"error": "...", "status": 404}\`, with the same HTTP status.
+Errors are JSON too: \`{"error": "...", "status": 404}\`, with the same HTTP status. \`/xrpc\` errors are \`{"error", "message"}\`.
 
 ## For agents
 
