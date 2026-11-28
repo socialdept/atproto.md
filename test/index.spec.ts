@@ -339,6 +339,12 @@ describe('/skill.md', () => {
 		expect(body).toContain('## Endpoint reference');
 	});
 
+	it('updates itself when run with update', async () => {
+		const body = await (await workerFetch('http://example.com/skill.md')).text();
+		expect(body).toContain('Arguments: $ARGUMENTS');
+		expect(body).toContain('curl -fsS http://example.com/skill.md -o <that file>.new');
+	});
+
 	it('tells the agent to prefer the MCP tools when they are installed', async () => {
 		const body = await (await workerFetch('http://example.com/skill.md')).text();
 		expect(body).toContain('## Use the MCP server when it is installed');

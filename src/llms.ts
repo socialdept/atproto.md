@@ -61,6 +61,16 @@ description: Read any public AT Protocol data as raw JSON from one address. Reso
 
 Every Atmosphere record, one address. Read-only, no auth. Base URL: ${origin}
 
+## Updating this skill
+
+Arguments: $ARGUMENTS
+
+If the argument is \`update\`, update this skill and do nothing else:
+
+1. Find the file this skill was loaded from, such as \`~/.claude/commands/atproto.md\` or \`~/.claude/skills/atproto-md/SKILL.md\`.
+2. Download the latest version next to it: \`curl -fsS ${origin}/skill.md -o <that file>.new\`. If the download fails, delete the \`.new\` file, leave the skill as it was and say why.
+3. Compare the two, replace the skill with the new file (\`mv <that file>.new <that file>\`), and tell the user in a few lines what changed, or that it was already up to date.
+
 ## When to use this skill
 
 - Read a record, a collection or a whole repo on any PDS, for Bluesky or any other lexicon
