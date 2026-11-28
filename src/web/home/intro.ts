@@ -17,7 +17,7 @@ export const INTRO_STYLES = `
 .intro .field .prefix { clip-path: inset(0 100% 0 0); }
 .intro .field input, .intro .examples .chip, .intro .ask .btn, .intro .out { opacity: 0; }
 .intro .examples .chip, .intro .ask .btn { transform: scale(.7); }
-.intro .wire, .intro .wire-cut { opacity: 0; }
+.intro .wire, .intro .wire-cut__head { opacity: 0; }
 
 .intro-play .bar__mark { opacity: 1; transform: none; transition: opacity .4s ease-out, transform .7s ${INTRO_SPRING}; }
 .intro-play .bar .link, .intro-play .bar .btn--ghost { opacity: 1; transition: opacity .6s ease-out .15s; }
@@ -31,7 +31,7 @@ export const INTRO_STYLES = `
 .intro-play .ask .btn { opacity: 1; transform: none; transition: opacity .25s ease-out 1.95s, transform .55s ${INTRO_SPRING} 1.95s; }
 .intro-play .examples .chip { opacity: 1; transform: none; transition: opacity .25s ease-out calc(2.1s + var(--c) * 60ms), transform .5s ${INTRO_SPRING} calc(2.1s + var(--c) * 60ms); }
 .intro-play .out { opacity: 1; transition: opacity .6s ease-out 2.45s; }
-.intro-play .wire, .intro-play .wire-cut { opacity: 1; transition: opacity .8s ease-out 2.4s; }
+.intro-play .wire, .intro-play .wire-cut__head { opacity: 1; transition: opacity .8s ease-out 2.4s; }
 `;
 
 // Runs in <head>: marks the page before the first paint, then splits the headline into words and numbers the chips,
