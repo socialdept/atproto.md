@@ -22,6 +22,10 @@ describe('classifyHttp (stats tracking)', () => {
 		expect(c('/at://bsky.app/app.bsky.feed.post')?.key).toBe('route:records');
 		expect(c('/plc/audit/bsky.app')?.key).toBe('route:plc/audit');
 		expect(c('/lexicon/app.bsky.feed.post')?.key).toBe('route:lexicon');
+		expect(c('/did/doc/bsky.app')?.key).toBe('route:did/doc');
+		expect(c('/did/trace/did:plc:abc')).toMatchObject({ key: 'route:did/trace', idType: 'plc' });
+		expect(c('/repo/car/bsky.app')?.key).toBe('route:repo/car');
+		expect(c('/xrpc/com.atproto.repo.getRecord?repo=bsky.app')).toMatchObject({ key: 'route:xrpc', idType: 'handle' });
 	});
 
 	it('never counts the home page or the stats page', () => {

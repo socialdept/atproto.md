@@ -30,9 +30,9 @@ Errors use the same format, with the HTTP status repeated in the body:
 {"error":"Could not locate record","status":400}
 ```
 
-## XRPC responses
+## Files and XRPC responses
 
-[`/xrpc`](endpoints/xrpc.md) is the exception: it passes each server's response on unchanged, in that server's own format, and its errors use the XRPC shape `{"error", "message"}`.
+[`/repo/car`](endpoints/records.md#get-repocaractor) returns a CAR file download in place of JSON. [`/xrpc`](endpoints/xrpc.md) is the other exception: it passes each server's response on unchanged, in that server's own format, and its errors use the XRPC shape `{"error", "message"}`.
 
 ## Pages for reading
 

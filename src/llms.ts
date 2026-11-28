@@ -38,6 +38,7 @@ expand also returns the records the results reference (reply parent and root, qu
 - [Latest posts](${origin}/at://bsky.app/app.bsky.feed.post?limit=5)
 - [A post and what it replies to](${origin}/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&expand)
 - [Repos using site.standard.document](${origin}/discover/site.standard.document)
+- [A resolution trace](${origin}/did/trace/bsky.app)
 - [A record through XRPC](${origin}/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self)
 
 ## Agents
@@ -50,7 +51,7 @@ expand also returns the records the results reference (reply parent and root, qu
 export function skillMd(origin: string): string {
 	return `---
 name: atproto-md
-description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS, entryway and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read a did:plc identity's PLC history, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
+description: Read any public AT Protocol data as raw JSON from one address. Resolve a handle or DID to its PDS, entryway and collections, read records from any collection on any PDS, fetch up to 25 records by at:// URI or web link in one call with the records they reference, find backlinks (likes, replies, quotes, follows), list every repo using a lexicon, fetch a lexicon schema, read a did:plc identity's PLC history, trace why an account does not resolve, export a repo as a CAR file, and call any XRPC query without resolving the account's PDS. Use whenever the user shares an at:// URI, a bsky.app link, a handle or DID, or a lexicon NSID.
 ---
 
 # atproto-md
@@ -89,6 +90,9 @@ curl ${origin}/at://bsky.app/app.bsky.actor.profile/self
 
 # Several records, with the records they reference
 curl "${origin}/get?uri=https://bsky.app/profile/bsky.app/post/3n2mkgfb4tk2d&uri=at://bsky.app/app.bsky.actor.profile/self&expand"
+
+# Why an account does not resolve, step by step
+curl ${origin}/did/trace/bsky.app
 
 # Any XRPC query, routed to the account's PDS
 curl "${origin}/xrpc/com.atproto.repo.getRecord?repo=bsky.app&collection=app.bsky.actor.profile&rkey=self"

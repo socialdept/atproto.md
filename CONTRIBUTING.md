@@ -94,6 +94,7 @@ src/
   refs.ts               # Address parsing, record references and blobs
   links.ts              # Web links to AT URIs: the client table and at-tags in pages
   identity.ts           # Handle, DID and PLC resolution
+  trace.ts              # /did/trace: each resolution step, run and recorded
   pds.ts                # PDS XRPC helper
   relay.ts              # Relay helper for /discover
   constellation.ts      # Constellation helper for /backlinks
@@ -123,6 +124,7 @@ test/
   links.spec.ts         # Web links and at-tags
   web.spec.ts           # Page helpers: figures and parameter tables
   xrpc.spec.ts          # /xrpc routing, refusals and response headers
+  trace.spec.ts         # Resolution traces and the did and repo namespaces
 ```
 
 ## Checking against real data

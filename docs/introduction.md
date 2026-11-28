@@ -2,7 +2,7 @@
 
 **atproto.md** gives agents one address for every Atmosphere record. Records live on each account's own PDS, so reading one normally means resolving a handle, reading a DID document and finding the server first. atproto.md does that on every call, for any collection on any PDS, and returns public data only. It runs as a Cloudflare Worker.
 
-- **One address:** put an `at://` URI, a handle or a web link after `atproto.md/` and get the repo, a collection or a single record back, from the account's own PDS.
+- **One address:** put an `at://` URI, a handle or a web link after `atproto.md/` and get the repo, a collection or a single record back, from the account's own PDS, or the whole repo as a CAR file.
 - **One service URL:** point any AT Protocol SDK or XRPC client at `https://atproto.md`, and each [XRPC](endpoints/xrpc.md) call goes to the server that answers it, with handles resolved on the way.
 - **Raw records:** every record is the exact JSON the PDS stores, with direct blob URLs.
 - **Fewer calls:** fetch up to 25 records by URI or web link in one call, and add `expand` to get the records they reference in the same response.
